@@ -6,13 +6,31 @@ import { PiEyeBold, PiEyeClosedBold } from "react-icons/pi";
 import { FaFacebookSquare } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { IoChevronBackCircle } from "react-icons/io5";
+import { useRouter } from 'next/navigation';
+import ExpertVerification from './ExpertVerification';
 
 type Props = {
     role: 'enthusiast' | 'expert'; 
+    onBack: () => void;
 }
-export default function SignUpForm({role} : Props) {
+export default function SignUpForm({role, onBack} : Props) {
     const [showPassword,setShowPassword] = useState(false);
     const [showConfirmPassword,setShowConfirmPassword] = useState(false);
+    const [showVerification, setShowVerification] = useState(false);
+    const router = useRouter();
+
+    const handleClick = () => {
+        if (role === 'enthusiast'){
+            router.push("/auth/login");
+        }
+        else {
+            setShowVerification(true);
+        }
+    };
+
+    if (showVerification) {
+        return <ExpertVerification />;
+    }
 
   return (
     <div className="z-10 w-full h-auto max-w-6xl bg-white rounded-r-4xl flex overflow-hidden">
@@ -24,8 +42,10 @@ export default function SignUpForm({role} : Props) {
         </div>
 
         <div className="relative flex-1 flex flex-col items-center justify-start p-2">
-            <button className="absolute top-0 left-0 m-3 rounded-full px-5 py-1 bg-[#D0E69069] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-base font-poppins-bold text-[#082E0DB0] flex items-center justify-center gap-2
-                hover:bg-[#95AB33B2] transition-colors dura ease-in-out cursor-pointer"
+            <button 
+                onClick={onBack}
+                className="absolute top-0 left-0 m-3 rounded-full px-5 py-1 bg-[#D0E69069] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-base font-poppins-bold text-[#082E0DB0] flex items-center justify-center gap-2
+                    hover:bg-[#95AB33B2] transition-colors dura ease-in-out cursor-pointer"
             >
                 <IoChevronBackCircle className="pointer-events-none"/>
                 back
@@ -130,8 +150,10 @@ export default function SignUpForm({role} : Props) {
                     </div>
                 </div>
 
-                <button className="w-65 mt-3 rounded-lg font-poppins-bold text-2xl p-2 text-[#082E0D] bg-[#95AB33B2] 
-                    shadow-[0_4px_8px_rgba(0,0,0,0.3)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer">
+                <button 
+                    onClick={handleClick}
+                    className="w-65 mt-3 rounded-lg font-poppins-bold text-2xl p-2 text-[#082E0D] bg-[#95AB33B2] 
+                        shadow-[0_4px_8px_rgba(0,0,0,0.3)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer">
                     Sign Up
                 </button>
 

@@ -3,12 +3,22 @@
 import { IoChevronBackCircle } from "react-icons/io5";
 import React, { useState } from 'react'
 import SignUpForm from "./SignUpForm";
+import { useRouter } from "next/navigation";
 
 export default function SignUpChoose() {
     const [selectedRole, setSelectedRole] = useState<'enthusiast' | 'expert' | null>(null);
+    const router = useRouter();
 
     if (selectedRole){
-        return <SignUpForm role={selectedRole} />
+        return <SignUpForm role={selectedRole} onBack={() => setSelectedRole(null)} />;
+    }
+
+    const handleBack = () => {
+        if (window.history.length > 1) {
+            router.back();
+        } else {
+            router.push("/");
+        }
     }
 
   return (
@@ -21,14 +31,18 @@ export default function SignUpChoose() {
         </div>
 
         <div className="flex justify-between items-center px-5 py-3">
-            <button className="rounded-full px-5 py-1 bg-[#D0E69069] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-base font-poppins-bold text-[#082E0DB0] flex items-center justify-center gap-2
-                hover:bg-[#95AB33B2] transition-colors dura ease-in-out cursor-pointer"
+            <button 
+                onClick={handleBack}
+                className="rounded-full px-5 py-1 bg-[#D0E69069] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-base font-poppins-bold text-[#082E0DB0] flex items-center justify-center gap-2
+                    hover:bg-[#95AB33B2] transition-colors dura ease-in-out cursor-pointer"
             >
                 <IoChevronBackCircle className="pointer-events-none"/>
                 back
             </button>
-            <button className="rounded-full px-5 py-1 bg-[#D0E69069] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-base font-poppins-bold text-[#082E0DB0] flex items-center justify-center gap-2
-                hover:bg-[#95AB33B2] transition-colors dura ease-in-out cursor-pointer"
+            <button 
+                onClick={() => router.push("/auth/login")}
+                className="rounded-full px-5 py-1 bg-[#D0E69069] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-base font-poppins-bold text-[#082E0DB0] flex items-center justify-center gap-2
+                    hover:bg-[#95AB33B2] transition-colors dura ease-in-out cursor-pointer"
             >                
                 Log In
             </button>
