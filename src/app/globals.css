@@ -1,1 +1,104 @@
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-poppins: 'Poppins', sans-serif;
+  }
+  
+  body {
+    @apply bg-white text-black;
+    font-family: var(--font-poppins);
+  }
+}
+
+/* Custom Poppins font utilities */
+@layer utilities {
+  .font-poppins-light {
+    font-family: var(--font-poppins);
+    font-weight: 300;
+  }
+
+  .font-poppins-regular {
+    font-family: var(--font-poppins);
+    font-weight: 400;
+  }
+
+  .font-poppins-medium {
+    font-family: var(--font-poppins);
+    font-weight: 500;
+  }
+
+  .font-poppins-semibold {
+    font-family: var(--font-poppins);
+    font-weight: 600;
+  }
+
+  .font-poppins-bold {
+    font-family: var(--font-poppins);
+    font-weight: 700;
+  }
+
+  .font-poppins-extrabold {
+    font-family: var(--font-poppins);
+    font-weight: 800;
+  }
+
+  .font-poppins-black {
+    font-family: var(--font-poppins);
+    font-weight: 900;
+  }
+
+  /* Italic variants */
+  .font-poppins-light-italic {
+    font-family: var(--font-poppins);
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  .font-poppins-italic {
+    font-family: var(--font-poppins);
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .font-poppins-medium-italic {
+    font-family: var(--font-poppins);
+    font-weight: 500;
+    font-style: italic;
+  }
+
+  .font-poppins-semibold-italic {
+    font-family: var(--font-poppins);
+    font-weight: 600;
+    font-style: italic;
+  }
+
+  .font-poppins-bold-italic {
+    font-family: var(--font-poppins);
+    font-weight: 700;
+    font-style: italic;
+  }
+
+  .font-poppins-extrabold-italic {
+    font-family: var(--font-poppins);
+    font-weight: 800;
+    font-style: italic;
+  }
+
+  .font-poppins-black-italic {
+    font-family: var(--font-poppins);
+    font-weight: 900;
+    font-style: italic;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Remove default margins */
+body, h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
+  padding: 0;
+}
