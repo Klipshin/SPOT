@@ -67,6 +67,7 @@ export default function HomePage() {
     setOpenIndex(openIndex === index ? null : index);
   };
 
+
   return (
     <main className="bg-white overflow-x-hidden justify-center">
       {/* Hero Section */}
@@ -133,7 +134,7 @@ export default function HomePage() {
     find out!
   </p>
   
-  {/* White Text Layer with Green Stroke (Top) */}
+  {/* White Text Layer with Green Stroke-top */}
   <p 
     className="absolute top-0 left-0 text-[48px] font-extrabold text-white leading-normal justify-center-safe"
     style={{
@@ -206,7 +207,7 @@ export default function HomePage() {
   {/* Foreground Image */}
   <div className="relative w-[430px] h-[283px] left-[275px] rotate-[-1deg] rounded-[32px]">
     <Image
-      src="/pic1.svg" // replace with your actual path
+      src="/pic1.svg"
       alt="Wildlife"
       width={430}
       height={283}
@@ -237,7 +238,7 @@ export default function HomePage() {
 </div>
       </section>
 
-      {/* What is SPOT Section */}
+      {/* What is SPOT */}
       <section className="relative w-full h-auto bg-cover bg-center bg-no-repeat m-0 p-0">
         <Image
           src="/wisbg.svg"
@@ -263,7 +264,7 @@ export default function HomePage() {
                bg-[linear-gradient(175deg,_#95AB33_51.81%,_#23732F_81.92%,_#082E0D_110.23%)] 
                bg-clip-text text-transparent 
                [-webkit-text-stroke:1px_#000] 
-               [text-shadow:none]" // <-- This is the fix. It stops the ugly shadow from the h2.
+               [text-shadow:none]"
   >
     SPOT
   </span>
@@ -298,14 +299,12 @@ export default function HomePage() {
             </span>
           </div>
 
-          {/* I changed mb-12 to mb-24 to double the space below it */}
         <p className="text-3xl font-medium text-[#ffec84] mb-24">
           SPOT is an AI-powered wildlife identification platform that helps communities recognize species quickly, safely, and accurately.
         </p>
 
-        <div className="h-15" /> {/* Added space between the two paragraphs */}
+        <div className="h-15" /> 
 
-        {/* This paragraph remains unchanged */}
         <p className="text-3xl font-medium text-[#ffec84]">
           By combining technology and community knowledge, SPOT bridges the gap between humans and wildlife, reducing risks while protecting biodiversity.
         </p>
@@ -327,7 +326,7 @@ export default function HomePage() {
 <br />
 
 
-  {/* Step 1: Snap or Upload - Extends Left */}
+  {/* Snap or Upload */}
   <div className="relative mb-20 flex justify-end">
     {/* Shadow Layer */}
     <div className="absolute top-6 right-2 w-[1300px] h-[230px] bg-[#000000] rounded-full -mr-[104px]" />
@@ -351,7 +350,7 @@ export default function HomePage() {
     </div>
   </div>
 
-  {/* Step 2: Identify Instantly - Extends Right */}
+  {/* Identify Instantly */}
   <div className="relative mb-20">
     {/* Shadow Layer */}
     <div className="absolute top-6 left-2 w-[1400px] h-[230px] bg-[#000000] rounded-full -ml-[104px]" />
@@ -375,7 +374,7 @@ export default function HomePage() {
     </div>
   </div>
 
-  {/* Step 3: Explore & Learn - Extends Left */}
+  {/* Explore & Learn */}
   <div className="relative mb-20 flex justify-end">
     {/* Shadow Layer */}
     <div className="absolute top-6 right-2 w-[1300px] h-[230px] bg-[#000000] rounded-full -mr-[104px]" />
@@ -399,7 +398,7 @@ export default function HomePage() {
     </div>
   </div>
 
-  {/* Step 4: Join Communities - Extends Right */}
+  {/* Join Communities - Extends Right */}
   <div className="relative mb-20">
     {/* Shadow Layer */}
     <div className="absolute top-6 left-2 w-[1550px] h-[230px] bg-[#000000] rounded-full -ml-[104px]" />
@@ -456,7 +455,7 @@ export default function HomePage() {
 
      {/* Who Can Join */}
 <section className="relative py-50 w-[1405px] h-[1178px] mx-auto mr-[1500px]">
-  {/* Decorative Images */}
+
   <Image
     src="/bookbg.svg"
     alt="Decorative"
@@ -479,7 +478,7 @@ export default function HomePage() {
     className="absolute top-[45px] left-[45px]"
   />
 
-  {/* Title */}
+  {/* who can join spot */}
   <h2 className="absolute top-[27px] left-[525px] w-[704px] text-[64px] font-extrabold bg-clip-text text-transparent"
   style={{
     background: 'linear-gradient(270deg, #194B2F 16.81%, #2A7E4E 54.61%, #33975E 78.26%, #3CB16E 96.65%)',
@@ -533,7 +532,6 @@ export default function HomePage() {
     </p>
   </div>
 
-  {/* Decorative Image */}
   <Image
     src="/binoculars.svg"
     alt="Decorative"
@@ -564,7 +562,6 @@ export default function HomePage() {
     </p>
   </div>
 
-  {/* Decorative Image */}
   <Image
     src="/book.svg"
     alt="Decorative"
@@ -573,7 +570,7 @@ export default function HomePage() {
     className="absolute top-[854px] left-[215px]"
   />
 
-  {/* Ways to Explore Title */}
+  {/* Ways to Explore */}
   <h2 className="absolute top-[530px] left-[316px] w-[769px] text-5xl font-extrabold text-right bg-clip-text text-transparent mb-40"
   style={{
     background: 'linear-gradient(270deg, #7E604D 14.8%, #517E2A 62.28%)',
@@ -632,8 +629,7 @@ export default function HomePage() {
   </div>
 </section>
 
-      {/* Footer Section */}
-{/* Footer Section */}
+      {/* Footer */}
 <section className="relative h-[576px] overflow-hidden">
   <Image
     src="/footer.svg"
