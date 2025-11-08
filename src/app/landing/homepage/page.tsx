@@ -68,9 +68,9 @@ export default function HomePage() {
   };
 
   return (
-    <main className="bg-white overflow-x-hidden">
+    <main className="bg-white overflow-x-hidden justify-center">
       {/* Hero Section */}
-      <section className="relative h-screen min-h-[743px] m-0 p-0">
+      <section className="relative h-screen min-h-[743px] m-0 p-0 justify-center-safe">
         <Image
           src="/landingbg1.png"
           alt="Background"
@@ -80,7 +80,7 @@ export default function HomePage() {
         />
         
         {/* Mascot */}
-        <div className="absolute top-7 left-0 w-[695px] h-[746px]">
+        <div className="absolute top-7 left-0 w-[695px] h-[746px] justify-center-safe">
           <Image
             src="/spotmascotshadow.svg"
             alt="SPOT Mascot Shadow"
@@ -98,7 +98,7 @@ export default function HomePage() {
         </div>
 
         {/* Camera Icon with Focus Frame */}
-        <div className="absolute top-[106px] left-[536px] w-[474px] h-[400px]">
+        <div className="absolute top-[106px] left-[536px] w-[474px] h-[400px] justify-center-safe">
           <div className="absolute top-[31px] left-6 w-[382px] h-[341px] bg-[#b3d060] rounded-[64px] rotate-[-8.25deg]" />
           <div className="absolute top-[29px] left-[65px] w-[382px] h-[341px] bg-[#748348] rounded-[64px] rotate-[9.59deg]" />
           <div className="absolute top-[30px] left-[37px] w-[382px] h-[341px] bg-[#deecb6] rounded-[64px] border-[3px] border-solid border-[#373333]" />
@@ -119,7 +119,7 @@ export default function HomePage() {
         </div>
 
        {/* Hero Text with Double Layer */}
-<div className="absolute top-[158px] left-[1052px] w-[303.743px] h-[254.525px] flex-shrink-0">
+<div className="absolute top-[158px] left-[1052px] w-[303.743px] h-[254.525px] flex-shrink-0 justify-center-safe">
   {/* Black Shadow Layer (Bottom) - offset */}
   <p 
     className="absolute top-[7.26px] left-[3.47px] text-[48px] font-extrabold text-black leading-normal"
@@ -135,7 +135,7 @@ export default function HomePage() {
   
   {/* White Text Layer with Green Stroke (Top) */}
   <p 
-    className="absolute top-0 left-0 text-[48px] font-extrabold text-white leading-normal"
+    className="absolute top-0 left-0 text-[48px] font-extrabold text-white leading-normal justify-center-safe"
     style={{
       WebkitTextStroke: '7px #213E26',
       paintOrder: 'stroke fill',
@@ -150,7 +150,7 @@ export default function HomePage() {
 </div>
 
         {/* Upload Button */}
-        <div className="absolute top-[517px] left-[573px] w-[327px] h-[50px]">
+        <div className="absolute top-[517px] left-[573px] w-[327px] h-[50px] justify-center-safe">
           <div className="relative">
             <Image
               src="/uploadimgshadow.svg"
@@ -166,15 +166,15 @@ export default function HomePage() {
               height={50}
               className="absolute top-0 left-px"
             />
-            <div className="absolute top-1.5 left-[92px] font-extrabold text-[#246440] text-xl">
+            <div className="absolute top-1.5 left-[92px] font-extrabold text-[#246440] text-xl justify-center-safe">
               Upload Image
             </div>
           </div>
         </div>
 
         {/* Sample Images */}
-        <div className="absolute top-[601px] left-[573px] w-[628px] h-[91px]">
-          <div className="absolute top-0 left-0 w-[626px] h-[91px] bg-white/85 rounded-[20px]" />
+        <div className="absolute top-[601px] left-[573px] w-[628px] h-[91px] justify-center-safe">
+          <div className="absolute top-0 left-0 w-[626px] h-[91px] bg-white/85 rounded-[20px] justify-center-safe" />
           <p className="absolute top-[22px] left-[39px] font-bold text-[#1e613b] text-[15px]">
             No image?<br />Try one of these:
           </p>
@@ -186,8 +186,15 @@ export default function HomePage() {
       </section>
 
       {/* Photo Cards Section */}
-      <section className="relative bg-cover bg-no repeat bg-center m-0 p-0" style={{backgroundImage: 'url(/landingbg2.png)'}}>
-      <p className="relative top-[200px] left-[150px] text-center text-black text-[32px] font-bold max-w-[668px] mx-auto mb-12">
+      <section className="relative bg-cover bg-no repeat bg-center m-0 p-0 justify-center-safe">
+        <Image
+          src="/landingbg2.png"
+          alt="Background"
+          fill
+          className="object-cover"
+          priority
+        />
+      <p className="relative top-[200px] left-[150px] text-center text-black text-[32px] font-bold max-w-[668px] mx-auto mb-12 justify-items-center-safe">
   From snakes in your backyard<br />to rare birds in the wild,
 </p>
 
@@ -213,12 +220,12 @@ export default function HomePage() {
         </p>
 
         {/* Card 2 */}
-<div className="relative w-[420px] h-[279px] mx-auto mb-8">
+<div className="relative w-[420px] h-[279px] mx-auto mb-8 justify-center-safe">
   {/* Background Layer */}
-  <div className="absolute top-[-100px] left-[-300px] w-[429px] h-[282px] bg-[#9e6e50] rounded-[31px] rotate-[-12deg] shadow-lg"></div>
+  <div className="absolute top-[-100px] left-[-300px] w-[429px] h-[282px] bg-[#9e6e50] rounded-[31px] rotate-[-12deg] shadow-lg justify-center-safe"></div>
 
   {/* Foreground Image */}
-  <div className="relative w-[420px] h-[279px] top-[-100px] left-[-275px] rotate-[1deg] rounded-[35px]">
+  <div className="relative w-[420px] h-[279px] top-[-100px] left-[-275px] rotate-[1deg] rounded-[35px] justify-center-safe">
     <Image
       src="/pic2.svg"
       alt="Wildlife"
@@ -438,7 +445,6 @@ export default function HomePage() {
   </p>
 </div>
 
-
   <Image
     src="/bird.svg"
     alt="Bird"
@@ -580,7 +586,7 @@ export default function HomePage() {
 </section>
 
       {/* FAQs Section */}
-<section className="py-20 px-6 lg:px-12">
+<section className="py-20 px-6 lg:px-12 justify-center-safe">
   <h2 className="text-[40px] font-bold bg-gradient-to-r from-[#7d5917] to-[#70cb3f] bg-clip-text text-transparent mb-12 text-left">
     Frequently Asked Questions (FAQs)
   </h2><br /><br />
