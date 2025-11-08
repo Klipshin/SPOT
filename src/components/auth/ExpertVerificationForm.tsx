@@ -6,6 +6,7 @@ import FileUpload from './FileUpload';
 import JobInput from './JobInput';
 import { useRouter } from 'next/navigation';
 import { IoChevronBackCircle } from "react-icons/io5";
+import VerificationModal from './VerificationModal';
 
 export default function ExpertVerification() {
     const jobOptions = [
@@ -16,16 +17,21 @@ export default function ExpertVerification() {
         "Marketing Specialist",
     ];
 
-  const [selectedJob, setSelectedJob] = useState("");
-  const [profileLink, setProfileLink] = useState("");
+    const [selectedJob, setSelectedJob] = useState("");
+    const [profileLink, setProfileLink] = useState("");
+    const [showVerificationModal, setShowVerificationModal] = useState(false);
 
-  const router = useRouter();
-  const handleBack = () => {
+    const router = useRouter();
+    const handleBack = () => {
         if (window.history.length > 1) {
             router.back();
         } else {
             router.push("/");
         }
+    }
+
+    if (showVerificationModal) {
+        return <VerificationModal />;
     }
 
   return (
@@ -117,7 +123,7 @@ export default function ExpertVerification() {
             </div>
 
             <button 
-                onClick={() => router.push("/auth/login")}
+                onClick={() => setShowVerificationModal(true)}
                 className="relative m-10 rounded-full px-20 py-2 bg-[#C3DEE1CC] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-2xl font-poppins-bold text-[#034CBCBA] flex items-center justify-center gap-2
                     hover:bg-[#034CBCBA] hover:text-[#C3DEE1CC] transition-colors dura ease-in-out cursor-pointer"
             >

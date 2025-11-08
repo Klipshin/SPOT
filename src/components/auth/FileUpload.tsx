@@ -40,7 +40,7 @@ export default function FileUpload({ label, id, acceptedFiles }: FileUploadProps
           className={`flex items-center gap-2 py-1 px-5 w-125 rounded-xl cursor-pointer ${fileUploaded}  hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors duration-200 ease-in-out`}
         >
           <FaFolder className="text-yellow-300" />
-          <span className="truncate max-w-[150px]">
+          <span className="truncate max-w-full">
             {fileName || "Choose File"}
           </span>  
         </button>
