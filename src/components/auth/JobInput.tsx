@@ -41,7 +41,7 @@ const JobInput: FC<JobInputProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="relative flex items-center justiyf-center gap-5">
+    <div ref={containerRef} className="relative flex items-center justify-center gap-5">
         <h3 className="text-lg font-poppins-medium-italic">{"Job/Occupation"}</h3>
       <div
         className={`flex items-center border rounded-xl overflow-hidden transition-colors ${

@@ -8,7 +8,7 @@ export default function VerificationModal() {
     const closeModal = () => setIsOpen(false);
 
     const handleAction = () => {
-        router.push("/");
+        router.push("/initial-setup");
         closeModal();
     };
 
