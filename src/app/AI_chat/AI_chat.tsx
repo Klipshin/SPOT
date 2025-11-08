@@ -67,9 +67,15 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       return;
     }
 
+    const preview = URL.createObjectURL(file);
     setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    setPreviewUrl(preview);
     setShowMainContent(false);
+
+    // Automatically send the image for identification
+    setTimeout(() => {
+      handleIdentifyImageAuto(file, preview);
+    }, 100);
   };
 
   const openCamera = async () => {
@@ -104,9 +110,15 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       canvas.toBlob((blob) => {
         if (blob) {
           const file = new File([blob], "camera-capture.jpg", { type: "image/jpeg" });
+          const preview = URL.createObjectURL(file);
           setSelectedFile(file);
-          setPreviewUrl(URL.createObjectURL(file));
+          setPreviewUrl(preview);
           closeCamera();
+          
+          // Automatically send captured photo
+          setTimeout(() => {
+            handleIdentifyImageAuto(file, preview);
+          }, 100);
         }
       }, "image/jpeg");
     }
@@ -121,9 +133,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
     setShowMainContent(true);
   };
 
-  const handleIdentifyImage = async () => {
-    if (!selectedFile) return;
-
+  const handleIdentifyImageAuto = async (file: File, preview: string) => {
     setIsLoading(true);
 
     // Add user message with image
@@ -131,7 +141,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       id: Date.now().toString(),
       type: "user",
       content: "Please identify this species",
-      image: previewUrl || undefined,
+      image: preview,
       timestamp: new Date(),
     };
 
@@ -139,7 +149,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
     try {
       const formData = new FormData();
-      formData.append("image", selectedFile);
+      formData.append("image", file);
 
       const response = await fetch("/api/identify", {
         method: "POST",
@@ -152,11 +162,22 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
       const data = await response.json();
 
-      // Add assistant response
+      // Determine message based on prediction count
+      const predictionCount = data.predictions?.length || 0;
+      let responseText = "";
+
+      if (predictionCount === 0) {
+        responseText = "I couldn't confidently identify any species from this image. Please try a clearer photo.";
+      } else if (predictionCount === 1) {
+        responseText = "I've analyzed the image — this species is **very likely** to be:";
+      } else {
+        responseText = "I've analyzed the image. Here are the top 3 possible species:";
+      }
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
-        content: "I've analyzed the image. Here are the top 3 possible species:",
+        content: responseText,
         predictions: data.predictions,
         timestamp: new Date(),
       };
@@ -182,13 +203,8 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   };
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() && !selectedFile) return;
-
-    if (selectedFile) {
-      handleIdentifyImage();
-      setInputValue("");
-      return;
-    }
+    // Only process if there's text input
+    if (!inputValue.trim()) return;
 
     // Text-only message
     const userMessage: Message = {
@@ -391,8 +407,12 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         />
         
         <button
-          onClick={handleSendMessage}
-          disabled={isLoading || (!inputValue.trim() && !selectedFile)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleSendMessage();
+          }}
+          disabled={isLoading || !inputValue.trim()}
           className="absolute top-[15px] right-[12px] w-[35px] h-[35px] bg-[#95ab33] rounded-full flex items-center justify-center hover:bg-[#7a8f2a] transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span className="text-white text-lg">→</span>
@@ -403,7 +423,10 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         className="absolute top-[587px] left-[1371px] w-[34px] h-[34px] aspect-[1] object-cover cursor-pointer hover:opacity-80"
         alt="Gallery"
         src="/gallery 2.svg"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={(e) => {
+          e.stopPropagation();
+          fileInputRef.current?.click();
+        }}
       />
 
       {/* Hidden File Input */}
