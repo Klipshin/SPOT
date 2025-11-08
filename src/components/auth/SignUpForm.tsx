@@ -7,7 +7,7 @@ import { FaFacebookSquare } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { IoChevronBackCircle } from "react-icons/io5";
 import { useRouter } from 'next/navigation';
-import ExpertVerification from './ExpertVerification';
+import ExpertVerification from './ExpertVerificationForm';
 
 type Props = {
     role: 'enthusiast' | 'expert'; 
@@ -102,7 +102,7 @@ export default function SignUpForm({role, onBack} : Props) {
                         <button 
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer"
+                            className="absolute top-1/2 right-3 -translate-y-1/2 bg-white cursor-pointer"
                         >
                             {showPassword ? (
                                 <PiEyeBold className="text-2xl" />
@@ -131,7 +131,7 @@ export default function SignUpForm({role, onBack} : Props) {
                         <button 
                             type="button"
                             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer"
+                            className="absolute top-1/2 right-3 -translate-y-1/2 bg-white cursor-pointer"
                         >
                             {showConfirmPassword ? (
                                 <PiEyeBold className="text-2xl" />

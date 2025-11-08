@@ -76,7 +76,7 @@ export default function LoginPage() {
                         <button 
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer"
+                            className="absolute top-1/2 right-3 -translate-y-1/2 bg-white cursor-pointer"
                         >
                             {showPassword ? (
                                 <PiEyeBold className="text-2xl" />
