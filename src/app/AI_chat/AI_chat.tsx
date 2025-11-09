@@ -31,11 +31,37 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showMainContent, setShowMainContent] = useState(true);
+  const [scale, setScale] = useState(1);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+
+  // Calculate scale to fit viewport without zooming in
+  useEffect(() => {
+    const calculateScale = () => {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const designWidth = 1440;
+      const designHeight = 656;
+      
+      // Calculate scale to fit both dimensions
+      const scaleX = viewportWidth / designWidth;
+      const scaleY = viewportHeight / designHeight;
+      let newScale = Math.min(scaleX, scaleY);
+      
+      // Ensure reasonable bounds (scale down only, no zoom in)
+      newScale = Math.max(newScale, 0.5);
+      newScale = Math.min(newScale, 1);
+      
+      setScale(newScale);
+    };
+    
+    calculateScale();
+    window.addEventListener('resize', calculateScale);
+    return () => window.removeEventListener('resize', calculateScale);
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -75,6 +101,12 @@ export const AiChatLoggedIn = (): React.ReactElement => {
     // Automatically send the image for identification
     setTimeout(() => {
       handleIdentifyImageAuto(file, preview);
+      // Clear preview immediately after starting identification
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }, 100);
   };
 
@@ -118,6 +150,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
           // Automatically send captured photo
           setTimeout(() => {
             handleIdentifyImageAuto(file, preview);
+            // Clear preview immediately after starting identification
+            setSelectedFile(null);
+            setPreviewUrl(null);
           }, 100);
         }
       }, "image/jpeg");
@@ -266,9 +301,15 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   };
 
   return (
-    <div className="bg-[#f1eee5] overflow-hidden w-full min-w-[1440px] min-h-[656px] relative">
+    <div className="bg-[#f1eee5] w-full h-screen relative overflow-hidden flex items-center justify-center">
+      <div className="relative" style={{ 
+        width: '1440px', 
+        height: '656px',
+        transform: `scale(${scale})`,
+        transformOrigin: 'center center'
+      }}>
       {/* Header Bar */}
-      <div className="absolute top-0 left-0 w-[1440px] h-11 bg-[#dad2b9]" />
+      <div className="absolute top-0 left-0 right-0 w-full h-11 bg-[#dad2b9]" />
 
       {/* SPOT Logo Text */}
       <div className="absolute -top-0.5 left-[78px] [text-shadow:0px_4px_4px_#00000040] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
@@ -322,34 +363,34 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                     className="w-full rounded-lg mb-2 max-h-[200px] object-cover"
                   />
                 )}
-                <p className="text-sm [font-family:'Poppins',Helvetica]">{message.content}</p>
+                <p className="text-sm">{message.content}</p>
                 
                 {message.predictions && (
                   <div className="mt-3 space-y-3 text-left">
                     {message.predictions.map((pred, idx) => (
                       <div key={idx} className="border-t pt-2">
-                        <h3 className="font-bold text-base [font-family:'Poppins-Bold',Helvetica]">{pred.common_name}</h3>
-                        <p className="text-xs italic text-gray-600 [font-family:'Poppins-Italic',Helvetica]">{pred.scientific_name}</p>
+                        <h3 className="font-bold text-base">{pred.common_name}</h3>
+                        <p className="text-xs italic text-gray-600">{pred.scientific_name}</p>
                         <div className="mt-1 flex flex-wrap gap-2">
-                          <span className="text-xs bg-yellow-100 px-2 py-0.5 rounded [font-family:'Poppins',Helvetica]">
+                          <span className="text-xs bg-yellow-100 px-2 py-0.5 rounded">
                             {pred.danger_level}
                           </span>
-                          <span className="text-xs bg-blue-100 px-2 py-0.5 rounded [font-family:'Poppins',Helvetica]">
+                          <span className="text-xs bg-blue-100 px-2 py-0.5 rounded">
                             {pred.status}
                           </span>
-                          <span className="text-xs bg-green-100 px-2 py-0.5 rounded [font-family:'Poppins',Helvetica]">
+                          <span className="text-xs bg-green-100 px-2 py-0.5 rounded">
                             {pred.conservation_status}
                           </span>
                         </div>
                         {pred.wiki_summary && (
-                          <p className="text-xs mt-2 text-gray-700 [font-family:'Poppins',Helvetica]">{pred.wiki_summary}</p>
+                          <p className="text-xs mt-2 text-gray-700">{pred.wiki_summary}</p>
                         )}
                         {pred.wiki_link && (
                           <a
                             href={pred.wiki_link}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-xs text-blue-600 underline mt-1 inline-block [font-family:'Poppins',Helvetica]"
+                            className="text-xs text-blue-600 underline mt-1 inline-block"
                           >
                             Learn more →
                           </a>
@@ -365,7 +406,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
           {isLoading && (
             <div className="text-left mb-4">
               <div className="inline-block bg-white rounded-2xl p-3">
-                <p className="text-sm [font-family:'Poppins-Italic',Helvetica] italic">
+                <p className="text-sm italic">
                   {selectedFile ? "Identifying species..." : "Thinking..."}
                 </p>
               </div>
@@ -403,7 +444,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
           onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
           placeholder="Ask Anything"
           disabled={isLoading}
-          className="absolute top-[18px] left-[61px] w-[250px] bg-transparent outline-none [font-family:'Poppins-Italic',Helvetica] font-normal italic text-[#111311] text-[15px] tracking-[0.75px] leading-[normal] placeholder:text-[#111311]"
+          className="absolute top-[18px] left-[61px] w-[250px] bg-transparent outline-none font-normal italic text-[#111311] text-[15px] tracking-[0.75px] leading-[normal] placeholder:text-[#111311]"
         />
         
         <button
@@ -438,13 +479,8 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         className="hidden"
       />
 
-      {/* Username */}
-      <div className="absolute top-[619px] left-[49px] w-[156px] [font-family:'Poppins-Black',Helvetica] font-black text-[#072d0d] text-base tracking-[0.80px] leading-[normal]">
-        @username
-      </div>
-
-      {/* Main Center Content Area with Border */}
-      <div className="absolute top-[60px] left-[444px] w-[552px] h-[577px] bg-[#d9d9d95c] rounded-[76px] border border-dashed border-[#140e0e] overflow-hidden">
+      {/* Main Center Content Area with Border - needs to be on top */}
+      <div className="absolute top-[60px] left-[444px] w-[552px] h-[577px] bg-[#d9d9d95c] rounded-[76px] border border-dashed border-[#140e0e] overflow-hidden z-10">
         {showMainContent && !showCamera && (
           <>
             <img
@@ -453,108 +489,112 @@ export const AiChatLoggedIn = (): React.ReactElement => {
               src="/binoculars.svg"
             />
 
-            <div className="absolute top-[205px] left-[122px] w-[305px] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-black text-2xl tracking-[1.20px] leading-[normal] text-center">
-              Spotted Anything?
-            </div>
+<div className="absolute top-[205px] left-[122px] w-[305px] font-extrabold text-black text-2xl tracking-[1.20px] leading-[normal] text-center"> Spotted Anything? 
 
-            {/* Open Camera Button */}
-            <div 
-              className="absolute top-[337px] left-[120px] w-[327px] h-[60px] cursor-pointer hover:opacity-90 transition"
-              onClick={openCamera}
-            >
-              <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
-              <div className="absolute top-[15px] left-[110px] w-[251px] [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">
-                Open Camera
-              </div>
-              <img
-                className="absolute top-2.5 left-14 w-[38px] h-[38px] aspect-[1] object-cover"
-                alt="Cam"
-                src="/cam.svg"
-              />
-            </div>
-
-            {/* Upload Photo Button */}
-            <div 
-              className="absolute top-[436px] left-[120px] w-[329px] h-[60px] cursor-pointer hover:opacity-90 transition"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
-              <div className="absolute top-[15px] left-[68px] w-[178px] [font-family:'Poppins-SemiBold',Helvetica] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">
-                Upload Photo
-              </div>
-              <img
-                className="absolute top-2.5 left-[227px] w-[37px] h-[38px] aspect-[1] object-cover"
-                alt="Pic"
-                src="/pic.svg"
-              />
-            </div>
-          </>
-        )}
-
-        {/* Camera View */}
-        {showCamera && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-black">
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              className="max-w-full max-h-[450px] rounded-lg"
-            />
-            <div className="mt-6 flex gap-4">
-              <button
-                onClick={capturePhoto}
-                className="bg-white rounded-full w-16 h-16 flex items-center justify-center hover:bg-gray-100 transition shadow-lg"
-              >
-                <img src="/cam.svg" alt="Capture" className="w-8 h-8" />
-              </button>
-              <button
-                onClick={closeCamera}
-                className="bg-red-500 text-white rounded-full w-16 h-16 flex items-center justify-center hover:bg-red-600 transition shadow-lg text-2xl font-bold"
-              >
-                ×
-              </button>
-            </div>
+</div>
+        {/* Open Camera Button */}
+        <div 
+          className="absolute top-[337px] left-[120px] w-[327px] h-[60px] cursor-pointer hover:opacity-90 transition"
+          onClick={openCamera}
+        >
+          <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
+          <div className="absolute top-[15px] left-[110px] w-[251px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">
+            Open Camera
           </div>
-        )}
+          <img
+            className="absolute top-2.5 left-14 w-[38px] h-[38px] aspect-[1] object-cover"
+            alt="Cam"
+            src="/cam.svg"
+          />
+        </div>
+
+        {/* Upload Photo Button */}
+        <div 
+          className="absolute top-[436px] left-[120px] w-[329px] h-[60px] cursor-pointer hover:opacity-90 transition"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
+          <div className="absolute top-[15px] left-[68px] w-[178px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">
+            Upload Photo
+          </div>
+          <img
+            className="absolute top-2.5 left-[227px] w-[37px] h-[38px] aspect-[1] object-cover"
+            alt="Pic"
+            src="/pic.svg"
+          />
+        </div>
+      </>
+    )}
+
+    {/* Camera View */}
+    {showCamera && (
+      <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-black">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="max-w-full max-h-[450px] rounded-lg"
+        />
+        <div className="mt-6 flex gap-4">
+          <button
+            onClick={capturePhoto}
+            className="bg-white rounded-full w-16 h-16 flex items-center justify-center hover:bg-gray-100 transition shadow-lg"
+          >
+            <img src="/cam.svg" alt="Capture" className="w-8 h-8" />
+          </button>
+          <button
+            onClick={closeCamera}
+            className="bg-red-500 text-white rounded-full w-16 h-16 flex items-center justify-center hover:bg-red-600 transition shadow-lg text-2xl font-bold"
+          >
+            ×
+          </button>
+        </div>
       </div>
+    )}
+  </div>
 
-      {/* Chat History Title */}
-      <div className="absolute top-[158px] left-[54px] w-[251px] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-black text-xl tracking-[1.00px] leading-[normal]">
-        Chat History
-      </div>
+  {/* Username */}
+  <div className="absolute top-[619px] left-[49px] w-[156px] font-black text-[#072d0d] text-base tracking-[0.80px] leading-[normal]">
+    @username
+  </div>
 
-      {/* Back Button */}
-      <div className="absolute top-[58px] left-[17px] w-[104px] h-[30px] bg-[#d0e58fb2] rounded-[43px] cursor-pointer hover:opacity-80 transition" />
+  {/* Chat History Title */}
+  <div className="absolute top-[158px] left-[54px] w-[251px] font-extrabold text-black text-xl tracking-[1.00px] leading-[normal]">
+    Chat History
+  </div>
 
-      <img
-        className="absolute top-16 left-[33px] w-[17px] h-[17px] aspect-[1] object-cover"
-        alt="Back"
-        src="/back.svg"
-      />
+  {/* Back Button */}
+  <div className="absolute top-[58px] left-[17px] w-[104px] h-[30px] bg-[#d0e58fb2] rounded-[43px] cursor-pointer hover:opacity-80 transition" />
 
-      <div className="absolute top-[60px] left-[59px] w-[47px] [font-family:'Poppins-Bold',Helvetica] font-bold text-[#072d0db0] text-base tracking-[0] leading-[normal]">
-        back
-      </div>
+  <img
+    className="absolute top-16 left-[33px] w-[17px] h-[17px] aspect-[1] object-cover"
+    alt="Back"
+    src="/back.svg"
+  />
 
-      {/* Header Decorative Images */}
-      <img
-        className="absolute top-1.5 left-[1292px] w-[47px] h-[31px] aspect-[1.51]"
-        alt="Element"
-        src="/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"
-      />
+  <div className="absolute top-[60px] left-[59px] w-[47px] font-bold text-[#072d0db0] text-base tracking-[0] leading-[normal]">
+    back
+  </div>
 
-      {/* User Icons */}
-      <img
-        className="top-[617px] left-[9px] w-[30px] h-[30px] absolute aspect-[1] object-cover"
-        alt="User"
-        src="/user (2) 6.svg"
-      />
+  {/* Header Decorative Images */}
+  <img
+    className="absolute top-1.5 left-[1292px] w-[47px] h-[31px] aspect-[1.51]"
+    alt="Element"
+    src="/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"
+  />
 
-      <img
-        className="top-[5px] left-[1396px] w-[35px] h-[35px] absolute aspect-[1] object-cover"
-        alt="User"
-        src="/user (2) 9.svg"
-      />
-    </div>
-  );
-};
+  {/* User Icons */}
+  <img
+    className="top-[617px] left-[9px] w-[30px] h-[30px] absolute aspect-[1] object-cover"
+    alt="User"
+    src="/user (2) 6.svg"
+  />
+
+  <img
+    className="top-[5px] left-[1396px] w-[35px] h-[35px] absolute aspect-[1] object-cover"
+    alt="User"
+    src="/user (2) 9.svg"
+  />
+  </div>
+</div>
+); };
