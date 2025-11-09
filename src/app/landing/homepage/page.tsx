@@ -69,6 +69,7 @@ export default function HomePage() {
 
 
   return (
+<<<<<<< HEAD
     <main className="bg-white justify-center overflow-x-hidden">
 
       {/* Centered Navigation Bar */}
@@ -179,6 +180,9 @@ export default function HomePage() {
         backgroundRepeat: "no-repeat"
       }}
     >
+=======
+    <main className="bg-white overflow-x-hidden justify-center">
+>>>>>>> cf346c8a368b4b592972a3c9af21145465862336
       {/* Hero Section */}
       <section className="relative min-h-[743px] m-0 p-0 w-full">
         
@@ -231,8 +235,7 @@ export default function HomePage() {
 
        {/* Hero Text with Double Layer */}
 <div className="absolute top-[158px] left-[1052px] w-[303.743px] h-[254.525px] flex-shrink-0 justify-center-safe">
-
-  {/* Black Shadow Layer -bottom */}
+  {/* Black Shadow Layer (Bottom) - offset */}
   <p 
     className="absolute top-[7.26px] left-[3.47px] text-[48px] font-extrabold text-black leading-normal"
     style={{
@@ -747,12 +750,20 @@ export default function HomePage() {
 </section>
 </section>
 
+<<<<<<< HEAD
       {/* FAQs */}
       <section id="faqs">
 <section className="py-20 px-6 lg:px-12 justify-center-safe mx-auto">
 <h2 className="text-[40px] font-bold bg-gradient-to-r from-[#7d5917] to-[#70cb3f] bg-clip-text text-transparent mb-12 text-center">
   Frequently Asked Questions (FAQs)
 </h2><br /><br />
+=======
+      {/* FAQs Section */}
+<section className="py-20 px-6 lg:px-12 justify-center-safe">
+  <h2 className="text-[40px] font-bold bg-gradient-to-r from-[#7d5917] to-[#70cb3f] bg-clip-text text-transparent mb-12 text-left">
+    Frequently Asked Questions (FAQs)
+  </h2><br /><br />
+>>>>>>> cf346c8a368b4b592972a3c9af21145465862336
 
   <div className="max-w-7xl mx-auto">
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
