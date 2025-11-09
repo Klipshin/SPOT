@@ -121,6 +121,24 @@
     overflow-x: hidden;
   }
   
+  /* Add a wrapper constraint */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Create a main container that stays centered */
+.main-container {
+  max-width: 1440px; /* or whatever your design width is */
+  width: 100%;
+  margin: 0 auto;
+  position: relative;
+}
+
   img {
     max-width: 100%;
     height: auto;

@@ -9,7 +9,7 @@ export default function HomePage() {
     {
       question: "Who is SPOT built for?",
       answer:
-        "SPOT is built for individuals passionate about understanding and protecting wildlife — from students and educators to nature enthusiasts, hikers, researchers, and conservation advocates. It serves anyone eager to explore biodiversity, identify species, and contribute to ongoing environmental awareness and protection efforts",
+        "SPOT is built for individuals passionate about understanding and protecting wildlife — from students and educators to nature enthusiasts, hikers, researchers, and conservation advocates. It serves anyone eager to explore biodiversity, identify species, and contribute to ongoing environmental awareness and protection efforts.",
     },
     {
       question: "How does SPOT identify species?",
@@ -69,7 +69,7 @@ export default function HomePage() {
 
 
   return (
-    <main className="bg-white overflow-x-hidden justify-center">
+    <main className="bg-white justify-center overflow-x-hidden">
 
       {/* Centered Navigation Bar */}
       <header className="fixed top-3 left-1/2 transform -translate-x-1/2 w-[1383px] h-[94px] z-50">
@@ -94,85 +94,140 @@ export default function HomePage() {
 
           <div className="absolute top-0 left-[110px] text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent"> SPOT </div>
 
-          {/* Navigation Links */}
-          <nav className="absolute top-[18px] left-1/2 -translate-x-1/2 flex items-center gap-[75px]">
-            <a href="#home" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-              Home
-            </a>
-            <a href="#about" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-              About
-            </a>
-            <a href="#explore" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-              Explore
-            </a>
-            <a href="#faqs" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-              FAQs
-            </a>
-            <a href="#contact" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-              Contact
-            </a>
-          </nav>
+         {/* Navigation Links */}
+<nav className="absolute top-[18px] left-1/2 -translate-x-1/2 flex items-center gap-[75px]">
+  <a 
+    href="#home" 
+    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
+    onClick={(e) => {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }}
+  >
+    Home
+  </a>
+  <a 
+    href="#about" 
+    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
+    onClick={(e) => {
+      e.preventDefault();
+      document.getElementById('what-is-spot')?.scrollIntoView({ behavior: 'smooth' });
+    }}
+  >
+    About
+  </a>
+  <a 
+    href="#explore" 
+    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
+    onClick={(e) => {
+      e.preventDefault();
+      document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
+    }}
+  >
+    Explore
+  </a>
+  <a 
+    href="#faqs" 
+    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
+    onClick={(e) => {
+      e.preventDefault();
+      document.getElementById('faqs')?.scrollIntoView({ behavior: 'smooth' });
+    }}
+  >
+    FAQs
+  </a>
+  <a 
+    href="#contact" 
+    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
+    onClick={(e) => {
+      e.preventDefault();
+      document.getElementById('footer')?.scrollIntoView({ behavior: 'smooth' });
+    }}
+  >
+    Contact
+  </a>
+</nav>
 
           {/* Auth Buttons */}
           <div className="absolute top-[15px] right-[40px] flex items-center gap-4">
-            <button className="font-bold text-[#246440] text-[15px] hover:underline transition-all">
+            <button className="font-bold text-[#246440] text-[15px] hover:underline transition-all"
+             onClick={() => {
+              // Add your click handler here
+              console.log('Log In Clicked!');
+            }}
+            >
               Log In
             </button>
-            <button className="w-[108px] h-[33px] bg-[#d1e39b] rounded-[9px] font-bold text-[#25451f] text-[15px] hover:bg-[#c5d78f] transition-all">
+            <button className="w-[108px] h-[33px] bg-[#d1e39b] rounded-[9px] font-bold text-[#25451f] text-[15px] hover:bg-[#c5d78f] transition-all"
+            onClick={() => {
+              // Add your click handler here
+              console.log('Sign Up Clicked!');
+            }}
+            >
               Sign Up
             </button>
           </div>
         </div>
       </header>
       
+      <div 
+      className="relative w-full max-w-[1920px] mx-auto"
+      style={{
+        backgroundImage: "url('/landingbg.png')",
+        backgroundSize: "100% auto",
+        backgroundPosition: "top center",
+        backgroundRepeat: "no-repeat"
+      }}
+    >
       {/* Hero Section */}
-      <section className="relative h-screen min-h-[743px] m-0 p-0 justify-center-safe">
-        <Image
-          src="/landingbg1.png"
-          alt="Background"
-          fill
-          className="object-cover"
-          priority
-        />
+      <section className="relative min-h-[743px] m-0 p-0 w-full">
         
         {/* Mascot */}
-        <div className="absolute top-7 left-0 w-[695px] h-[746px] justify-center-safe">
-          <Image
-            src="/spotmascotshadow.svg"
-            alt="SPOT Mascot Shadow"
-            width={584}
-            height={617}
-            className="absolute top-[71px] left-10"
-          />
-          <Image
-  src="/spotmascot.svg"
-  alt="SPOT Mascot"
-  width={638}
-  height={688}
-  className="absolute top-[29px] left-[29px] z-10"
-/>
-        </div>
+        <div className="relative w-full max-w-[1440px] h-full mx-auto">
+          {/* Mascot */}
+          <div className="absolute top-7 left-0 w-[695px] h-[746px] justify-center-safe">
+            <Image
+              src="/spotmascotshadow.svg"
+              alt="SPOT Mascot Shadow"
+              width={584}
+              height={617}
+              className="absolute top-[71px] left-10"
+            />
+            <Image
+              src="/spotmascot.svg"
+              alt="SPOT Mascot"
+              width={638}
+              height={688}
+              className="absolute top-[29px] left-[29px] z-10"
+            />
+          </div>
 
         {/* Camera Icon with Focus Frame */}
-        <div className="absolute top-[106px] left-[536px] w-[474px] h-[400px] justify-center-safe">
-          <div className="absolute top-[31px] left-6 w-[382px] h-[341px] bg-[#b3d060] rounded-[64px] rotate-[-8.25deg]" />
-          <div className="absolute top-[29px] left-[65px] w-[382px] h-[341px] bg-[#748348] rounded-[64px] rotate-[9.59deg]" />
-          <div className="absolute top-[30px] left-[37px] w-[382px] h-[341px] bg-[#deecb6] rounded-[64px] border-[3px] border-solid border-[#373333]" />
-          <Image
-            src="/camfocus.svg"
-            alt="Focus"
-            width={283}
-            height={283}
-            className="absolute top-[59px] left-[86px]"
-          />
-          <Image
-            src="/camicon.svg"
-            alt="Camera Icon"
-            width={94}
-            height={47}
-            className="absolute top-[181px] left-[181px]"
-          />
-        </div>
+<button 
+  className="absolute top-[106px] left-[536px] w-[474px] h-[400px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
+  onClick={() => {
+    // Add your click handler here
+    console.log('Camera icon clicked!');
+  }}
+>
+  <div className="absolute top-[31px] left-6 w-[382px] h-[341px] bg-[#b3d060] rounded-[64px] rotate-[-8.25deg]" />
+  <div className="absolute top-[29px] left-[65px] w-[382px] h-[341px] bg-[#748348] rounded-[64px] rotate-[9.59deg]" />
+  <div className="absolute top-[30px] left-[37px] w-[382px] h-[341px] bg-[#deecb6] rounded-[64px] border-[3px] border-solid border-[#373333]" />
+  <Image
+    src="/camfocus.svg"
+    alt="Focus"
+    width={283}
+    height={283}
+    className="absolute top-[59px] left-[86px]"
+  />
+  <Image
+    src="/camicon.svg"
+    alt="Camera Icon"
+    width={94}
+    height={47}
+    className="absolute top-[181px] left-[181px]"
+  />
+</button>
 
        {/* Hero Text with Double Layer */}
 <div className="absolute top-[158px] left-[1052px] w-[303.743px] h-[254.525px] flex-shrink-0 justify-center-safe">
@@ -207,27 +262,34 @@ export default function HomePage() {
 </div>
 
         {/* Upload Button */}
-        <div className="absolute top-[517px] left-[573px] w-[327px] h-[50px] justify-center-safe">
-          <div className="relative">
-            <Image
-              src="/uploadimgshadow.svg"
-              alt=""
-              width={328}
-              height={55}
-              className="absolute top-[3px] -left-1"
-            />
-            <Image
-              src="/uploadimgbg.svg"
-              alt=""
-              width={328}
-              height={50}
-              className="absolute top-0 left-px"
-            />
-            <div className="absolute top-1.5 left-[92px] font-extrabold text-[#246440] text-xl justify-center-safe">
-              Upload Image
-            </div>
-          </div>
-        </div>
+        {/* Upload Button */}
+<button 
+  className="absolute top-[500px] left-[600px] w-[327px] h-[50px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
+  onClick={() => {
+    // Add your click handler here
+    console.log('Upload Image clicked!');
+  }}
+>
+  <div className="relative">
+    <Image
+      src="/uploadimgshadow.svg"
+      alt=""
+      width={328}
+      height={55}
+      className="absolute top-[3px] -left-1"
+    />
+    <Image
+      src="/uploadimgbg.svg"
+      alt=""
+      width={328}
+      height={50}
+      className="absolute top-0 left-px"
+    />
+    <div className="absolute top-1.5 left-[92px] font-extrabold text-[#246440] text-xl justify-center-safe">
+      Upload Image
+    </div>
+  </div>
+</button>
 
         {/* Sample Images */}
         <div className="absolute top-[601px] left-[573px] w-[628px] h-[91px] justify-center-safe">
@@ -240,17 +302,11 @@ export default function HomePage() {
           <Image src="/sample1.svg" alt="Sample 3" width={74} height={68} className="absolute top-[11px] left-[209px]" />
           <Image src="/sample4.svg" alt="Sample 4" width={74} height={68} className="absolute top-[11px] left-[521px]" />
         </div>
+      </div>
       </section>
 
       {/* Photo Cards Section */}
-      <section className="relative bg-cover bg-no repeat bg-center m-0 p-0 justify-center-safe">
-        <Image
-          src="/landingbg2.png"
-          alt="Background"
-          fill
-          className="object-cover"
-          priority
-        />
+      <section className="relative m-0 p-0 py-0 justify-center-safe">
       <p className="relative top-[200px] left-[150px] text-center text-black text-[32px] font-bold max-w-[668px] mx-auto mb-12 justify-items-center-safe">
   From snakes in your backyard<br />to rare birds in the wild,
 </p>
@@ -293,9 +349,11 @@ export default function HomePage() {
   </div>
 </div>
       </section>
+      </div>
 
       {/* What is SPOT */}
-      <section className="relative w-full h-auto bg-cover bg-center bg-no-repeat m-0 p-0">
+      <section id="what-is-spot">
+      <section className="relative h-auto bg-cover bg-center bg-no-repeat m-0 p-0 max-w-[1634px] mx-auto">
         <Image
           src="/wisbg.svg"
           alt="Background"
@@ -366,176 +424,213 @@ export default function HomePage() {
         </p>
       </div>
       </section>
+      </section>
 
 {/* How SPOT Works */}
-<section className="py-20 mt-48 overflow-hidden">
-<h2
-  className="text-[64px] font-extrabold text-center mb-32"
-  style={{
-    background: 'linear-gradient(90deg, #399300 7.59%, #D2005B 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-  }}
->
-  How SPOT works
-</h2>
-<br />
+<section id="how-it-works">
+<section className="py-20 mt-48 w-full overflow-x-hidden">
+  <div className="max-w-[1920px] mx-auto px-0">
+    <h2
+      className="text-[64px] font-extrabold text-center mb-32 px-4"
+      style={{
+        background: 'linear-gradient(90deg, #399300 7.59%, #D2005B 100%)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+      }}
+    >
+      How SPOT works
+    </h2>
+    <br />
 
-
-  {/* Snap or Upload */}
-  <div className="relative mb-20 flex justify-end">
-    {/* Shadow Layer */}
-    <div className="absolute top-6 right-2 w-[1300px] h-[230px] bg-[#000000] rounded-full -mr-[104px]" />
-    {/* Main Layer */}
-    <div className="relative w-[1300px] h-[230px] bg-[#e3f2fd] rounded-full flex items-center -mr-[104px]">
-      <Image
-        src="/hiw1.svg"
-        alt="Upload"
-        width={200}
-        height={200}
-        className="absolute right-[220px]"
-      />
-      <div className="absolute left-[250px]">
-  <div>
-    <h3 className="text-5xl font-extrabold text-[#07224a]">Snap or Upload</h3><br />
-  </div>
-  <div className="ml-[-80]">
-    <p className="text-2xl font-medium text-[#08234b]">Take a photo of wildlife or upload from your gallery.</p>
-  </div>
-</div>
+    {/* Snap or Upload */}
+    <div className="relative mb-20 flex justify-end">
+      {/* Shadow Layer */}
+      <div className="absolute top-6 right-2 w-[1300px] h-[230px] bg-[#000000] rounded-full -mr-[104px]" />
+      {/* Main Layer */}
+      <div className="relative w-[1300px] h-[230px] bg-[#e3f2fd] rounded-full flex items-center -mr-[104px]">
+        <Image
+          src="/hiw1.svg"
+          alt="Upload"
+          width={200}
+          height={200}
+          className="absolute right-[220px]"
+        />
+        <div className="absolute left-[250px]">
+          <div>
+            <h3 className="text-5xl font-extrabold text-[#07224a]">Snap or Upload</h3><br />
+          </div>
+          <div className="ml-[-80]">
+            <p className="text-2xl font-medium text-[#08234b]">Take a photo of wildlife or upload from your gallery.</p>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  {/* Identify Instantly */}
-  <div className="relative mb-20">
-    {/* Shadow Layer */}
-    <div className="absolute top-6 left-2 w-[1400px] h-[230px] bg-[#000000] rounded-full -ml-[104px]" />
-    {/* Main Layer */}
-    <div className="relative w-[1400px] h-[230px] bg-[#e8f5e9] rounded-full flex items-center -ml-[104px]">
-      <Image
-        src="/hiw2.svg"
-        alt="Identify"
-        width={290}
-        height={290}
-        className="absolute left-[220px]"
-      />
-     <div className="absolute right-[160px]">
-  <div>
-    <h3 className="text-5xl font-extrabold text-[#14462a]">Identify Instantly</h3><br />
-  </div>
-  <div className="ml-[-110]">
-    <p className="text-2xl font-medium text-[#15472a]">Get real-time results with species details and safety tips.</p>
-  </div>
-</div>
+    {/* Identify Instantly */}
+    <div className="relative mb-20">
+      {/* Shadow Layer */}
+      <div className="absolute top-6 left-2 w-[1400px] h-[230px] bg-[#000000] rounded-full -ml-[104px]" />
+      {/* Main Layer */}
+      <div className="relative w-[1400px] h-[230px] bg-[#e8f5e9] rounded-full flex items-center -ml-[104px]">
+        <Image
+          src="/hiw2.svg"
+          alt="Identify"
+          width={290}
+          height={290}
+          className="absolute left-[220px]"
+        />
+        <div className="absolute right-[160px]">
+          <div>
+            <h3 className="text-5xl font-extrabold text-[#14462a]">Identify Instantly</h3><br />
+          </div>
+          <div className="ml-[-110]">
+            <p className="text-2xl font-medium text-[#15472a]">Get real-time results with species details and safety tips.</p>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  {/* Explore & Learn */}
-  <div className="relative mb-20 flex justify-end">
-    {/* Shadow Layer */}
-    <div className="absolute top-6 right-2 w-[1300px] h-[230px] bg-[#000000] rounded-full -mr-[104px]" />
-    {/* Main Layer */}
-    <div className="relative w-[1300px] h-[230px] bg-[#fff3e0] rounded-full flex items-center -mr-[104px]">
-      <Image
-        src="/hiw3.svg"
-        alt="Explore"
-        width={200}
-        height={200}
-        className="absolute right-[220px]"
-      />
-      <div className="absolute left-[260px]">
-  <div>
-    <h3 className="text-5xl font-extrabold text-[#553f1c]">Explore & Learn</h3><br />
-  </div>
-  <div className="ml-[-80]">
-    <p className="text-2xl font-medium text-[#553f1d]">Access maps, sightings, and conversation insights.</p>
-  </div>
-</div>
+    {/* Explore & Learn */}
+    <div className="relative mb-20 flex justify-end">
+      {/* Shadow Layer */}
+      <div className="absolute top-6 right-2 w-[1300px] h-[230px] bg-[#000000] rounded-full -mr-[104px]" />
+      {/* Main Layer */}
+      <div className="relative w-[1300px] h-[230px] bg-[#fff3e0] rounded-full flex items-center -mr-[104px]">
+        <Image
+          src="/hiw3.svg"
+          alt="Explore"
+          width={200}
+          height={200}
+          className="absolute right-[220px]"
+        />
+        <div className="absolute left-[260px]">
+          <div>
+            <h3 className="text-5xl font-extrabold text-[#553f1c]">Explore & Learn</h3><br />
+          </div>
+          <div className="ml-[-80]">
+            <p className="text-2xl font-medium text-[#553f1d]">Access maps, sightings, and conversation insights.</p>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  {/* Join Communities - Extends Right */}
-  <div className="relative mb-20">
-    {/* Shadow Layer */}
-    <div className="absolute top-6 left-2 w-[1550px] h-[230px] bg-[#000000] rounded-full -ml-[104px]" />
-    {/* Main Layer */}
-    <div className="relative w-[1550px] h-[230px] bg-[#f3e5f5] rounded-full flex items-center -ml-[104px]">
-      <Image
-        src="/hiw4.svg"
-        alt="Community"
-        width={270}
-        height={270}
-        className="absolute left-[200px]"
-      />
-      <div className="absolute right-[83px]">
-  <div>
-    <h3 className="text-5xl font-extrabold text-[#48224d]">Join Communities</h3><br />
-  </div>
-  <div className="ml-[-160]">
-    <p className="text-2xl font-medium text-[#48234d]">Share your discoveries, connect with others, and grow your knowledge together.</p>
-  </div>
-</div>
+    {/* Join Communities - Extends Right */}
+    <div className="relative mb-20">
+      {/* Shadow Layer */}
+      <div className="absolute top-6 left-2 w-[1550px] h-[230px] bg-[#000000] rounded-full -ml-[104px]" />
+      {/* Main Layer */}
+      <div className="relative w-[1550px] h-[230px] bg-[#f3e5f5] rounded-full flex items-center -ml-[104px]">
+        <Image
+          src="/hiw4.svg"
+          alt="Community"
+          width={270}
+          height={270}
+          className="absolute left-[200px]"
+        />
+        <div className="absolute right-[83px]">
+          <div>
+            <h3 className="text-5xl font-extrabold text-[#48224d]">Join Communities</h3><br />
+          </div>
+          <div className="ml-[-160]">
+            <p className="text-2xl font-medium text-[#48234d]">Share your discoveries, connect with others, and grow your knowledge together.</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
 {/* Call to Action banner */}
-<section
-  className="relative flex flex-col items-center justify-center py-25 mb-20 w-full"
-  style={{
-    backgroundImage: "url('/bg.png')",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
-    width: "100%",
-    height: "434px",
-  }}
->
-<div className="text-center max-w-4xl mx-auto px-8 -mt-30">
-  <h2 className="text-4xl font-extrabold text-[#6a3f0a]/80">
-    Turn curiosity into discovery.
-  </h2><br />
-  <p className="text-[22px] font-normal italic text-[#94705E]">
-    With SPOT, every photo becomes a chance to learn, share, and protect.
-  </p>
-</div>
-
-  <Image
-    src="/bird.svg"
-    alt="Bird"
-    width={84}
-    height={84}
-    className="absolute top-[55px] right-[25%]"
+<section className="relative flex flex-col items-center justify-center py-16 mb-20 w-full overflow-hidden">
+  {/* Fixed-width centered container for background */}
+  <div 
+    className="absolute top-0 left-1/2 -translate-x-1/2"
+    style={{
+      backgroundImage: "url('/bg.png')",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      width: "1634px",
+      height: "434px",
+    }}
   />
+  
+  {/* Content wrapper - stays centered */}
+  <div className="relative z-10 flex flex-col items-center w-full max-w-[1634px] mx-auto px-8" style={{ minHeight: "434px" }}>
+    <div className="text-center max-w-4xl mx-auto pt-12">
+      <h2 className="text-4xl font-extrabold text-[#6a3f0a]/80">
+        Turn curiosity into discovery.
+      </h2>
+      <br />
+      <p className="text-[22px] font-normal italic text-[#94705E]">
+        With SPOT, every photo becomes a chance to learn, share, and protect.
+      </p>
+    </div>
+
+    {/* Bird image */}
+    <Image
+      src="/bird.svg"
+      alt="Bird"
+      width={84}
+      height={84}
+      className="absolute top-[55px] right-[10%]"
+    />
+
+    {/* Explorer ticket button */}
+    <button 
+      className="relative mt-[-50] cursor-pointer hover:scale-105 transition-transform duration-300"
+      onClick={() => {
+        // Add your click handler here
+        console.log('Explorer ticket clicked!');
+      }}
+    >
+      <Image
+        src="/explorer.svg"
+        alt="BE AN EXPLORER! Admit One"
+        width={1000}
+        height={300}
+        className="[&_path[fill='black']]:hidden"
+      />
+    </button>
+  </div>
 </section>
 
-     {/* Who Can Join */}
-<section className="relative py-50 w-[1405px] h-[1178px] mx-auto mr-[1500px]">
-
+{/* Who Can Join */}
+<section className="relative h-[1178px] py-[-10px] mx-auto">
+<div className="absolute top-0 px-199 left-1/2 -translate-x-1/2 w-full max-w-[1405px]">
+  
   <Image
     src="/bookbg.svg"
     alt="Decorative"
     width={306}
     height={306}
-    className="absolute top-[872px] left-[189px]"
+    className="absolute top-[872px] left-[200px]"
   />
   <Image
     src="/binocularsbg.svg"
     alt="Binoculars"
     width={340}
     height={340}
-    className="absolute top-[557px] left-[1048px]"
+    className="absolute top-[557px] left-[1050px]"
   />
+
+<button
+  className="absolute top-[1px] left-[45px] cursor-pointer hover:scale-105 transition-transform duration-300"
+  onClick={() => {
+    // Add your click handler here
+    console.log('Mascot clicked!');
+  }}
+>
   <Image
     src="/mascot.svg"
     alt="SPOT Mascot"
     width={451}
     height={480}
-    className="absolute top-[45px] left-[45px]"
   />
+</button>
 
   {/* who can join spot */}
-  <h2 className="absolute top-[27px] left-[525px] w-[704px] text-[64px] font-extrabold bg-clip-text text-transparent"
+  <h2 className="absolute top-[-70px] left-[525px] w-[704px] text-[64px] font-extrabold bg-clip-text text-transparent"
   style={{
     background: 'linear-gradient(270deg, #194B2F 16.81%, #2A7E4E 54.61%, #33975E 78.26%, #3CB16E 96.65%)',
     WebkitBackgroundClip: 'text',
@@ -543,10 +638,10 @@ export default function HomePage() {
     backgroundClip: 'text'
   }}>
   Who can join SPOT?
-</h2>
+</h2>< br/>
 
   {/* Everyone's Welcome */}
-  <div className="absolute top-[179px] left-[482px] w-[395px]">
+  <div className="absolute top-[100px] left-[482px] w-[395px]">
     <h3 className="text-5xl font-black bg-gradient-to-r from-[#667621] via-[#92a92f] to-[#bfdc3d] bg-clip-text text-transparent">
       EVERYONE&apos;S<br /><br />WELCOME<br /><br />HERE!
     </h3>
@@ -558,35 +653,41 @@ export default function HomePage() {
     alt="Line"
     width={13}
     height={281}
-    className="absolute top-[175px] left-[850px]"
+    className="absolute top-[100px] left-[850px]"
   />
 
   {/* Description Text */}
-  <p className="absolute top-[162px] left-[928px] w-[477px] text-[29px] font-semibold text-center bg-gradient-to-r from-[#586214] to-[#889953] bg-clip-text text-transparent">
+  <p className="absolute top-[100px] left-[928px] w-[477px] text-[29px] font-semibold text-center bg-gradient-to-r from-[#586214] to-[#889953] bg-clip-text text-transparent">
     That&apos;s right! Whether you&apos;re just curious about the animals around you or an expert who knows species by heart — there&apos;s a place for you in SPOT&apos;s growing community.
   </p>
 
   {/* Learn and Discover Card */}
-  <div className="absolute top-[599px] left-[174px] w-[846px] h-[249px] bg-[#3a617f]/10 rounded-[40px] shadow-[0px_4px_4px_#00000040]">
-    <Image
-      src="/landd.svg"
-      alt="Learn"
-      width={387}
-      height={166}
-      className="absolute top-[31px] left-[31px]"
-    />
-    <h3 className="absolute top-[23px] left-[454px] w-[332px] text-[32px] font-black text-[#0d2232]/90">
-      Learn and Discover
-    </h3>
-    <p className="absolute top-[82px] left-[476px] w-[289px] text-sm font-medium text-[#103a5b]/90 text-center">
-      Learn about wildlife around you<br /><br />
-      Stay safe with easy-to-follow guides<br /><br />
-      Discover new species and habitats
-    </p>
-    <p className="absolute top-[208px] left-[38px] w-[695px] text-sm font-light italic text-[#103a5b]/50">
-      For those who love observing wildlife, staying safe outdoors, and gaining new knowledge.
-    </p>
-  </div>
+  <button
+  className="absolute top-[599px] left-[174px] w-[846px] h-[249px] bg-[#3a617f]/10 rounded-[40px] shadow-[0px_4px_4px_#00000040] cursor-pointer hover:scale-105 transition-transform duration-300"
+  onClick={() => {
+    // Add your click handler here
+    console.log('Learn and Discover clicked!');
+  }}
+>
+  <Image
+    src="/landd.svg"
+    alt="Learn"
+    width={387}
+    height={166}
+    className="absolute top-[31px] left-[31px]"
+  />
+  <h3 className="absolute top-[23px] left-[454px] w-[332px] text-[32px] font-black text-[#0d2232]/90">
+    Learn and Discover
+  </h3>
+  <p className="absolute top-[82px] left-[476px] w-[289px] text-sm font-medium text-[#103a5b]/90 text-center">
+    Learn about wildlife around you<br /><br />
+    Stay safe with easy-to-follow guides<br /><br />
+    Discover new species and habitats
+  </p>
+  <p className="absolute top-[208px] left-[1px] w-[695px] text-sm font-light italic text-[#103a5b]/50">
+    For those who love observing wildlife, staying safe outdoors, and gaining new knowledge.
+  </p>
+</button>
 
   <Image
     src="/binoculars.svg"
@@ -597,26 +698,32 @@ export default function HomePage() {
   />
 
   {/* Share and Guide Card */}
-  <div className="absolute top-[890px] left-[523px] w-[846px] h-[251px] bg-[#511e1f]/10 rounded-[40px] shadow-[0px_4px_4px_#00000040]">
-    <Image
-      src="/sandg.svg"
-      alt="Share"
-      width={388}
-      height={166}
-      className="absolute top-[32px] left-[426px]"
-    />
-    <h3 className="absolute top-[28px] left-[88px] w-[284px] text-[32px] font-black text-[#2d0505]/90">
-      Share and Guide
-    </h3>
-    <p className="absolute top-[81px] left-[56px] w-[337px] text-sm font-medium text-[#2d0505]/90 text-center">
-      Verify and improve identifications<br /><br />
-      Share your knowledge with explorers<br /><br />
-      Contribute to conservation and research
-    </p>
-    <p className="absolute top-[209px] left-[110px] w-[766px] text-sm font-light italic text-[#2d0505]/50">
-      For those with experience in species identification who want to help others and support conservation.
-    </p>
-  </div>
+  <button
+  className="absolute top-[890px] left-[523px] w-[846px] h-[251px] bg-[#511e1f]/10 rounded-[40px] shadow-[0px_4px_4px_#00000040] cursor-pointer hover:scale-105 transition-transform duration-300"
+  onClick={() => {
+    // Add your click handler here
+    console.log('Share and Guide clicked!');
+  }}
+>
+  <Image
+    src="/sandg.svg"
+    alt="Share"
+    width={388}
+    height={166}
+    className="absolute top-[32px] left-[426px]"
+  />
+  <h3 className="absolute top-[28px] left-[88px] w-[284px] text-[32px] font-black text-[#2d0505]/90">
+    Share and Guide
+  </h3>
+  <p className="absolute top-[81px] left-[56px] w-[337px] text-sm font-medium text-[#2d0505]/90 text-center">
+    Verify and improve identifications<br /><br />
+    Share your knowledge with explorers<br /><br />
+    Contribute to conservation and research
+  </p>
+  <p className="absolute top-[209px] left-[75px] w-[766px] text-sm font-light italic text-[#2d0505]/50">
+    For those with experience in species identification who want to help others and support conservation.
+  </p>
+</button>
 
   <Image
     src="/book.svg"
@@ -627,7 +734,7 @@ export default function HomePage() {
   />
 
   {/* Ways to Explore */}
-  <h2 className="absolute top-[530px] left-[316px] w-[769px] text-5xl font-extrabold text-right bg-clip-text text-transparent mb-40"
+  <h2 className="absolute top-[480px] left-[316px] w-[769px] text-5xl font-extrabold text-right bg-clip-text text-transparent mb-40"
   style={{
     background: 'linear-gradient(270deg, #7E604D 14.8%, #517E2A 62.28%)',
     WebkitBackgroundClip: 'text',
@@ -636,13 +743,16 @@ export default function HomePage() {
   }}>
   Ways you can explore
 </h2>
+</div>
+</section>
 </section>
 
       {/* FAQs */}
-<section className="py-20 px-6 lg:px-12 justify-center-safe">
-  <h2 className="text-[40px] font-bold bg-gradient-to-r from-[#7d5917] to-[#70cb3f] bg-clip-text text-transparent mb-12 text-left">
-    Frequently Asked Questions (FAQs)
-  </h2><br /><br />
+      <section id="faqs">
+<section className="py-20 px-6 lg:px-12 justify-center-safe mx-auto">
+<h2 className="text-[40px] font-bold bg-gradient-to-r from-[#7d5917] to-[#70cb3f] bg-clip-text text-transparent mb-12 text-center">
+  Frequently Asked Questions (FAQs)
+</h2><br /><br />
 
   <div className="max-w-7xl mx-auto">
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -684,8 +794,10 @@ export default function HomePage() {
     </div>
   </div>
 </section>
+</section>
 
       {/* Footer */}
+      <footer id="footer">
 <section className="relative h-[576px] overflow-hidden">
   <Image
     src="/footer.svg"
@@ -702,6 +814,7 @@ export default function HomePage() {
     className="absolute bottom-0 right-[1%] z-10"
   />
 </section>
+</footer>
     </main>
   );
 }
