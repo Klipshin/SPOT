@@ -5,9 +5,10 @@ interface FileUploadProps {
   label: string;
   id: string;
   acceptedFiles?: string;
+  onFileLoad?: (dataUrl: string) => void;
 }
 
-export default function FileUpload({ label, id, acceptedFiles }: FileUploadProps) {
+export default function FileUpload({ label, id, acceptedFiles, onFileLoad }: FileUploadProps) {
   const [fileName, setFileName] = useState<string>("");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -16,10 +17,24 @@ export default function FileUpload({ label, id, acceptedFiles }: FileUploadProps
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
-    } else {
+    const file = e.target.files && e.target.files.length > 0 ? e.target.files[0] : null;
+
+    if (!file) {
       setFileName("");
+      onFileLoad?.("");
+      return;
+    }
+
+    setFileName(file.name);
+
+    if (onFileLoad) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          onFileLoad(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
     }
   };
 

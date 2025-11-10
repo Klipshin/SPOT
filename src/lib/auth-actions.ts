@@ -27,12 +27,17 @@ export async function login(formData: FormData) {
 
 export async function signup(formData: FormData) {
   const supabase = await createClient()
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
+  
   const data = {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
+    options: {
+      data: {
+        role: formData.get('role') as string, 
+      }
+    }
   }
+  
   const { error } = await supabase.auth.signUp(data)
 
   if (error) {
@@ -89,4 +94,39 @@ export async function signInWithFacebook() {
   }
 
   redirect(data.url)
+}
+
+export async function signUpWithGoogle(role: 'enthusiast' | 'expert') {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      queryParams: { access_type: "offline", prompt: "consent" },
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/oauth-callback?role=${role}`,
+    },
+  });
+
+  if (error) {
+    console.log(error);
+    redirect("/error");
+  }
+
+  redirect(data.url);
+}
+
+export async function signUpWithFacebook(role: 'enthusiast' | 'expert') {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "facebook",
+    options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/oauth-callback?role=${role}`,
+    },
+  });
+
+  if (error) {
+    console.log(error);
+    redirect("/error");
+  }
+
+  redirect(data.url);
 }

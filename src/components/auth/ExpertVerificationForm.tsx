@@ -7,6 +7,7 @@ import JobInput from './JobInput';
 import { useRouter } from 'next/navigation';
 import { IoChevronBackCircle } from "react-icons/io5";
 import VerificationModal from './VerificationModal';
+import useExperts from '@/src/lib/hooks/useExperts';
 
 export default function ExpertVerification() {
     const jobOptions = [
@@ -20,7 +21,13 @@ export default function ExpertVerification() {
     const [selectedJob, setSelectedJob] = useState("");
     const [profileLink, setProfileLink] = useState("");
     const [showVerificationModal, setShowVerificationModal] = useState(false);
+    const [idDocument, setIdDocument] = useState("");
+    const [employmentProof, setEmploymentProof] = useState("");
+    const [diplomaDocument, setDiplomaDocument] = useState("");
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const { createExpert } = useExperts();
     const router = useRouter();
     const handleBack = () => {
         if (window.history.length > 1) {
@@ -29,6 +36,40 @@ export default function ExpertVerification() {
             router.push("/");
         }
     }
+
+    const handleContinue = async () => {
+        if (!selectedJob.trim()) {
+            alert("Please provide your job or occupation.");
+            return;
+        }
+
+        if (!idDocument && !employmentProof && !diplomaDocument) {
+            alert("Please upload at least one supporting document.");
+            return;
+        }
+
+        try {
+            setIsSubmitting(true);
+            setSubmitError(null);
+            const payload = {
+                occupation: selectedJob,
+                id_docu: idDocument,
+                employment_proof: employmentProof,
+                diploma_docu: diplomaDocument,
+                ...(profileLink.trim()
+                    ? { academic_profile: profileLink.trim() }
+                    : {}),
+            };
+            await createExpert(payload);
+            setShowVerificationModal(true);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : "Failed to submit verification.";
+            setSubmitError(message);
+            alert(message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     if (showVerificationModal) {
         return <VerificationModal />;
@@ -85,18 +126,21 @@ export default function ExpertVerification() {
                     label="ID/Certificate"
                     id="certificateFile"
                     acceptedFiles=".pdf,.jpg,.png"
+                    onFileLoad={setIdDocument}
                 />
 
                 <FileUpload 
                     label="Employment/Organization Proof"
                     id="employmentFile"
                     acceptedFiles=".pdf,.jpg,.png"
+                    onFileLoad={setEmploymentProof}
                 />
 
                 <FileUpload 
                     label="Degree/Diploma"
                     id="diplomaFile"
                     acceptedFiles=".pdf,.jpg,.png"
+                    onFileLoad={setDiplomaDocument}
                 />
             </div>
 
@@ -122,12 +166,19 @@ export default function ExpertVerification() {
                 </div>
             </div>
 
+            {submitError && (
+                <div className="mt-4 text-sm text-red-600 font-poppins-semibold">
+                    {submitError}
+                </div>
+            )}
+
             <button 
-                onClick={() => setShowVerificationModal(true)}
+                onClick={handleContinue}
+                disabled={isSubmitting}
                 className="relative m-10 rounded-full px-20 py-2 bg-[#C3DEE1CC] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-2xl font-poppins-bold text-[#034CBCBA] flex items-center justify-center gap-2
-                    hover:bg-[#034CBCBA] hover:text-[#C3DEE1CC] transition-colors dura ease-in-out cursor-pointer"
+                    hover:bg-[#034CBCBA] hover:text-[#C3DEE1CC] transition-colors dura ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                Continue
+                {isSubmitting ? "Submitting..." : "Continue"}
                 <IoChevronBackCircle className="absolute right-3 text-3xl pointer-events-none scale-x-[-1]"/>
             </button>
         </div>

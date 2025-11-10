@@ -7,8 +7,7 @@ import { FaFacebookSquare } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { IoChevronBackCircle } from "react-icons/io5";
 import { useRouter } from 'next/navigation';
-import ExpertVerification from './ExpertVerificationForm';
-import { signup } from '@/src/lib/auth-actions';
+import { signup, signUpWithFacebook, signUpWithGoogle } from '@/src/lib/auth-actions';
 
 type Props = {
     role: 'enthusiast' | 'expert'; 
@@ -18,7 +17,6 @@ type Props = {
 export default function SignUpForm({role, onBack} : Props) {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [showVerification, setShowVerification] = useState(false);
     const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -97,22 +95,19 @@ export default function SignUpForm({role, onBack} : Props) {
         }
 
         try {
+            formData.append('role', role);
+            await signup(formData);
+            
             if (role === 'enthusiast') {
-                await signup(formData);
-                router.push("/auth/login")
+                router.push("/initial-setup");
             } else {
-                await signup(formData);
-                setShowVerification(true);
+                router.push("/auth/expert-verification");
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred during signup');
             setLoading(false);
         }
     };
-
-    if (showVerification) {
-        return <ExpertVerification />;
-    }
 
     return (
         <div className="z-10 w-full h-auto max-w-6xl bg-white rounded-r-4xl flex overflow-hidden">
@@ -255,6 +250,36 @@ export default function SignUpForm({role, onBack} : Props) {
                         {loading ? 'Signing Up...' : 'Sign Up'}
                     </button>
                 </form>
+
+                <div className="relative w-fit my-4 flex items-center justify-center">
+                    <div className="absolute w-100 h-[1px] bg-gray-400"></div>
+                    <div className="relative px-2 bg-white text-sm font-poppins text-gray-400">
+                        or sign up with
+                    </div>
+                </div>
+
+                <div className="flex flex-row items-center gap-5 w-100">
+                    <button 
+                        onClick={() => {
+                            signUpWithGoogle(role);
+                        }}
+                        className="w-full relative rounded-lg font-poppins-semibold text-base py-2 px-5  text-gray-500 bg-white flex items-center justify-center
+                            shadow-[0_4px_8px_rgba(0,0,0,0.2)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer border border-gray-400"
+                        >
+                        <FcGoogle className="absolute left-5 text-2xl" />
+                        Google
+                    </button>
+
+                    <button 
+                        onClick={() => {
+                            signUpWithFacebook(role);
+                        }}      
+                        className="w-full relative rounded-lg font-poppins-semibold text-base py-2 px-5  text-gray-500 bg-white flex items-center justify-center
+                            shadow-[0_4px_8px_rgba(0,0,0,0.2)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer border border-gray-400">
+                        <FaFacebookSquare className="absolute left-5 text-2xl text-blue-600" />
+                        Facebook
+                    </button>
+                </div>
 
                 <div className="absolute bottom-0 mb-5 flex items-center gap-3 ">
                     <p className="text-sm text-gray-400 font-poppins">{"Already have an account?"}</p>

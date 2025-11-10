@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 
-export default function DefaultAvatars() {
+interface DefaultAvatarsProps {
+  onSelect?: (avatar: string) => void; // callback to parent
+}
+
+export default function DefaultAvatars({ onSelect }: DefaultAvatarsProps) {
   const avatars = [
     "/avatar-capybara.png",
     "/avatar-cat.png",
@@ -15,6 +19,7 @@ export default function DefaultAvatars() {
 
   const handleSelect = (avatar: string) => {
     setSelected(avatar);
+    if (onSelect) onSelect(avatar); // notify parent
   };
 
   return (
