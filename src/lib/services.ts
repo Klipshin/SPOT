@@ -40,7 +40,7 @@ export const expertService = {
             .eq("user_id", userId)
             .single();
 
-        if (error) throw error;
+		if (error) throw new Error(error.message);
 
         return data;
     },
@@ -55,7 +55,7 @@ export const expertService = {
             .select()
             .single();
         
-        if (error) throw error;
+		if (error) throw new Error(error.message);
 
         return data;
     },

@@ -50,7 +50,9 @@ export default function useExperts(){
                     id_docu: expertData.id_docu,
                     employment_proof: expertData.employment_proof,
                     diploma_docu: expertData.diploma_docu,
-                    academic_profile: expertData.academic_profile,
+					academic_profile: expertData.academic_profile && expertData.academic_profile.trim()
+						? expertData.academic_profile.trim()
+						: null,
                 }
             );
             setExperts((prev) => [newExpert, ...prev]);

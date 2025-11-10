@@ -95,7 +95,7 @@ export default function SignUpForm({role, onBack} : Props) {
         }
 
         try {
-            formData.append('role', role);
+            formData.append('is_expert', String(role === 'expert'));
             await signup(formData);
             
             if (role === 'enthusiast') {

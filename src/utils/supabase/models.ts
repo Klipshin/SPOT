@@ -15,7 +15,7 @@ export interface Expert {
     id_docu: string;
     employment_proof: string;
     diploma_docu: string;
-    academic_profile?: string;
+	academic_profile: string | null;
     is_verified: string;
     verified_at: string;
 }
