@@ -31,37 +31,11 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showMainContent, setShowMainContent] = useState(true);
-  const [scale, setScale] = useState(1);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-
-  // Calculate scale to fit viewport without zooming in
-  useEffect(() => {
-    const calculateScale = () => {
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const designWidth = 1440;
-      const designHeight = 656;
-      
-      // Calculate scale to fit both dimensions
-      const scaleX = viewportWidth / designWidth;
-      const scaleY = viewportHeight / designHeight;
-      let newScale = Math.min(scaleX, scaleY);
-      
-      // Ensure reasonable bounds (scale down only, no zoom in)
-      newScale = Math.max(newScale, 0.5);
-      newScale = Math.min(newScale, 1);
-      
-      setScale(newScale);
-    };
-    
-    calculateScale();
-    window.addEventListener('resize', calculateScale);
-    return () => window.removeEventListener('resize', calculateScale);
-  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -302,46 +276,77 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
   return (
     <div className="bg-[#f1eee5] w-full h-screen relative overflow-hidden flex items-center justify-center">
-      <div className="relative" style={{ 
-        width: '1440px', 
-        height: '656px',
-        transform: `scale(${scale})`,
-        transformOrigin: 'center center'
-      }}>
+      <div
+  className="relative"
+  style={{
+    width: "1440px",
+    height: "656px",
+    transform: "scale(var(--scale))",
+    transformOrigin: "center",
+  }}
+>
+  <style>{`
+    :root {
+      --scale: calc(min(100vw / 1440, 100vh / 656));
+    }
+  `}</style>
+
       {/* Header Bar */}
-      <div className="absolute top-0 left-0 right-0 w-full h-11 bg-[#dad2b9]" />
+      {/* Fixed Header */}
+<div className="fixed top-0 left-0 right-0 w-full z-50">
+  {/* Header Bar - Full width background */}
+  <div className="w-full h-11 bg-[#dad2b9] justify-center" />
+  
+  {/* Centered content container */}
+  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1440px] max-w-full h-11">
+   {/* SPOT Logo Text */}
+<div className="absolute -top-0.5 left-[46px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
+  SPOT
+</div>
 
-      {/* SPOT Logo Text */}
-      <div className="absolute -top-0.5 left-[78px] [text-shadow:0px_4px_4px_#00000040] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
-        SPOT
-      </div>
+{/* Logo decorative elements */}
+<div className="absolute top-5 left-[-15px] w-[46px] h-[7px] bg-[#f1eee5]" />
+<div className="absolute top-[15px] left-[-12px] w-10 h-[5px] bg-[#f1eee5]" />
+<div className="absolute top-[27px] left-[-12px] w-10 h-[3px] bg-[#f1eee5]" />
+<div className="top-[26px] absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
+<div className="top-2.5 absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
 
-      {/* Logo decorative elements */}
-      <div className="absolute top-5 left-[17px] w-[46px] h-[7px] bg-[#f1eee5]" />
-      <div className="absolute top-[15px] left-5 w-10 h-[5px] bg-[#f1eee5]" />
-      <div className="absolute top-[27px] left-5 w-10 h-[3px] bg-[#f1eee5]" />
-      <div className="top-[26px] absolute left-6 w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
-      <div className="top-2.5 absolute left-6 w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
+{/* Logo Icon */}
+<img
+  className="absolute top-0 left-[-32px] w-[75px] h-[47px] aspect-[1.48] object-cover"
+  alt="Spoticon"
+  src="/spoticon.svg"
+/>
 
-      {/* Logo Icon */}
-      <img
-        className="absolute top-0 left-1 w-[75px] h-[47px] aspect-[1.48] object-cover"
-        alt="Spoticon"
-        src="/spoticon.svg"
-      />
+  {/* Header User Icons */}
+<img
+  className="absolute top-[5px] left-[1406px] w-[35px] h-[35px] aspect-[1] object-cover"
+  alt="Down chevron"
+  src="/down-chevron 1.svg"
+/>
+
+{/* Header Decorative Images */}
+<img
+  className="absolute top-1.5 left-[1340px] w-[47px] h-[31px] aspect-[1.51]"
+  alt="Element"
+  src="/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"
+/>
+
+{/* header profile icon*/}
+<img
+  className="top-[5px] left-[1444px] w-[35px] h-[35px] absolute aspect-[1] object-cover"
+  alt="User"
+  src="/user (2) 9.svg"
+/>
+  </div>
+</div>
+      
 
       {/* Center Content Area */}
-      <div className="absolute top-11 left-[424px] w-[592px] h-[622px] bg-[linear-gradient(180deg,rgba(208,230,144,0.73)_0%,rgba(58,84,42,0.76)_100%)]" />
-
-      {/* Header User Icons */}
-      <img
-        className="absolute top-[5px] left-[1358px] w-[35px] h-[35px] aspect-[1] object-cover"
-        alt="Down chevron"
-        src="/down-chevron 1.svg"
-      />
+      <div className="absolute top-[-12] left-[424px] w-[592px] h-[750px] bg-[linear-gradient(180deg,rgba(208,230,144,0.73)_0%,rgba(58,84,42,0.76)_100%)]" />
 
       {/* Right Chat Panel */}
-      <div className="absolute top-[61px] left-[1026px] w-[405px] h-[586px] bg-[#d0e58f1f] rounded-[25px] border border-solid border-black overflow-hidden">
+      <div className="absolute top-[27px] left-[1040px] w-[420px] h-[645px] bg-[#d0e58f1f] rounded-[25px] border border-solid border-black overflow-hidden">
         {/* Chat Messages Area */}
         <div className="absolute top-4 left-4 right-4 bottom-20 overflow-y-auto">
           {messages.map((message) => (
@@ -418,10 +423,10 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       </div>
 
       {/* Left Chat History Panel */}
-      <div className="absolute top-[143px] left-6 w-[372px] h-[447px] bg-[#d0e58f1f] rounded-[25px] border border-solid border-black" />
+      <div className="absolute top-[100px] left-[-15] w-[410px] h-[500px] bg-[#d0e58f1f] rounded-[25px] border border-solid border-black" />
 
       {/* Chat Input Box */}
-      <div className="absolute top-[571px] left-[1038px] w-[381px] h-[65px] bg-[#ffffff33] rounded-[25px] border border-solid border-[#95ab33]">
+      <div className="absolute top-[589px] left-[1055px] w-[390px] h-[65px] bg-[#ffffff33] rounded-[25px] border border-solid border-[#95ab33]">
         {/* File Preview in Input */}
         {previewUrl && (
           <div className="absolute -top-16 left-4 right-4">
@@ -444,7 +449,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
           onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
           placeholder="Ask Anything"
           disabled={isLoading}
-          className="absolute top-[18px] left-[61px] w-[250px] bg-transparent outline-none font-normal italic text-[#111311] text-[15px] tracking-[0.75px] leading-[normal] placeholder:text-[#111311]"
+          className="absolute top-[18px] left-[30px] w-[250px] bg-transparent outline-none font-normal italic text-[#111311] text-[15px] tracking-[0.75px] leading-[normal] placeholder:text-[#111311]"
         />
         
         <button
@@ -461,9 +466,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       </div>
 
       <img
-        className="absolute top-[587px] left-[1371px] w-[34px] h-[34px] aspect-[1] object-cover cursor-pointer hover:opacity-80"
+        className="absolute top-[605px] left-[1360px] w-[34px] h-[34px] aspect-[1] object-cover cursor-pointer hover:opacity-80"
         alt="Gallery"
-        src="/gallery 2.svg"
+        src="/gall.svg"
         onClick={(e) => {
           e.stopPropagation();
           fileInputRef.current?.click();
@@ -480,121 +485,115 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       />
 
       {/* Main Center Content Area with Border - needs to be on top */}
-      <div className="absolute top-[60px] left-[444px] w-[552px] h-[577px] bg-[#d9d9d95c] rounded-[76px] border border-dashed border-[#140e0e] overflow-hidden z-10">
+      <div className="absolute top-[25px] left-[444px] w-[552px] h-[650px] bg-[#d9d9d95c] rounded-[76px] border border-dashed border-[#140e0e] overflow-hidden z-10">
         {showMainContent && !showCamera && (
           <>
             <img
               className="absolute top-[78px] left-[203px] w-[146px] h-[146px] aspect-[1] object-cover"
               alt="Binoculars"
-              src="/binoculars.svg"
+              src="/bin.svg"
             />
 
-<div className="absolute top-[205px] left-[122px] w-[305px] font-extrabold text-black text-2xl tracking-[1.20px] leading-[normal] text-center"> Spotted Anything? 
+            <div className="absolute top-[205px] left-[122px] w-[305px] font-extrabold text-black text-2xl tracking-[1.20px] leading-[normal] text-center">
+              Spotted Anything?
+            </div>
 
+
+           {/* Open Camera Button */}
+<div 
+  className="absolute top-[380px] left-[120px] w-[327px] h-[60px] cursor-pointer hover:opacity-90 hover:scale-105 hover:shadow-2xl transition-all duration-200"
+  onClick={openCamera}
+>
+  <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
+  <div className="absolute top-[15px] left-[110px] w-[251px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">
+    Open Camera
+  </div>
+  <img
+    className="absolute top-2.5 left-14 w-[38px] h-[38px] aspect-[1] object-cover"
+    alt="Cam"
+    src="/cam.svg"
+  />
 </div>
-        {/* Open Camera Button */}
-        <div 
-          className="absolute top-[337px] left-[120px] w-[327px] h-[60px] cursor-pointer hover:opacity-90 transition"
-          onClick={openCamera}
-        >
-          <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
-          <div className="absolute top-[15px] left-[110px] w-[251px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">
-            Open Camera
-          </div>
-          <img
-            className="absolute top-2.5 left-14 w-[38px] h-[38px] aspect-[1] object-cover"
-            alt="Cam"
-            src="/cam.svg"
-          />
-        </div>
 
-        {/* Upload Photo Button */}
-        <div 
-          className="absolute top-[436px] left-[120px] w-[329px] h-[60px] cursor-pointer hover:opacity-90 transition"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
-          <div className="absolute top-[15px] left-[68px] w-[178px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">
-            Upload Photo
-          </div>
-          <img
-            className="absolute top-2.5 left-[227px] w-[37px] h-[38px] aspect-[1] object-cover"
-            alt="Pic"
-            src="/pic.svg"
-          />
-        </div>
-      </>
-    )}
+{/* Upload Photo Button */}
+<div 
+              className="absolute top-[475px] left-[120px] w-[329px] h-[60px] cursor-pointer hover:opacity-90 hover:scale-105 hover:shadow-2xl transition-all duration-200"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
+              <div className="absolute top-[15px] left-[68px] w-[178px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">
+                Upload Photo
+              </div>
+              <img
+                className="absolute top-2.5 left-[227px] w-[37px] h-[38px] aspect-[1] object-cover"
+                alt="Pic"
+                src="/pic.svg"
+              />
+            </div>
+          </>
+        )}
 
-    {/* Camera View */}
-    {showCamera && (
-      <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-black">
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          className="max-w-full max-h-[450px] rounded-lg"
-        />
-        <div className="mt-6 flex gap-4">
-          <button
-            onClick={capturePhoto}
-            className="bg-white rounded-full w-16 h-16 flex items-center justify-center hover:bg-gray-100 transition shadow-lg"
-          >
-            <img src="/cam.svg" alt="Capture" className="w-8 h-8" />
-          </button>
-          <button
-            onClick={closeCamera}
-            className="bg-red-500 text-white rounded-full w-16 h-16 flex items-center justify-center hover:bg-red-600 transition shadow-lg text-2xl font-bold"
-          >
-            ×
-          </button>
-        </div>
+        {/* Camera View */}
+        {showCamera && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-black">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              className="max-w-full max-h-[450px] rounded-lg"
+            />
+            <div className="mt-6 flex gap-4">
+              <button
+                onClick={capturePhoto}
+                className="bg-white rounded-full w-16 h-16 flex items-center justify-center hover:bg-gray-100 transition shadow-lg"
+              >
+                <img src="/cam.svg" alt="Capture" className="w-8 h-8" />
+              </button>
+              <button
+                onClick={closeCamera}
+                className="bg-red-500 text-white rounded-full w-16 h-16 flex items-center justify-center hover:bg-red-600 transition shadow-lg text-2xl font-bold"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-    )}
-  </div>
 
-  {/* Username */}
-  <div className="absolute top-[619px] left-[49px] w-[156px] font-black text-[#072d0d] text-base tracking-[0.80px] leading-[normal]">
-    @username
-  </div>
+{/* User Icons */}
+<img
+        className="top-[640px] left-[-10px] w-[30px] h-[30px] absolute aspect-[1] object-cover"
+        alt="User"
+        src="/user (2) 6.svg"
+      />
 
-  {/* Chat History Title */}
-  <div className="absolute top-[158px] left-[54px] w-[251px] font-extrabold text-black text-xl tracking-[1.00px] leading-[normal]">
-    Chat History
-  </div>
+      {/* Username */}
+      <div className="absolute top-[643px] left-[35px] w-[156px] font-black text-[#072d0d] text-base tracking-[0.80px] leading-[normal]">
+        @username
+      </div>
 
-  {/* Back Button */}
-  <div className="absolute top-[58px] left-[17px] w-[104px] h-[30px] bg-[#d0e58fb2] rounded-[43px] cursor-pointer hover:opacity-80 transition" />
+      {/* Chat History Title */}
+      <div className="absolute top-[120px] left-[20px] w-[251px] font-extrabold text-[#4d4d4d] text-xl tracking-[1.00px] leading-[normal]">
+        Chat History
+      </div>
+
+     {/* Back Button */}
+<div className="absolute top-[25px] left-[-15px] w-[104px] h-[30px] cursor-pointer hover:scale-105 hover:shadow-2xl transition-all duration-200">
+  <div className="absolute top-0 left-0 w-[104px] h-[30px] bg-[#d0e58fb2] rounded-[43px] hover:opacity-80 transition" />
 
   <img
-    className="absolute top-16 left-[33px] w-[17px] h-[17px] aspect-[1] object-cover"
+    className="absolute top-[6.5px] left-[16px] w-[17px] h-[17px] aspect-[1] object-cover"
     alt="Back"
     src="/back.svg"
   />
 
-  <div className="absolute top-[60px] left-[59px] w-[47px] font-bold text-[#072d0db0] text-base tracking-[0] leading-[normal]">
+  <div className="absolute top-[3px] left-[42px] w-[47px] font-bold text-[#072d0db0] text-base tracking-[0] leading-[normal]">
     back
   </div>
-
-  {/* Header Decorative Images */}
-  <img
-    className="absolute top-1.5 left-[1292px] w-[47px] h-[31px] aspect-[1.51]"
-    alt="Element"
-    src="/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"
-  />
-
-  {/* User Icons */}
-  <img
-    className="top-[617px] left-[9px] w-[30px] h-[30px] absolute aspect-[1] object-cover"
-    alt="User"
-    src="/user (2) 6.svg"
-  />
-
-  <img
-    className="top-[5px] left-[1396px] w-[35px] h-[35px] absolute aspect-[1] object-cover"
-    alt="User"
-    src="/user (2) 9.svg"
-  />
-  </div>
 </div>
-); };
+
+
+      </div>
+    </div>
+  );
+};
