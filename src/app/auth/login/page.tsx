@@ -6,9 +6,11 @@ import { PiEyeBold, PiEyeClosedBold } from "react-icons/pi";
 import { FaFacebookSquare } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { login, signInWithFacebook, signInWithGoogle } from '@/src/lib/auth-actions';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
+    const router = useRouter();
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-[#82C3C1] to-white overflow-hidden">
@@ -97,8 +99,10 @@ export default function LoginPage() {
                         </div>
 
                         <div className="text-left py-1 px-5">
-                            <button className="font-poppins-italic text-sm text-[#082E0D8F] hover:text-black transition-colors duration-300 ease-in-out cursor-pointer">
-                                Forgot password?
+                            <button 
+                                onClick={() => router.push("/auth/forgot-password")}
+                                className="font-poppins-italic text-sm text-[#082E0D8F] hover:text-black transition-colors duration-300 ease-in-out cursor-pointer">
+                                    Forgot password?
                             </button>
                         </div>
                     </div>

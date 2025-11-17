@@ -36,7 +36,7 @@ export default function SignUpChoose() {
                 className="rounded-full px-5 py-1 bg-[#D0E69069] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-base font-poppins-bold text-[#082E0DB0] flex items-center justify-center gap-2
                     hover:bg-[#95AB33B2] transition-colors dura ease-in-out cursor-pointer"
             >
-                <IoChevronBackCircle className="pointer-events-none"/>
+                <IoChevronBackCircle />
                 back
             </button>
             <button 
