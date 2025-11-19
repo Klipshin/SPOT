@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -12,8 +12,35 @@ export default function ProfilePage() {
     location: '',
   });
 
+  const [editableFields, setEditableFields] = useState({
+    username: false,
+    name: false,
+    job: false,
+    email: false,
+    location: false,
+  });
+
+  const inputRefs = {
+    username: useRef<HTMLInputElement>(null),
+    name: useRef<HTMLInputElement>(null),
+    job: useRef<HTMLInputElement>(null),
+    email: useRef<HTMLInputElement>(null),
+    location: useRef<HTMLInputElement>(null),
+  };
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const enableFieldEditing = (field: keyof typeof formData) => {
+    setEditableFields(prev => ({ ...prev, [field]: true }));
+    requestAnimationFrame(() => {
+      inputRefs[field].current?.focus();
+    });
+  };
+
+  const disableFieldEditing = (field: keyof typeof formData) => {
+    setEditableFields(prev => ({ ...prev, [field]: false }));
   };
 
   return (
@@ -46,6 +73,19 @@ export default function ProfilePage() {
             SPOT
           </span>
         </div>
+
+        {/* Navigation Links */}
+        <nav className="flex items-center gap-10 font-semibold text-[#1f4e2d] text-sm lg:text-base">
+          {['Home', 'About', 'Explore', 'FAQs', 'Contact'].map(label => (
+            <Link
+              key={label}
+              href={`#${label.toLowerCase()}`}
+              className="hover:text-[#0f2d18] transition-colors"
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
 
         {/* Right side icons */}
         <div className="flex items-center gap-5">
@@ -85,12 +125,23 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
+                    ref={inputRefs.username}
                     value={formData.username}
                     onChange={(e) => handleInputChange('username', e.target.value)}
+                    onBlur={() => disableFieldEditing('username')}
+                    readOnly={!editableFields.username}
                     placeholder="Username"
-                    className="flex-1 px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-[#306137] text-gray-900 text-base placeholder:text-gray-400"
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                      editableFields.username
+                        ? 'border-[#306137]'
+                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    }`}
                   />
-                  <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => enableFieldEditing('username')}
+                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                  >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -105,12 +156,23 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
+                    ref={inputRefs.name}
                     value={formData.name}
                     onChange={(e) => handleInputChange('name', e.target.value)}
+                    onBlur={() => disableFieldEditing('name')}
+                    readOnly={!editableFields.name}
                     placeholder="Name"
-                    className="flex-1 px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-[#306137] text-gray-900 text-base placeholder:text-gray-400"
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                      editableFields.name
+                        ? 'border-[#306137]'
+                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    }`}
                   />
-                  <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => enableFieldEditing('name')}
+                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                  >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -125,12 +187,23 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
+                    ref={inputRefs.job}
                     value={formData.job}
                     onChange={(e) => handleInputChange('job', e.target.value)}
+                    onBlur={() => disableFieldEditing('job')}
+                    readOnly={!editableFields.job}
                     placeholder="Job/Occupation"
-                    className="flex-1 px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-[#306137] text-gray-900 text-base placeholder:text-gray-400"
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                      editableFields.job
+                        ? 'border-[#306137]'
+                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    }`}
                   />
-                  <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => enableFieldEditing('job')}
+                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                  >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -145,12 +218,23 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                   <input
                     type="email"
+                    ref={inputRefs.email}
                     value={formData.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
+                    onBlur={() => disableFieldEditing('email')}
+                    readOnly={!editableFields.email}
                     placeholder="Email"
-                    className="flex-1 px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-[#306137] text-gray-900 text-base placeholder:text-gray-400"
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                      editableFields.email
+                        ? 'border-[#306137]'
+                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    }`}
                   />
-                  <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => enableFieldEditing('email')}
+                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                  >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -165,12 +249,23 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
+                    ref={inputRefs.location}
                     value={formData.location}
                     onChange={(e) => handleInputChange('location', e.target.value)}
+                    onBlur={() => disableFieldEditing('location')}
+                    readOnly={!editableFields.location}
                     placeholder="Location"
-                    className="flex-1 px-4 py-3.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-[#306137] text-gray-900 text-base placeholder:text-gray-400"
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                      editableFields.location
+                        ? 'border-[#306137]'
+                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    }`}
                   />
-                  <button className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer">
+                  <button
+                    type="button"
+                    onClick={() => enableFieldEditing('location')}
+                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                  >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
