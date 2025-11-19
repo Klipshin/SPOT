@@ -132,18 +132,9 @@ export default function SettingsPage() {
           </a>
         </nav>
 
-        {/* Right Side - Auth Buttons and Icons */}
-        <div className="flex items-center gap-4">
-          {/* Auth Buttons */}
-          <button className="font-bold text-[#246440] text-[15px] hover:underline transition-all">
-            Log In
-          </button>
-          <button className="w-[108px] h-[33px] bg-[#d1e39b] rounded-[9px] font-bold text-[#25451f] text-[15px] hover:bg-[#c5d78f] transition-all">
-            Sign Up
-          </button>
-
-          {/* Utility Icons */}
-          <div className="flex items-center gap-2 ml-2">
+        {/* Right Side - Utility Icons */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2">
             {/* Moon Icon (Dark Mode) */}
             <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors">
               <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
