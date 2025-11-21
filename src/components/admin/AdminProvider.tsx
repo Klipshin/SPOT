@@ -17,30 +17,30 @@ const AdminProvider = ({ children } : { children: React.ReactNode }) => {
     };
 
     return (
-        <>
+        <div className="h-screen bg-[url('/landingbg1.png')] bg-cover bg-center overflow-hidden">
             {hasLayout && (
                 <>
-                    <AdminNavbar onMenuClick={toggleSidebar}/>
+                    <AdminNavbar />
                 </>
             )}
             <div className={`flex ${hasLayout ? "pt-16" : "" }`}>
                 {hasLayout && (
-                    <AdminSidebar isOpen={isSidebarOpen} />
+                    <AdminSidebar />
                 )}
                 <main 
                     className={`flex-1 transition-all duration-300 ${
                         hasLayout
                             ? isSidebarOpen
-                            ? "lg:ml-64"
+                            ? "lg:ml-70"
                             : "lg:ml-20"
                             : ""
                         }`}
                 >
-                    <div className="p-6 pb-20 lg:pb-6">{children}</div>
+                    <div className="p-6 ">{children}</div>
                 </main>
             </div>
 
-        </>
+        </div>
     );
 }
 export default AdminProvider;
