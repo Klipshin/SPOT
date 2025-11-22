@@ -49,19 +49,26 @@ export default function ExpertDashboard() {
           <Image
             src="/spot icon.svg"
             alt="SPOT Icon"
-            width={40}
-            height={40}
+            width={70}
+            height={70}
             className="spot-logo-icon"
           />
           <span className="spot-logo-text">SPOT</span>
+        </div>
+
+        <div className="nav-center">
           <div className="search-container">
-            <svg className="search-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M9 17A8 8 0 1 0 9 1a8 8 0 0 0 0 16z" stroke="currentColor" strokeWidth="2"/>
-              <path d="m19 19-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+            <Image
+              src="/search%20(1)%201.svg"
+              alt="Search"
+              width={20}
+              height={20}
+              className="search-icon"
+            />
             <input type="text" placeholder="Search anything..." className="search-input" />
           </div>
         </div>
+
         <div className="nav-right">
           <button 
             onClick={toggleDarkMode}
@@ -71,13 +78,14 @@ export default function ExpertDashboard() {
             <div className="toggle-track">
               <div className="toggle-knob">
                 {!isDarkMode ? (
-                  /* Sun icon for light mode */
-                  <svg className="toggle-icon sun-icon" width="20" height="20" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="5" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1"/>
-                    <path d="M12 2v2M12 20v2M22 12h-2M4 12H2M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M19.07 19.07l-1.41-1.41M6.34 6.34l-1.41-1.41" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round"/>
-                  </svg>
+                  <Image
+                    src="/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview%201.svg"
+                    alt="Sun icon"
+                    width={20}
+                    height={20}
+                    className="toggle-icon sun-icon"
+                  />
                 ) : (
-                  /* Moon icon for dark mode */
                   <Image
                     src="/dark-mode 1.svg"
                     alt="Dark mode"
@@ -86,26 +94,9 @@ export default function ExpertDashboard() {
                     className="toggle-icon moon-icon"
                   />
                 )}
-                  <Image
-                    src="/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview%201.svg"
-                    alt="Dark mode Icon"
-                    width={24}
-                    height={24}
-                    className="nav-icon toggle-dark"
-                  />
-                  <svg className="nav-icon toggle-sun" width="24" height="24" viewBox="0 0 24 24" fill="none" role="img" aria-label="Light mode">
-                    <circle cx="12" cy="12" r="4" fill="#FFD43B"/>
-                    <g stroke="#FFD43B" strokeWidth="2" strokeLinecap="round">
-                      <path d="M12 2v2"/>
-                      <path d="M12 20v2"/>
-                      <path d="M4.9 4.9l1.4 1.4"/>
-                      <path d="M17.7 17.7l1.4 1.4"/>
-                      <path d="M2 12h2"/>
-                      <path d="M20 12h2"/>
-                      <path d="M4.9 19.1l1.4-1.4"/>
-                      <path d="M17.7 6.3l1.4-1.4"/>
-                    </g>
-                  </svg>
+                  {
+                    
+                  }
               </div>
             </div>
           </button>
@@ -195,7 +186,7 @@ export default function ExpertDashboard() {
             <div className="community-item">
               <div className="community-avatar">
                 <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                  <circle cx="20" cy="20" r="20" fill="#D9D9D9"/>
+                 
                 </svg>
               </div>
               <span>community name</span>
