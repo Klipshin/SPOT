@@ -475,7 +475,7 @@ export default function HomePage() {
 
     {/* Explorer ticket button */}
     <button 
-      className="relative mt-[-50] cursor-pointer hover:scale-105 transition-transform duration-300"
+      className="relative -mt-[50] cursor-pointer hover:scale-105 transition-transform duration-300"
       onClick={() => {
         // Add your click handler here
         console.log('Explorer ticket clicked!');
