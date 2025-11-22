@@ -1,6 +1,9 @@
 'use client';
+import React, { useState } from "react";
+import Image from 'next/image';
 
-export { default } from '../../upload/upld/page';
+export default function HomePage() {
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const leftFAQs = [
     {
