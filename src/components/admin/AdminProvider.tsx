@@ -17,7 +17,7 @@ const AdminProvider = ({ children } : { children: React.ReactNode }) => {
     };
 
     return (
-        <div className="h-screen bg-[url('/landingbg1.png')] bg-cover bg-center overflow-hidden">
+        <div className="h-screen bg-[url('/landingbg1.png')] bg-cover bg-center overflow-x-hidden">
             {hasLayout && (
                 <>
                     <AdminNavbar />

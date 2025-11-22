@@ -1,7 +1,7 @@
 import InfoCards from '@/src/components/admin/InfoCards'
 import SearchBar from '@/src/components/admin/SearchBar'
 import SortDropDown from '@/src/components/admin/SortDropDown'
-import ToggleBar from '@/src/components/admin/ToggleBar'
+import UserCell from '@/src/components/admin/UserCell'
 import React from 'react'
 
 export default function UserManagementPage() {
@@ -22,24 +22,32 @@ export default function UserManagementPage() {
       </div>
 
       <div className="flex flex-row items-center justify-between w-full">
-        <ToggleBar 
-          barOne="Feed"
-          barTwo="History"
-        />
-
         <div className="flex flex-row items-center space-x-5">
           <SearchBar />
           <SortDropDown />
         </div>
       </div>
 
-      <div className="w-full bg-white/35 p-5 rounded-3xl">
-        <div className="py-2 px-3 bg-[#082E0D] font-poppins-bold text-white text-lg rounded-2xl flex flex-row">
-            <div className="ml-10 flex-1 text-left">Reporter</div>
-            <div className="flex-1 text-left">Username</div>
-            <div className="flex-1 text-center">Status</div>
-            <div className="flex-1 text-center">Access</div>
+      <div className="w-full flex flex-col bg-white/35 p-5 rounded-2xl space-y-2">
+        <div className="py-2 px-3 bg-[#2B442E] font-poppins-bold text-white text-lg rounded-xl grid grid-cols-[minmax(100px,200px)_2fr_1fr_1fr]">
+            <div className="text-center">Profile</div>
+            <div className="text-center">Username</div>
+            <div className="text-center">Status</div>
+            <div className="text-center">Access</div>
         </div>
+
+        <UserCell 
+          profile="/avatar-capybara.png"
+          username="nendouglazer"
+          status="Active"
+        />
+
+        <UserCell 
+          profile="/avatar-cat.png"
+          username="lovesaiki"
+          status="Suspended"
+        />
+
       </div>
     </div>
   )
