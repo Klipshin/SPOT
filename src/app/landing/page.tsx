@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from "react";
 import Image from 'next/image';
+import LandingNavBar from "@/src/components/LandingNavBar";
 
 export default function HomePage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
@@ -67,286 +68,183 @@ export default function HomePage() {
     setOpenIndex(openIndex === index ? null : index);
   };
 
-
   return (
     <main className="bg-white justify-center overflow-x-hidden">
-
-      {/* Centered Navigation Bar */}
-      <header className="fixed top-3 left-1/2 transform -translate-x-1/2 w-[1383px] h-[94px] z-50">
-        <div className="relative flex justify-center items-center h-full">
-          <Image
-            src="/topbar.png"
-            alt="Navigation Background"
-            width={1334}
-            height={56}
-            className="absolute top-[7px] left-1/2 -translate-x-1/2"
-          />
-
-          {/* Logo */}
-          <div className="absolute top-[3px] left-[33px]">
-            <Image
-              src="/spot icon.svg"
-              alt="SPOT Icon"
-              width={79}
-              height={54}
-            />
-          </div>
-
-          <div className="absolute top-0 left-[110px] text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent"> SPOT </div>
-
-         {/* Navigation Links */}
-<nav className="absolute top-[18px] left-1/2 -translate-x-1/2 flex items-center gap-[75px]">
-  <a 
-    href="#home" 
-    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
-    onClick={(e) => {
-      e.preventDefault();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }}
-  >
-    Home
-  </a>
-  <a 
-    href="#about" 
-    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
-    onClick={(e) => {
-      e.preventDefault();
-      document.getElementById('what-is-spot')?.scrollIntoView({ behavior: 'smooth' });
-    }}
-  >
-    About
-  </a>
-  <a 
-    href="#explore" 
-    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
-    onClick={(e) => {
-      e.preventDefault();
-      document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' });
-    }}
-  >
-    Explore
-  </a>
-  <a 
-    href="#faqs" 
-    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
-    onClick={(e) => {
-      e.preventDefault();
-      document.getElementById('faqs')?.scrollIntoView({ behavior: 'smooth' });
-    }}
-  >
-    FAQs
-  </a>
-  <a 
-    href="#contact" 
-    className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors cursor-pointer"
-    onClick={(e) => {
-      e.preventDefault();
-      document.getElementById('footer')?.scrollIntoView({ behavior: 'smooth' });
-    }}
-  >
-    Contact
-  </a>
-</nav>
-
-          {/* Auth Buttons */}
-          <div className="absolute top-[15px] right-[40px] flex items-center gap-4">
-            <button className="font-bold text-[#246440] text-[15px] hover:underline transition-all"
-             onClick={() => {
-              // Add your click handler here
-              console.log('Log In Clicked!');
-            }}
-            >
-              Log In
-            </button>
-            <button className="w-[108px] h-[33px] bg-[#d1e39b] rounded-[9px] font-bold text-[#25451f] text-[15px] hover:bg-[#c5d78f] transition-all"
-            onClick={() => {
-              // Add your click handler here
-              console.log('Sign Up Clicked!');
-            }}
-            >
-              Sign Up
-            </button>
-          </div>
-        </div>
-      </header>
-      
+      <LandingNavBar />
       <div 
-      className="relative w-full max-w-[1920px] mx-auto"
-      style={{
-        backgroundImage: "url('/landingbg.png')",
-        backgroundSize: "100% auto",
-        backgroundPosition: "top center",
-        backgroundRepeat: "no-repeat"
-      }}
-    >
-      {/* Hero Section */}
-      <section className="relative min-h-[743px] m-0 p-0 w-full">
-        
-        {/* Mascot */}
-        <div className="relative w-full max-w-[1440px] h-full mx-auto">
+        className="relative w-full max-w-[1920px] mx-auto"
+        style={{
+          backgroundImage: "url('/landingbg.png')",
+          backgroundSize: "100% auto",
+          backgroundPosition: "top center",
+          backgroundRepeat: "no-repeat"
+        }}
+      >
+        {/* Hero Section */}
+        <section className="relative min-h-[743px] m-0 p-0 w-full">
           {/* Mascot */}
-          <div className="absolute top-7 left-0 w-[695px] h-[746px] justify-center-safe">
-            <Image
-              src="/spotmascotshadow.svg"
-              alt="SPOT Mascot Shadow"
-              width={584}
-              height={617}
-              className="absolute top-[71px] left-10"
-            />
-            <Image
-              src="/spotmascot.svg"
-              alt="SPOT Mascot"
-              width={638}
-              height={688}
-              className="absolute top-[29px] left-[29px] z-10"
-            />
-          </div>
+          <div className="relative w-full max-w-[1440px] h-full mx-auto">
+            <div className="absolute top-7 left-0 w-[695px] h-[746px] justify-center-safe">
+              <Image
+                src="/spotmascotshadow.svg"
+                alt="SPOT Mascot Shadow"
+                width={584}
+                height={617}
+                className="absolute top-[71px] left-10"
+              />
+              <Image
+                src="/spotmascot.svg"
+                alt="SPOT Mascot"
+                width={638}
+                height={688}
+                className="absolute top-[29px] left-[29px] z-10"
+              />
+            </div>
 
-        {/* Camera Icon with Focus Frame */}
-<button 
-  className="absolute top-[106px] left-[536px] w-[474px] h-[400px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
-  onClick={() => {
-    // Add your click handler here
-    console.log('Camera icon clicked!');
-  }}
->
-  <div className="absolute top-[31px] left-6 w-[382px] h-[341px] bg-[#b3d060] rounded-[64px] rotate-[-8.25deg]" />
-  <div className="absolute top-[29px] left-[65px] w-[382px] h-[341px] bg-[#748348] rounded-[64px] rotate-[9.59deg]" />
-  <div className="absolute top-[30px] left-[37px] w-[382px] h-[341px] bg-[#deecb6] rounded-[64px] border-[3px] border-solid border-[#373333]" />
-  <Image
-    src="/camfocus.svg"
-    alt="Focus"
-    width={283}
-    height={283}
-    className="absolute top-[59px] left-[86px]"
-  />
-  <Image
-    src="/camicon.svg"
-    alt="Camera Icon"
-    width={94}
-    height={47}
-    className="absolute top-[181px] left-[181px]"
-  />
-</button>
+            {/* Camera Icon with Focus Frame */}
+            <button 
+              className="absolute top-[106px] left-[536px] w-[474px] h-[400px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
+              onClick={() => {
+                // Add your click handler here
+                console.log('Camera icon clicked!');
+              }}
+            >
+              <div className="absolute top-[31px] left-6 w-[382px] h-[341px] bg-[#b3d060] rounded-[64px] rotate-[-8.25deg]" />
+              <div className="absolute top-[29px] left-[65px] w-[382px] h-[341px] bg-[#748348] rounded-[64px] rotate-[9.59deg]" />
+              <div className="absolute top-[30px] left-[37px] w-[382px] h-[341px] bg-[#deecb6] rounded-[64px] border-[3px] border-solid border-[#373333]" />
+              <Image
+                src="/camfocus.svg"
+                alt="Focus"
+                width={283}
+                height={283}
+                className="absolute top-[59px] left-[86px]"
+              />
+              <Image
+                src="/camicon.svg"
+                alt="Camera Icon"
+                width={94}
+                height={47}
+                className="absolute top-[181px] left-[181px]"
+              />
+            </button>
 
-       {/* Hero Text with Double Layer */}
-<div className="absolute top-[158px] left-[1052px] w-[303.743px] h-[254.525px] flex-shrink-0 justify-center-safe">
-  {/* Black Shadow Layer (Bottom) - offset */}
-  <p 
-    className="absolute top-[7.26px] left-[3.47px] text-[48px] font-extrabold text-black leading-normal"
-    style={{
-      WebkitTextStroke: '3px #000000'
-    }}
-  >
-    Not sure<br />
-    what snake that is?<br />
-    Let SPOT<br />
-    find out!
-  </p>
-  
-  {/* White Text Layer with Green Stroke-top */}
-  <p 
-    className="absolute top-0 left-0 text-[48px] font-extrabold text-white leading-normal justify-center-safe"
-    style={{
-      WebkitTextStroke: '7px #213E26',
-      paintOrder: 'stroke fill',
-      WebkitTextFillColor: 'white'
-    }}
-  >
-    Not sure<br />
-    what snake that is?<br />
-    Let SPOT<br />
-    find out!
-  </p>
-</div>
+            {/* Hero Text with Double Layer */}
+            <div className="absolute top-[158px] left-[1052px] w-[303.743px] h-[254.525px] flex-shrink-0 justify-center-safe">
+              {/* Black Shadow Layer (Bottom) - offset */}
+              <p 
+                className="absolute top-[7.26px] left-[3.47px] text-[48px] font-extrabold text-black leading-normal"
+                style={{
+                  WebkitTextStroke: '3px #000000'
+                }}
+              >
+                Not sure<br />
+                what snake that is?<br />
+                Let SPOT<br />
+                find out!
+              </p>
+              
+              {/* White Text Layer with Green Stroke-top */}
+              <p 
+                className="absolute top-0 left-0 text-[48px] font-extrabold text-white leading-normal justify-center-safe"
+                style={{
+                  WebkitTextStroke: '7px #213E26',
+                  paintOrder: 'stroke fill',
+                  WebkitTextFillColor: 'white'
+                }}
+              >
+                Not sure<br />
+                what snake that is?<br />
+                Let SPOT<br />
+                find out!
+              </p>
+            </div>
+            
+            {/* Upload Button */}
+            <button 
+              className="absolute top-[500px] left-[600px] w-[327px] h-[50px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
+              onClick={() => {
+                // Add your click handler here
+                console.log('Upload Image clicked!');
+              }}
+            >
+              <div className="relative">
+                <Image
+                  src="/uploadimgshadow.svg"
+                  alt=""
+                  width={328}
+                  height={55}
+                  className="absolute top-[3px] -left-1"
+                />
+                <Image
+                  src="/uploadimgbg.svg"
+                  alt=""
+                  width={328}
+                  height={50}
+                  className="absolute top-0 left-px"
+                />
+                <div className="absolute top-1.5 left-[92px] font-extrabold text-[#246440] text-xl justify-center-safe">
+                  Upload Image
+                </div>
+              </div>
+            </button>
 
-        {/* Upload Button */}
-        {/* Upload Button */}
-<button 
-  className="absolute top-[500px] left-[600px] w-[327px] h-[50px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
-  onClick={() => {
-    // Add your click handler here
-    console.log('Upload Image clicked!');
-  }}
->
-  <div className="relative">
-    <Image
-      src="/uploadimgshadow.svg"
-      alt=""
-      width={328}
-      height={55}
-      className="absolute top-[3px] -left-1"
-    />
-    <Image
-      src="/uploadimgbg.svg"
-      alt=""
-      width={328}
-      height={50}
-      className="absolute top-0 left-px"
-    />
-    <div className="absolute top-1.5 left-[92px] font-extrabold text-[#246440] text-xl justify-center-safe">
-      Upload Image
-    </div>
-  </div>
-</button>
+                {/* Sample Images */}
+                <div className="absolute top-[601px] left-[573px] w-[628px] h-[91px] justify-center-safe">
+                  <div className="absolute top-0 left-0 w-[626px] h-[91px] bg-white/85 rounded-[20px] justify-center-safe" />
+                  <p className="absolute top-[22px] left-[39px] font-bold text-[#1e613b] text-[15px]">
+                    No image?<br />Try one of these:
+                  </p>
+                  <Image src="/sample2.svg" alt="Sample 1" width={96} height={68} className="absolute top-[11px] left-[302px]" />
+                  <Image src="/sample3.svg" alt="Sample 2" width={85} height={68} className="absolute top-[11px] left-[417px]" />
+                  <Image src="/sample1.svg" alt="Sample 3" width={74} height={68} className="absolute top-[11px] left-[209px]" />
+                  <Image src="/sample4.svg" alt="Sample 4" width={74} height={68} className="absolute top-[11px] left-[521px]" />
+                </div>
+              </div>
+              </section>
 
-        {/* Sample Images */}
-        <div className="absolute top-[601px] left-[573px] w-[628px] h-[91px] justify-center-safe">
-          <div className="absolute top-0 left-0 w-[626px] h-[91px] bg-white/85 rounded-[20px] justify-center-safe" />
-          <p className="absolute top-[22px] left-[39px] font-bold text-[#1e613b] text-[15px]">
-            No image?<br />Try one of these:
-          </p>
-          <Image src="/sample2.svg" alt="Sample 1" width={96} height={68} className="absolute top-[11px] left-[302px]" />
-          <Image src="/sample3.svg" alt="Sample 2" width={85} height={68} className="absolute top-[11px] left-[417px]" />
-          <Image src="/sample1.svg" alt="Sample 3" width={74} height={68} className="absolute top-[11px] left-[209px]" />
-          <Image src="/sample4.svg" alt="Sample 4" width={74} height={68} className="absolute top-[11px] left-[521px]" />
-        </div>
-      </div>
-      </section>
-
-      {/* Photo Cards Section */}
-      <section className="relative m-0 p-0 py-0 justify-center-safe">
-      <p className="relative top-[200px] left-[150px] text-center text-black text-[32px] font-bold max-w-[668px] mx-auto mb-12 justify-items-center-safe">
-  From snakes in your backyard<br />to rare birds in the wild,
-</p>
-
-        {/* Card 1 */}
-<div className="relative w-[430px] h-[283px] mx-auto mb-8">
-  {/* Background Layer */}
-  <div className="absolute top-[10px] left-[300px] w-[430px] h-[283px] bg-[#7b6832] rounded-[32px] rotate-[9deg] shadow-lg"></div>
-
-  {/* Foreground Image */}
-  <div className="relative w-[430px] h-[283px] left-[275px] rotate-[-1deg] rounded-[32px]">
-    <Image
-      src="/pic1.svg"
-      alt="Wildlife"
-      width={430}
-      height={283}
-      className="object-cover"
-    />
-  </div>
-</div>
-
-        <p className="relative top-[80px] left-[755px] text-center text-[32px] font-medium text-[#36683d] max-w-[600px] mx-auto mb-8">
-          SPOT helps you know what you see — <span className="font-extrabold text-[#0d3b13]">instantly</span>.
+              {/* Photo Cards Section */}
+              <section className="relative m-0 p-0 py-0 justify-center-safe">
+              <p className="relative top-[200px] left-[150px] text-center text-black text-[32px] font-bold max-w-[668px] mx-auto mb-12 justify-items-center-safe">
+          From snakes in your backyard<br />to rare birds in the wild,
         </p>
 
-        {/* Card 2 */}
-<div className="relative w-[420px] h-[279px] mx-auto mb-8 justify-center-safe">
-  {/* Background Layer */}
-  <div className="absolute top-[-100px] left-[-300px] w-[429px] h-[282px] bg-[#9e6e50] rounded-[31px] rotate-[-12deg] shadow-lg justify-center-safe"></div>
+                {/* Card 1 */}
+        <div className="relative w-[430px] h-[283px] mx-auto mb-8">
+          {/* Background Layer */}
+          <div className="absolute top-[10px] left-[300px] w-[430px] h-[283px] bg-[#7b6832] rounded-[32px] rotate-[9deg] shadow-lg"></div>
 
-  {/* Foreground Image */}
-  <div className="relative w-[420px] h-[279px] top-[-100px] left-[-275px] rotate-[1deg] rounded-[35px] justify-center-safe">
-    <Image
-      src="/pic2.svg"
-      alt="Wildlife"
-      width={420}
-      height={279}
-      className="object-cover"
-    />
-  </div>
-</div>
+          {/* Foreground Image */}
+          <div className="relative w-[430px] h-[283px] left-[275px] rotate-[-1deg] rounded-[32px]">
+            <Image
+              src="/pic1.svg"
+              alt="Wildlife"
+              width={430}
+              height={283}
+              className="object-cover"
+            />
+          </div>
+        </div>
+
+                <p className="relative top-[80px] left-[755px] text-center text-[32px] font-medium text-[#36683d] max-w-[600px] mx-auto mb-8">
+                  SPOT helps you know what you see — <span className="font-extrabold text-[#0d3b13]">instantly</span>.
+                </p>
+
+                {/* Card 2 */}
+        <div className="relative w-[420px] h-[279px] mx-auto mb-8 justify-center-safe">
+          {/* Background Layer */}
+          <div className="absolute top-[-100px] left-[-300px] w-[429px] h-[282px] bg-[#9e6e50] rounded-[31px] rotate-[-12deg] shadow-lg justify-center-safe"></div>
+
+          {/* Foreground Image */}
+          <div className="relative w-[420px] h-[279px] top-[-100px] left-[-275px] rotate-[1deg] rounded-[35px] justify-center-safe">
+            <Image
+              src="/pic2.svg"
+              alt="Wildlife"
+              width={420}
+              height={279}
+              className="object-cover"
+            />
+          </div>
+        </div>
       </section>
       </div>
 
