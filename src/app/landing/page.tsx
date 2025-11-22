@@ -696,20 +696,92 @@ export default function HomePage() {
       {/* Footer */}
       <footer id="footer">
 <section className="relative h-[576px] overflow-hidden">
+  <div className="absolute inset-0 flex justify-center">
+    <div className="relative w-full max-w-[1440px]">
+      <Image
+        src="/footermascot.svg"
+        alt="SPOT Mascot"
+        width={593}
+        height={605}
+        className="absolute bottom-0 right-[1%] z-10"
+      />
+    </div>
+  </div>
   <Image
     src="/footer.svg"
     alt="Footer Background"
     width={1440}
     height={800}
-    className="absolute -bottom-[170px] left-0 w-full object-cover"
+    className="absolute -bottom-[170px] left-1/2 -translate-x-1/2 w-[1522px] h-auto max-w-none"
   />
-  <Image
-    src="/footermascot.svg"
-    alt="SPOT Mascot"
-    width={593}
-    height={605}
-    className="absolute bottom-0 right-[1%] z-10"
-  />
+  
+  {/* Content Layer */}
+<div className="relative z-20 h-full flex flex-col justify-between max-w-[1440px] mx-auto px-16 py-50">
+  {/* Top Section - Tagline */}
+  <div className="mt-8">
+    <h2 className="text-white text-4xl font-poppins font-light">
+      Discover the wild one <span className="text-[#8BC34A] font-semibold">SPOT</span> at a time.
+    </h2>
+    <div className="w-[640px] h-[2px] bg-white mt-6"></div>
+  </div>
+
+  {/* Bottom Section - Support & Connect */}
+  <div className="flex justify-between items-end mb-8 relative py-10">
+    {/* Support Section */}
+    <div>
+      <h3 className="text-white text-2xl font-poppins font-medium mb-4">Support</h3><br />
+      <ul className="space-y-1">
+        <li>
+          <a href="#" className="text-white text-lg font-poppins hover:text-[#8BC34A] transition-colors">
+            Help Center
+          </a>
+        </li>
+        <li>
+          <a href="#" className="text-white text-lg font-poppins hover:text-[#8BC34A] transition-colors">
+            Privacy Policy
+          </a>
+        </li>
+        <li>
+          <a href="#" className="text-white text-lg font-poppins hover:text-[#8BC34A] transition-colors">
+            Terms of Services
+          </a>
+        </li>
+      </ul>
+    </div>
+
+    {/* Connect With Us Section */}
+    <div className="absolute left-[320px]">
+      <h3 className="text-white text-2xl font-poppins font-medium mb-4">Connect With Us</h3><br />
+      <div className="flex gap-4">
+        <button 
+          onClick={() => window.open('https://www.facebook.com/people/Spot-it/61583851717496/', '_blank')}
+          className="w-12 h-12 flex items-center justify-center hover:-translate-y-1 transition-transform duration-200"
+        >
+          <Image src="/facebook.svg" alt="Facebook" width={55} height={55} />
+        </button>
+        <button 
+          onClick={() => window.open('https://www.instagram.com/yourprofile', '_blank')}
+          className="w-12 h-12 flex items-center justify-center hover:-translate-y-1 transition-transform duration-200"
+        >
+          <Image src="/instagram.svg" alt="Instagram" width={55} height={55} />
+        </button>
+        <button 
+          onClick={() => window.open('https://twitter.com/yourprofile', '_blank')}
+          className="w-12 h-12 flex items-center justify-center hover:-translate-y-1 transition-transform duration-200"
+        >
+          <Image src="/twitter.svg" alt="Twitter" width={55} height={55} />
+        </button>
+      </div>
+    </div>
+
+    {/* Copyright */}
+    <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
+      <p className="text-white/60 text-sm font-poppins">
+        © 2025. SPOT. All Rights Reserved
+      </p>
+    </div>
+    </div>
+  </div>
 </section>
 </footer>
     </main>
