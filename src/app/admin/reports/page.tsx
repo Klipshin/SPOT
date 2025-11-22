@@ -3,7 +3,6 @@
 import FeedCell from '@/src/components/admin/FeedCell';
 import HistoryCell from '@/src/components/admin/HistoryCell';
 import InfoCards from '@/src/components/admin/InfoCards'
-import ReportedContent from '@/src/components/admin/ReportedContent';
 import SearchBar from '@/src/components/admin/SearchBar'
 import SortDropDown from '@/src/components/admin/SortDropDown'
 import ToggleBar from '@/src/components/admin/ToggleBar'
@@ -14,6 +13,10 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col mt-3 space-y-5 w-full px-5">
+      <div className="absolute -right-10 w-120 rounded-full bg-[#D0E69080] py-2 px-7 text-2xl font-poppins-bold">
+        VIOLATION REPORTS
+      </div>
+
       <div className="flex flex-row justify-start items-center gap-8 w-full">
         <InfoCards 
           icon="/total-users.svg"
@@ -36,7 +39,7 @@ export default function ReportsPage() {
           onChange={setActiveCategory}
         />
 
-        <div className="flex flex-row items-center space-x-5">
+        <div className="flex flex-row items-center space-x-2">
           <SearchBar />
           <SortDropDown />
         </div>
@@ -50,8 +53,10 @@ export default function ReportsPage() {
               reporterUsername="lovesaiki"
               reportedProfile="/avatar-capybara.png"
               reportedUsername="nendouglazer"
-              date="11/07/2025"
-              reportedContent={ <ReportedContent /> }
+              reportedAt="11/07/2025"
+              reportedContent="Well, it was before I was born. He died trying to save a little girl who'd run in front of a bus. Huh, maybe that means he was into little girls ..."
+              contentPostedAt="06/07/6767"
+              contentViolation="hate"
             />
           </>
         )}

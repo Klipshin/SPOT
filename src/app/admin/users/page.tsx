@@ -7,6 +7,10 @@ import React from 'react'
 export default function UserManagementPage() {
   return (
     <div className="flex flex-col mt-3 space-y-5 w-full px-5">
+      <div className="absolute -right-10 w-120 rounded-full bg-[#D0E69080] py-2 px-7 text-2xl font-poppins-bold">
+        USER MANAGEMENT
+      </div>
+
       <div className="flex flex-row justify-start items-center gap-8 w-full">
         <InfoCards 
           icon="/total-users.svg"
@@ -22,7 +26,7 @@ export default function UserManagementPage() {
       </div>
 
       <div className="flex flex-row items-center justify-between w-full">
-        <div className="flex flex-row items-center space-x-5">
+        <div className="flex flex-row items-center space-x-2">
           <SearchBar />
           <SortDropDown />
         </div>
