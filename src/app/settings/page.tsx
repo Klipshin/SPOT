@@ -6,6 +6,10 @@ type ActiveSection = 'edit-profile' | 'change-password' | 'privacy-settings' | '
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('edit-profile');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+const [showNewPassword, setShowNewPassword] = useState(false);
+const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const [formData, setFormData] = useState({
     firstName: 'John',
@@ -35,7 +39,7 @@ export default function SettingsPage() {
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name, value } = e.target; 
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -91,8 +95,15 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#d9ead3]">
-      {/* Hide root layout header */}
+<div 
+  className="min-h-screen" 
+  style={{ 
+    backgroundImage: isDarkMode ? 'url(/darkbg0.png)' : 'url(/lightbg0.png)', 
+    backgroundSize: 'cover', 
+    backgroundPosition: 'center', 
+    backgroundRepeat: 'no-repeat' 
+  }}
+>      {/* Hide root layout header */}
       <style dangerouslySetInnerHTML={{__html: `
         body > header[class*="fixed"] {
           display: none !important;
@@ -100,77 +111,77 @@ export default function SettingsPage() {
       `}} />
       
       {/* Header Bar */}
-      <header className="relative w-full h-16 bg-[#f5f5dc] flex items-center justify-between px-6">
+      <header className="relative flex items-center justify-between px-3">
         {/* Logo */}
-        <div className="flex items-center gap-2">
-          <Image
-            src="/spot icon.svg"
-            alt="SPOT Icon"
-            width={24}
-            height={24}
-            className="w-6 h-6"
-          />
-          <span className="text-[#4a7c59] font-bold text-lg">SPOT</span>
-        </div>
-
-        {/* Navigation Links - Centered */}
-        <nav className="flex items-center gap-8 absolute left-1/2 transform -translate-x-1/2 bg-transparent shadow-none rounded-none p-0">
-          <a href="/" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-            Home
-          </a>
-          <a href="#about" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-            About
-          </a>
-          <a href="#explore" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-            Explore
-          </a>
-          <a href="#faqs" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-            FAQs
-          </a>
-          <a href="#contact" className="font-bold text-[#306137] text-[15px] hover:text-[#246440] transition-colors">
-            Contact
-          </a>
-        </nav>
+<div className="flex items-center gap-0 ml-5 ">
+  <Image
+    src="/spicon0.svg"
+    alt="SPOT Icon"
+    width={80}
+    height={80}
+    className="w-20 h-20"
+  />
+  <span 
+    className="font-extrabold text-4xl"
+    style={{
+      background: 'linear-gradient(180deg, #95AB33 29.81%, #23732F 56.73%, #082E0D 82.69%)',
+      WebkitBackgroundClip: 'text',
+      backgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      color: 'transparent',
+    }}
+  >
+    SPOT
+  </span>
+</div>
 
         {/* Right Side - Utility Icons */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            {/* Moon Icon (Dark Mode) */}
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors">
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            </button>
+<div className="flex items-center gap-4">
+  <div className="flex items-center gap-4">
+   {/* Light/Dark Mode Icon */}
+<button 
+  className="w-14 h-14 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors"
+  onClick={() => setIsDarkMode(!isDarkMode)}
+>
+  <img 
+    src={isDarkMode ? "dark.svg" : "light.svg"} 
+    alt={isDarkMode ? "Dark mode" : "Light mode"} 
+    className="w-15 h-15" 
+  />
+</button>
 
-            {/* Chevron Down */}
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors">
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+    {/* Profile & Chevron Combined Dropdown */}
+<div className="relative">
+  <button 
+    className="flex items-center gap-1 px-2 h-14 hover:bg-gray-200 rounded-full transition-colors"
+    onClick={() => {/* Toggle dropdown */}}
+  >
+    <svg className="w-9 h-9 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+    <img src="pfp.svg" alt="Profile" className="w-9 h-9" />
+  </button>
+  
+  {/* Dropdown Menu */}
+  {/* Add your dropdown content here */}
+  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 hidden">
+    {/* Dropdown content */}
+  </div>
+</div>
 
-            {/* Person Icon */}
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors">
-              <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </button>
-
-            {/* X Icon */}
-            <button className="w-8 h-8 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors">
-              <svg className="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
+    {/* Exit Icon */}
+    <button className="w-14 h-14 flex items-center justify-center hover:bg-gray-200 rounded-full transition-colors">
+      <img src="exit.svg" alt="Exit" className="w-9 h-9" />
+    </button>
+  </div>
+</div>
       </header>
 
       {/* Main Content */}
-      <div className="flex gap-6 p-6 max-w-7xl mx-auto pt-8">
+      <div className="flex gap-6 p-6 max-w-7xl mx-auto pt-2">
         {/* Left Sidebar */}
-        <aside className="w-64 bg-white rounded-lg shadow-lg p-6 flex flex-col">
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Account Settings</h2>
+        <aside className="w-75 bg-white rounded-lg shadow-lg p-6 flex flex-col">
+          <h2 className="text-2xl font-bold text-gray-800 mb-6">Account Settings</h2><br />
 
           {/* Navigation Links */}
           <nav className="flex flex-col gap-2 flex-grow mb-4">
@@ -213,7 +224,7 @@ export default function SettingsPage() {
               }`}
             >
               Notifications
-            </button>
+            </button><br /><br />
           </nav>
 
           {/* Log Out Button */}
@@ -294,48 +305,108 @@ export default function SettingsPage() {
             </>
           )}
 
-          {activeSection === 'change-password' && (
+{activeSection === 'change-password' && (
             <>
-              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Change Password</h1>
+              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Change Password</h1><br />
               <form onSubmit={handlePasswordSubmit} className="max-w-2xl mx-auto">
                 <div className="mb-6">
                   <label htmlFor="currentPassword" className="block text-gray-700 font-medium mb-2">
                     Current Password
                   </label>
-                  <input
-                    type="password"
-                    id="currentPassword"
-                    name="currentPassword"
-                    value={passwordData.currentPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      id="currentPassword"
+                      name="currentPassword"
+                      value={passwordData.currentPassword}
+                      onChange={handlePasswordChange}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
+                    />
+                    <button
+  type="button"
+  onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+>
+  {showCurrentPassword ? (
+    // Regular eye - when password is VISIBLE
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  ) : (
+    // Eye with slash - when password is HIDDEN
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    </svg>
+  )}
+</button>
+                  </div>
                 </div>
                 <div className="mb-6">
                   <label htmlFor="newPassword" className="block text-gray-700 font-medium mb-2">
                     New Password
                   </label>
-                  <input
-                    type="password"
-                    id="newPassword"
-                    name="newPassword"
-                    value={passwordData.newPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      id="newPassword"
+                      name="newPassword"
+                      value={passwordData.newPassword}
+                      onChange={handlePasswordChange}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
+                    />
+                  <button
+  type="button"
+  onClick={() => setShowNewPassword(!showNewPassword)}
+  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+>
+  {showNewPassword ? (
+    // Regular eye - when password is VISIBLE
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  ) : (
+    // Eye with slash - when password is HIDDEN
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    </svg>
+  )}
+</button>
+                  </div>
                 </div>
                 <div className="mb-8">
                   <label htmlFor="confirmPassword" className="block text-gray-700 font-medium mb-2">
                     Confirm New Password
                   </label>
-                  <input
-                    type="password"
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    value={passwordData.confirmPassword}
-                    onChange={handlePasswordChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      value={passwordData.confirmPassword}
+                      onChange={handlePasswordChange}
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
+                    />
+                    <button
+  type="button"
+  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-600 hover:text-gray-800"
+>
+  {showConfirmPassword ? (
+    // Regular eye - when password is VISIBLE
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+  ) : (
+    // Eye with slash - when password is HIDDEN
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+    </svg>
+  )}
+</button>
+                  </div>
                 </div>
                 <button
                   type="submit"
@@ -349,7 +420,7 @@ export default function SettingsPage() {
 
           {activeSection === 'privacy-settings' && (
             <>
-              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Privacy Settings</h1>
+              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Privacy Settings</h1><br /><br />
               <form onSubmit={handlePrivacySubmit} className="max-w-2xl mx-auto">
                 <div className="mb-6">
                   <label htmlFor="profileVisibility" className="block text-gray-700 font-medium mb-2">
@@ -364,7 +435,6 @@ export default function SettingsPage() {
                   >
                     <option value="public">Public</option>
                     <option value="private">Private</option>
-                    <option value="friends">Friends Only</option>
                   </select>
                 </div>
                 <div className="mb-6">
@@ -389,19 +459,7 @@ export default function SettingsPage() {
                       className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
                     />
                     <span className="text-gray-700 font-medium">Show Location</span>
-                  </label>
-                </div>
-                <div className="mb-8">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="allowMessages"
-                      checked={privacyData.allowMessages}
-                      onChange={handlePrivacyChange}
-                      className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
-                    />
-                    <span className="text-gray-700 font-medium">Allow Messages from Other Users</span>
-                  </label>
+                  </label><br /><br />
                 </div>
                 <button
                   type="submit"
@@ -415,7 +473,7 @@ export default function SettingsPage() {
 
           {activeSection === 'notifications' && (
             <>
-              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Notifications</h1>
+              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Notifications</h1><br /><br />
               <form onSubmit={handleNotificationSubmit} className="max-w-2xl mx-auto">
                 <div className="mb-6">
                   <label className="flex items-center justify-between cursor-pointer">
@@ -441,18 +499,6 @@ export default function SettingsPage() {
                     />
                   </label>
                 </div>
-                <div className="mb-6">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-gray-700 font-medium">SMS Notifications</span>
-                    <input
-                      type="checkbox"
-                      name="smsNotifications"
-                      checked={notificationData.smsNotifications}
-                      onChange={handleNotificationChange}
-                      className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
-                    />
-                  </label>
-                </div>
                 <div className="mb-8">
                   <label className="flex items-center justify-between cursor-pointer">
                     <span className="text-gray-700 font-medium">Weekly Digest</span>
@@ -463,7 +509,7 @@ export default function SettingsPage() {
                       onChange={handleNotificationChange}
                       className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
                     />
-                  </label>
+                  </label><br /><br />
                 </div>
                 <button
                   type="submit"

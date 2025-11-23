@@ -1,9 +1,9 @@
-import HomePage from "./landing/homepage/page";
+import SettingsPage from "./settings/page";
 
 export default function Home() {
   return (
-    <>
-      <HomePage />
+    <> 
+      <SettingsPage />
     </>
   );
 }
