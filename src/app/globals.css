@@ -1,81 +1,105 @@
 @import "tailwindcss";
 
-/* ... (keep existing root variables and scrollbar styles) ... */
+/* ===== THEME VARIABLES ===== */
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+/* ===== RESET ===== */
+body {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+}
+
+/* ===== CUSTOM SCROLLBAR (FIXED FOR DARK MODE) ===== */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+/* Track: Transparent so it takes the background color of the modal */
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent; 
+  margin: 10px 0; 
+}
+
+/* Thumb (The moving part) */
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5); /* Default gray */
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(107, 114, 128, 0.8);
+}
+
+/* Dark Mode Specific Scrollbar Override */
+/* This ensures the scrollbar looks dark/white when inside your dark modals */
+.dark .custom-scrollbar::-webkit-scrollbar-thumb,
+[class*="bg-[#222222]"] .custom-scrollbar::-webkit-scrollbar-thumb {
+   background-color: rgba(255, 255, 255, 0.2);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+[class*="bg-[#222222]"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+   background-color: rgba(255, 255, 255, 0.4);
+}
 
 /* ===== ANIMATIONS ===== */
 
-/* 1. Confetti Burst - More explosive */
+/* 1. Confetti Burst */
 @keyframes confetti-burst {
-  0% {
-    transform: scale(0);
-    opacity: 1;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    transform: scale(3); /* Bigger burst */
-    opacity: 0;
-  }
+  0% { transform: scale(0); opacity: 1; }
+  50% { opacity: 1; }
+  100% { transform: scale(3); opacity: 0; }
 }
+.animate-confetti { animation: confetti-burst 0.8s ease-out forwards; }
 
-.animate-confetti {
-  animation: confetti-burst 0.8s ease-out forwards;
-}
-
-/* 2. "Genie" Liquid Entrance */
+/* 2. "Genie" Liquid Entrance (For Create Post) */
 @keyframes genie-in {
-  0% {
-    opacity: 0;
-    transform: scale(0);
-    border-radius: 100%; /* Starts round like a droplet */
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-    border-radius: 40px; /* Morphs to card shape */
-  }
+  0% { opacity: 0; transform: scale(0); border-radius: 100%; }
+  100% { opacity: 1; transform: scale(1); border-radius: 40px; }
 }
+.animate-genie-in { animation: genie-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
-.animate-genie-in {
-  /* Elastic bezier curve for liquid feel */
-  animation: genie-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-
-/* 3. "Genie" Liquid Exit */
+/* 3. "Genie" Liquid Exit (For Create Post) */
 @keyframes genie-out {
-  0% {
-    opacity: 1;
-    transform: scale(1);
-    border-radius: 40px;
-  }
-  100% {
-    opacity: 0;
-    transform: scale(0);
-    border-radius: 100%; /* Shrinks back to a droplet */
-  }
+  0% { opacity: 1; transform: scale(1); border-radius: 40px; }
+  100% { opacity: 0; transform: scale(0); border-radius: 100%; }
 }
+.animate-genie-out { animation: genie-out 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
 
-.animate-genie-out {
-  animation: genie-out 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-/* ... keep existing animations ... */
-
-/* 4. Fluid Dropdown Morph */
+/* 4. Fluid Dropdown Morph (For Sort Menu) */
 @keyframes dropdown-morph {
-  0% {
-    opacity: 0;
-    transform: scale(0.95) translateY(-10px); /* Starts slightly smaller and higher */
-    filter: blur(4px); /* Adds a motion blur effect */
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-    filter: blur(0);
-  }
+  0% { opacity: 0; transform: scale(0.95) translateY(-10px); filter: blur(4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
 }
+.animate-dropdown-morph { transform-origin: top right; animation: dropdown-morph 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 
-.animate-dropdown-morph {
-  transform-origin: top right; /* Expands from the button */
-  animation: dropdown-morph 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; /* Smooth spring-like ease */
+/* 5. "Bubbly" Animation (For Members Modal) */
+@keyframes bubbly-in {
+  0% { opacity: 0; transform: scale(0.5) translateY(20px); }
+  80% { transform: scale(1.05) translateY(-5px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
+.animate-bubbly-in { animation: bubbly-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+@keyframes bubbly-out {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.3) translateY(50px); }
+}
+.animate-bubbly-out { animation: bubbly-out 0.3s cubic-bezier(0.6, -0.28, 0.735, 0.045) forwards; }
