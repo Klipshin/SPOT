@@ -2,9 +2,11 @@
 import React, { useState } from "react";
 import Image from 'next/image';
 import LandingNavBar from "@/src/components/LandingNavBar";
+import { useRouter } from 'next/navigation';
 
 export default function HomePage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const router = useRouter();
 
   const leftFAQs = [
     {
@@ -475,17 +477,16 @@ export default function HomePage() {
 
     {/* Explorer ticket button */}
     <button 
-      className="relative -mt-[50] cursor-pointer hover:scale-105 transition-transform duration-300"
+      className="relative mt-[50px] cursor-pointer hover:scale-105 transition-transform duration-300"
       onClick={() => {
-        // Add your click handler here
-        console.log('Explorer ticket clicked!');
+        router.push('/auth/signup');
       }}
     >
       <Image
         src="/explorer.svg"
         alt="BE AN EXPLORER! Admit One"
-        width={1000}
-        height={300}
+        width={600}
+        height={180}
         className="[&_path[fill='black']]:hidden"
       />
     </button>
@@ -754,7 +755,7 @@ export default function HomePage() {
       <h3 className="text-white text-2xl font-poppins font-medium mb-4">Connect With Us</h3><br />
       <div className="flex gap-4">
         <button 
-          onClick={() => window.open('https://www.facebook.com/people/Spot-it/61583851717496/', '_blank')}
+          onClick={() => window.open('https://www.facebook.com/edblueneko2fu/', '_blank')}
           className="w-12 h-12 flex items-center justify-center hover:-translate-y-1 transition-transform duration-200"
         >
           <Image src="/facebook.svg" alt="Facebook" width={55} height={55} />
