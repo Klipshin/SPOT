@@ -43,7 +43,11 @@ html, body {
   animation: var(--animate-spin);
 }
 
-/* Custom scrollbar for chat messages */
+/* ========================================= */
+/* SCROLLBAR CUSTOMIZATION             */
+/* ========================================= */
+
+/* Standard (Light Mode) Scrollbar */
 .overflow-y-auto::-webkit-scrollbar {
   width: 6px;
 }
@@ -61,6 +65,24 @@ html, body {
 .overflow-y-auto::-webkit-scrollbar-thumb:hover {
   background: rgba(149, 171, 51, 0.7);
 }
+
+/* NEW: Dark Mode Scrollbar Override */
+/* Apply the class 'dark-scrollbar' to your chat container in React when isDarkMode is true */
+.dark-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05); /* Faint white track for dark backgrounds */
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(160, 197, 99, 0.5); /* Slightly lighter green for better contrast */
+}
+
+.dark-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(160, 197, 99, 0.8);
+}
+
+/* ========================================= */
+/* ANIMATIONS                          */
+/* ========================================= */
 
 @keyframes spin {
   to {
@@ -241,9 +263,9 @@ button:disabled {
   opacity: 0.5;
 }
 
-/* Smooth color transitions */
+/* Smooth color transitions - Tweaked to ensure Dark Mode feels smooth */
 * {
   transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 150ms;
+  transition-duration: 300ms; /* Increased to 300ms for smoother Dark Mode switching */
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }

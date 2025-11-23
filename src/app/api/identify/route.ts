@@ -47,11 +47,23 @@ export async function POST(req: Request) {
     const base64Image = buffer.toString("base64");
     const mimeType = file.type || "image/jpeg";
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // 2.0 or 1.5 Flash is recommended
 
+    // UPDATED PROMPT WITH STRICT FILTERS
     const prompt = `
 You are an expert in Philippine wildlife identification.
-Analyze this image and provide the **Top 3 most likely species** found in the Philippines.
+
+**STRICT FILTERING RULES:**
+1. First, analyze the image to determine if it contains a **REAL, BIOLOGICAL ANIMAL**.
+2. **IMMEDIATELY RETURN AN EMPTY ARRAY "[]"** if the image contains:
+   - Humans (people, faces, body parts)
+   - Cartoons, anime, drawings, sketches, or digital art
+   - Inanimate objects (cars, furniture, toys, statues, figurines)
+   - Plants, flowers, or scenery with no visible animal
+   - Food or cooked dishes
+3. Only proceed if the image contains a real living creature (Mammal, Bird, Reptile, Insect, Amphibian, Fish, Arachnid, etc.).
+
+If it is a valid animal, provide the **Top 3 most likely species** found in the Philippines.
 
 For each prediction, return:
 - common_name
