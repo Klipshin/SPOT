@@ -8,7 +8,7 @@ export default function ExpertDashboard() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    
+    // Check local storage for theme preference
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
       setIsDarkMode(true);
@@ -16,7 +16,7 @@ export default function ExpertDashboard() {
   }, []);
 
   useEffect(() => {
-
+    // Apply theme class to document
     if (isDarkMode) {
       document.documentElement.classList.add('dark-mode');
       localStorage.setItem('theme', 'dark');
@@ -94,9 +94,6 @@ export default function ExpertDashboard() {
                     className="toggle-icon moon-icon"
                   />
                 )}
-                  {
-                    
-                  }
               </div>
             </div>
           </button>
@@ -313,4 +310,3 @@ export default function ExpertDashboard() {
     </div>
   );
 }
-
