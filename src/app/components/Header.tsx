@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ChevronDown, User, Sun, Moon } from 'lucide-react';
 
-// FIX: Use the alias pointing to src/context
 import { useTheme } from '@/app/components/ThemeContext';
 
 export default function Header() {
@@ -13,16 +12,22 @@ export default function Header() {
   const { isDarkMode, toggleTheme } = useTheme(); 
   const isCommunityPage = pathname === '/community';
 
-  // --- COMMUNITY HEADER ---
+  // --- COMMUNITY HEADER (LIQUID GLASS UPDATE) ---
   if (isCommunityPage) {
     return (
-      <header className={`fixed top-0 left-0 w-full h-[70px] border-b z-50 flex items-center justify-between px-8 font-poppins shadow-sm transition-colors duration-300 
-        ${isDarkMode ? 'bg-[#333333] border-[#444]' : 'bg-[#E2DFC8] border-[#A8A8A8]'}`}>
+      <header 
+        // 1. Added 'backdrop-blur-xl' for the glass effect
+        // 2. Changed backgrounds to have transparency (e.g., /80)
+        // 3. Made borders semi-transparent
+        className={`fixed top-0 left-0 w-full h-[70px] border-b z-50 flex items-center justify-between px-8 font-poppins shadow-sm transition-all duration-300 backdrop-blur-xl
+        ${isDarkMode 
+          ? 'bg-[#333333]/80 border-white/10' 
+          : 'bg-[#E2DFC8]/80 border-black/5'}`}
+      >
 
         {/* Left: Logo */}
         <Link href="/" className="flex items-center gap-3">
 
-          {/* UPDATED: Bigger icon + visible in dark mode */}
           <Image
             src="/spot icon.svg"
             alt="SPOT Icon"

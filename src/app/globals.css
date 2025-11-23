@@ -1,1 +1,81 @@
 @import "tailwindcss";
+
+/* ... (keep existing root variables and scrollbar styles) ... */
+
+/* ===== ANIMATIONS ===== */
+
+/* 1. Confetti Burst - More explosive */
+@keyframes confetti-burst {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(3); /* Bigger burst */
+    opacity: 0;
+  }
+}
+
+.animate-confetti {
+  animation: confetti-burst 0.8s ease-out forwards;
+}
+
+/* 2. "Genie" Liquid Entrance */
+@keyframes genie-in {
+  0% {
+    opacity: 0;
+    transform: scale(0);
+    border-radius: 100%; /* Starts round like a droplet */
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    border-radius: 40px; /* Morphs to card shape */
+  }
+}
+
+.animate-genie-in {
+  /* Elastic bezier curve for liquid feel */
+  animation: genie-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 3. "Genie" Liquid Exit */
+@keyframes genie-out {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    border-radius: 40px;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0);
+    border-radius: 100%; /* Shrinks back to a droplet */
+  }
+}
+
+.animate-genie-out {
+  animation: genie-out 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+/* ... keep existing animations ... */
+
+/* 4. Fluid Dropdown Morph */
+@keyframes dropdown-morph {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px); /* Starts slightly smaller and higher */
+    filter: blur(4px); /* Adds a motion blur effect */
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+.animate-dropdown-morph {
+  transform-origin: top right; /* Expands from the button */
+  animation: dropdown-morph 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; /* Smooth spring-like ease */
+}

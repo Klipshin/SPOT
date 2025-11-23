@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@developer-hub/liquid-glass": "^1.2.3",
     "@tailwindcss/postcss": "^4.1.14",
     "gsap": "^3.13.0",
     "lucide-react": "^0.554.0",
@@ -36,7 +37,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "bugs": {
     "url": "https://github.com/Klipshin/SPOT/issues"
   },
