@@ -1,7 +1,10 @@
+//FROM HANNAH: DO NOT MAKE THIS A CLIENT COMPONENT
+
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import './globals.css';
 import Image from 'next/image';
+import SupabaseProvider from '../components/providers/SupabaseProvider';
 
 const poppins = Poppins({
   subsets: ['latin'],
