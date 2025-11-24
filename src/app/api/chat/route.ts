@@ -27,8 +27,9 @@ If the user asks about animals, provide information related to Philippine specie
 
     const text = result.response.text();
     return NextResponse.json({ reply: text });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Chat error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

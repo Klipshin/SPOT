@@ -4,6 +4,19 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
+// Prediction type matching identify API
+type Prediction = {
+  common_name?: string;
+  scientific_name?: string;
+  confidence?: number;
+  danger_level?: string;
+  status?: string;
+  conservation_status?: string;
+  wiki_summary?: string | null;
+  wiki_link?: string | null;
+  wiki_image?: string | null;
+};
+
 export default function Upload() {
   const router = useRouter();
   const [preview, setPreview] = useState<string | null>(null);
@@ -16,7 +29,7 @@ export default function Upload() {
   const [isCameraLoading, setIsCameraLoading] = useState<boolean>(false);
 
   const [isIdentifying, setIsIdentifying] = useState<boolean>(false);
-  const [predictions, setPredictions] = useState<any[] | null>(null);
+  const [predictions, setPredictions] = useState<Prediction[] | null>(null);
   const [identifyError, setIdentifyError] = useState<string | null>(null);
 
   async function identifyFromFile(file: File) {
@@ -30,10 +43,11 @@ export default function Upload() {
       const res = await fetch('/api/identify', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Identification API error');
       const json = await res.json();
-      setPredictions(json.predictions || []);
-    } catch (err: any) {
+      setPredictions((json.predictions || []) as Prediction[]);
+    } catch (err: unknown) {
       console.error('identifyFromFile error', err);
-      setIdentifyError(err?.message || 'Failed to identify image');
+      const message = err instanceof Error ? err.message : String(err);
+      setIdentifyError(message || 'Failed to identify image');
       setPredictions(null);
     } finally {
       setIsIdentifying(false);
@@ -60,9 +74,10 @@ export default function Upload() {
       const blob = await res.blob();
       const file = new File([blob], 'demo.jpg', { type: blob.type || 'image/jpeg' });
       await identifyFromFile(file);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('identifyFromUrl error', err);
-      setIdentifyError(err?.message || 'Failed to fetch demo image');
+      const message = err instanceof Error ? err.message : String(err);
+      setIdentifyError(message || 'Failed to fetch demo image');
       setPredictions(null);
     } finally {
       setIsIdentifying(false);
@@ -345,7 +360,7 @@ export default function Upload() {
                 <p className="text-sm text-gray-600">No confident identification could be made. Try a clearer photo.</p>
               ) : (
                 <div className="space-y-4">
-                  {predictions.map((pred: any, idx: number) => (
+                  {predictions.map((pred: Prediction, idx: number) => (
                     <div key={idx} className="border-t pt-2">
                       <div className="flex items-center justify-between">
                         <div>

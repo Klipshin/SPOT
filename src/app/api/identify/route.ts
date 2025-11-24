@@ -30,6 +30,19 @@ async function getWikipediaSummary(scientificName: string) {
   };
 }
 
+// Prediction type for identification results
+type Prediction = {
+  common_name?: string;
+  scientific_name?: string;
+  confidence?: number;
+  danger_level?: string;
+  status?: string;
+  conservation_status?: string;
+  wiki_summary?: string | null;
+  wiki_link?: string | null;
+  wiki_image?: string | null;
+};
+
 /**
  * POST handler for /api/identify
  */
@@ -96,19 +109,19 @@ Do not include any explanations or text outside the JSON.
 
     const rawText = result.response.text();
 
-    let predictions: any[] = [];
+    let predictions: Prediction[] = [];
     try {
-      predictions = JSON.parse(rawText);
+      predictions = JSON.parse(rawText) as Prediction[];
     } catch {
       const jsonMatch = rawText.match(/\[[\s\S]*\]/);
-      predictions = jsonMatch ? JSON.parse(jsonMatch[0]) : [];
+      predictions = jsonMatch ? (JSON.parse(jsonMatch[0]) as Prediction[]) : [];
     }
 
     // Safety logic: keep multiple predictions unless very confident AND harmless
     if (predictions.length > 1) {
       const top = predictions[0];
-      const highRisk = /venomous|dangerous/i.test(top.danger_level);
-      if (!highRisk && top.confidence >= 98) {
+      const highRisk = /venomous|dangerous/i.test(String(top.danger_level ?? ""));
+      if (!highRisk && (top.confidence ?? 0) >= 98) {
         predictions = [top];
       }
     }
@@ -123,8 +136,9 @@ Do not include any explanations or text outside the JSON.
     }
 
     return NextResponse.json({ predictions });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error identifying image:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
