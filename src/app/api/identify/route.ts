@@ -2,15 +2,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://spot-local.example'; // Define outside functions
 
 /**
  * Wikipedia summary + image helper
  */
 async function getWikipediaSummary(scientificName: string) {
   const queryName = encodeURIComponent(`${scientificName} Philippines`);
-  // Use a polite User-Agent and Accept header to avoid being blocked by upstream
+  // Use a traceable User-Agent based on your site URL
   const headers = {
-    'User-Agent': 'SPOT/1.0 (+https://your-domain.example)',
+    'User-Agent': `SPOT/1.0 (+${SITE_URL})`, // UPDATED
     Accept: 'application/json',
   };
 
@@ -39,7 +40,7 @@ async function getWikipediaSummary(scientificName: string) {
   };
 }
 
-// Prediction type for identification results
+// Prediction type for identification results (unchanged)
 type Prediction = {
   common_name?: string;
   scientific_name?: string;
@@ -64,7 +65,7 @@ async function getINatTaxon(scientificName: string) {
   try {
     const q = encodeURIComponent(scientificName);
     const res = await fetch(`https://api.inaturalist.org/v1/taxa?q=${q}&per_page=1`, {
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/json', 'User-Agent': `SPOT/1.0 (+${SITE_URL})` }, // ADDED USER-AGENT
     });
     if (!res.ok) return null;
     const json = await res.json();
@@ -89,6 +90,8 @@ async function getINatTaxon(scientificName: string) {
  */
 export async function POST(req: Request) {
   try {
+// ... (Your main API logic remains the same)
+
     const formData = await req.formData();
     const file = formData.get("image") as File | null;
 
