@@ -1,9 +1,7 @@
-import SettingsPage from "./settings/page";
+import Dashboard from "./dashboard/page"; 
 
 export default function Home() {
   return (
-    <> 
-      <SettingsPage />
-    </>
+    <Dashboard />
   );
 }
