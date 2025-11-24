@@ -8,15 +8,24 @@ const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "
  */
 async function getWikipediaSummary(scientificName: string) {
   const queryName = encodeURIComponent(`${scientificName} Philippines`);
+  // Use a polite User-Agent and Accept header to avoid being blocked by upstream
+  const headers = {
+    'User-Agent': 'SPOT/1.0 (+https://your-domain.example)',
+    Accept: 'application/json',
+  };
+
   let response = await fetch(
-    `https://en.wikipedia.org/api/rest_v1/page/summary/${queryName}`
+    `https://en.wikipedia.org/api/rest_v1/page/summary/${queryName}`,
+    { headers }
   );
 
   if (!response.ok) {
+    // Try without the country qualifier
     response = await fetch(
       `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(
         scientificName
-      )}`
+      )}`,
+      { headers }
     );
   }
 
@@ -54,7 +63,9 @@ type Prediction = {
 async function getINatTaxon(scientificName: string) {
   try {
     const q = encodeURIComponent(scientificName);
-    const res = await fetch(`https://api.inaturalist.org/v1/taxa?q=${q}&per_page=1`);
+    const res = await fetch(`https://api.inaturalist.org/v1/taxa?q=${q}&per_page=1`, {
+      headers: { Accept: 'application/json' },
+    });
     if (!res.ok) return null;
     const json = await res.json();
     const taxon = json.results?.[0];
