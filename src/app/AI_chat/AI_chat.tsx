@@ -1,0 +1,558 @@
+"use client";
+
+import React, { useState, useRef, useEffect } from "react";
+
+// Type definitions
+interface Prediction {
+  common_name: string;
+  scientific_name: string;
+  danger_level: string;
+  status: string;
+  conservation_status: string;
+  wiki_summary?: string;
+  wiki_link?: string;
+  wiki_image?: string;
+}
+
+interface Message {
+  id: string;
+  type: "user" | "assistant";
+  content: string;
+  image?: string;
+  predictions?: Prediction[];
+  timestamp: Date;
+}
+
+export const AiChatLoggedIn = (): React.ReactElement => {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showCamera, setShowCamera] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showMainContent, setShowMainContent] = useState(true);
+  const [isCameraLoading, setIsCameraLoading] = useState(false);
+  
+  // Dark Mode State
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll logic targeting ONLY the chat container
+  useEffect(() => {
+    if (chatContainerRef.current) {
+      const { scrollHeight, clientHeight } = chatContainerRef.current;
+      chatContainerRef.current.scrollTo({
+        top: scrollHeight - clientHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [messages, isLoading]);
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size must be less than 5MB");
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload a valid image file (JPG or PNG)");
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setSelectedFile(file);
+    setPreviewUrl(preview);
+    
+    if (showCamera) closeCamera();
+    
+    setTimeout(() => {
+      handleIdentifyImageAuto(file, preview);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }, 100);
+  };
+
+  const openCamera = async () => {
+    setIsCameraLoading(true);
+    setShowCamera(true);
+    setShowMainContent(false);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 1920 },
+          height: { ideal: 1080 } 
+        },
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        streamRef.current = stream;
+        
+        videoRef.current.onloadedmetadata = () => {
+            setIsCameraLoading(false);
+        };
+      }
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+      alert("Could not access camera. Please check permissions.");
+      setIsCameraLoading(false);
+      setShowCamera(false);
+      setShowMainContent(true);
+    }
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    const ctx = canvas.getContext("2d");
+
+    if (ctx) {
+      ctx.drawImage(videoRef.current, 0, 0);
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const file = new File([blob], "camera-capture.jpg", {
+            type: "image/jpeg",
+          });
+          const preview = URL.createObjectURL(file);
+          setSelectedFile(file);
+          setPreviewUrl(preview);
+          closeCamera();
+
+          setTimeout(() => {
+            handleIdentifyImageAuto(file, preview);
+            setSelectedFile(null);
+            setPreviewUrl(null);
+          }, 100);
+        }
+      }, "image/jpeg");
+    }
+  };
+
+  const closeCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setShowCamera(false);
+    setShowMainContent(true);
+    setIsCameraLoading(false);
+  };
+
+  const handleIdentifyImageAuto = async (file: File, preview: string) => {
+    setIsLoading(true);
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: "user",
+      content: "Please identify this species",
+      image: preview,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch("/api/identify", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to identify species");
+      }
+
+      const data = await response.json();
+      const predictionCount = data.predictions?.length || 0;
+      let responseText = "";
+
+      if (predictionCount === 0) {
+        responseText = "I couldn't confidently identify any species from this image. Please try a clearer photo.";
+      } else if (predictionCount === 1) {
+        responseText = "I've analyzed the image — this species is **very likely** to be:";
+      } else {
+        responseText = "I've analyzed the image. Here are the top 3 possible species:";
+      }
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: responseText,
+        predictions: data.predictions,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Error identifying image:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: "Sorry, I encountered an error while identifying the species. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim()) return;
+
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      type: "user",
+      content: inputValue,
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    const currentInput = inputValue;
+    setInputValue("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: currentInput }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get AI response");
+      }
+
+      const data = await response.json();
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: data.reply || "Sorry, I couldn't generate a response.",
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Error sending message:", error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: "Sorry, I encountered an error while processing your message. Please try again.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const clearSelectedFile = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div 
+      className={`w-full h-screen relative overflow-hidden flex items-center justify-center transition-colors duration-300 
+      ${isDarkMode ? 'bg-[#292d29]' : 'bg-[#f1eee5]'}`}
+    >
+      <div
+        className="relative"
+        style={{
+          width: "1440px",
+          height: "656px",
+          transform: "scale(var(--scale))",
+          transformOrigin: "center",
+        }}
+      >
+        <style>{`
+          :root {
+            --scale: calc(min(100vw / 1440, 100vh / 656));
+          }
+        `}</style>
+
+        {/* Header Bar */}
+        <div className="fixed top-0 left-0 right-0 w-full z-50">
+          <div className={`w-full h-11 justify-center transition-colors duration-300 ${isDarkMode ? 'bg-[#353b35]' : 'bg-[#dad2b9]'}`} />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1440px] max-w-full h-11">
+            <div className="absolute -top-0.5 left-[46px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
+              SPOT
+            </div>
+            
+            {/* Header Deco Lines - ALWAYS LIGHT to preserve logo contrast */}
+            <div className="absolute top-5 left-[-15px] w-[46px] h-[7px] bg-[#f1eee5]" />
+            <div className="absolute top-[15px] left-[-12px] w-10 h-[5px] bg-[#f1eee5]" />
+            <div className="absolute top-[27px] left-[-12px] w-10 h-[3px] bg-[#f1eee5]" />
+            <div className="top-[26px] absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
+            <div className="top-2.5 absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
+            
+            <img className="absolute top-0 left-[-32px] w-[75px] h-[47px] aspect-[1.48] object-cover" alt="Spoticon" src="/spoticon.svg" />
+            <img className="absolute top-[5px] left-[1406px] w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/down-chevron 1.svg" />
+            
+            {/* DARK MODE TOGGLE */}
+            <img 
+              className="absolute top-1.5 left-[1340px] w-[47px] h-[31px] aspect-[1.51] cursor-pointer hover:opacity-80 transition-opacity" 
+              alt="Element" 
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              src={isDarkMode ? "/dark-mode 1.svg" : "/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"} 
+            />
+            
+            <img className="top-[5px] left-[1444px] w-[35px] h-[35px] absolute aspect-[1] object-cover" alt="User" src="/user (2) 9.svg" />
+          </div>
+        </div>
+
+        {/* Center Content Area Background */}
+        <div className={`absolute top-[-12] left-[424px] w-[592px] h-[750px] bg-[linear-gradient(180deg,rgba(208,230,144,0.73)_0%,rgba(58,84,42,0.76)_100%)] pointer-events-none transition-opacity duration-300 ${isDarkMode ? 'opacity-20' : 'opacity-100'}`} />
+
+        {/* Right Chat Panel */}
+        <div 
+          className={`absolute top-[27px] left-[1040px] w-[420px] h-[645px] rounded-[25px] border border-solid overflow-hidden transition-colors duration-300
+          ${isDarkMode 
+            ? 'bg-[#3b423b] border-gray-600' 
+            : 'bg-[#d0e58f1f] border-black'}`}
+        >
+          <div
+            ref={chatContainerRef}
+            className={`absolute top-4 left-4 right-4 bottom-20 overflow-y-auto overscroll-contain ${isDarkMode ? 'dark-scrollbar' : ''}`}
+          >
+            {messages.map((message) => (
+              <div key={message.id} className={`mb-4 ${message.type === "user" ? "text-right" : "text-left"}`}>
+                <div 
+                  className={`inline-block max-w-[85%] rounded-2xl p-3 
+                  ${message.type === "user" 
+                    ? "bg-[#95ab33] text-white" 
+                    : isDarkMode 
+                      ? "bg-[#4a524a] text-white" 
+                      : "bg-white text-black"
+                  }`}
+                >
+                  {message.image && (
+                    <img src={message.image} alt="Uploaded" className="w-full rounded-lg mb-2 max-h-[200px] object-cover" />
+                  )}
+                  <p className="text-sm">{message.content}</p>
+                  {message.predictions && (
+                    <div className="mt-3 space-y-3 text-left">
+                      {message.predictions.map((pred, idx) => (
+                        <div key={idx} className={`border-t pt-2 ${isDarkMode ? 'border-gray-500' : 'border-gray-200'}`}>
+                          <h3 className="font-bold text-base">{pred.common_name}</h3>
+                          <p className={`text-xs italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{pred.scientific_name}</p>
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            <span className="text-xs bg-yellow-100 text-black px-2 py-0.5 rounded">{pred.danger_level}</span>
+                            <span className="text-xs bg-blue-100 text-black px-2 py-0.5 rounded">{pred.status}</span>
+                            <span className="text-xs bg-green-100 text-black px-2 py-0.5 rounded">{pred.conservation_status}</span>
+                          </div>
+                          {pred.wiki_summary && <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{pred.wiki_summary}</p>}
+                          {pred.wiki_link && (
+                            <a href={pred.wiki_link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 underline mt-1 inline-block">Learn more →</a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="text-left mb-4">
+                <div className={`inline-block rounded-2xl p-3 ${isDarkMode ? 'bg-[#4a524a] text-white' : 'bg-white'}`}>
+                  <p className="text-sm italic">{selectedFile ? "Identifying species..." : "Thinking..."}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Left Chat History Panel */}
+        <div 
+          className={`absolute top-[100px] left-[-15] w-[410px] h-[500px] rounded-[25px] border border-solid transition-colors duration-300
+          ${isDarkMode 
+            ? 'bg-[#3b423b] border-gray-600' 
+            : 'bg-[#d0e58f1f] border-black'}`}
+        />
+
+        {/* Chat Input Box */}
+        <div 
+          className={`absolute top-[589px] left-[1055px] w-[390px] h-[65px] rounded-[25px] border border-solid border-[#95ab33] transition-colors duration-300
+          ${isDarkMode ? 'bg-[#00000033]' : 'bg-[#ffffff33]'}`}
+        >
+          {previewUrl && (
+            <div className="absolute -top-16 left-4 right-4">
+              <div className="relative inline-block">
+                <img src={previewUrl} alt="Preview" className="h-14 rounded-lg object-cover" />
+                <button onClick={clearSelectedFile} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-600">×</button>
+              </div>
+            </div>
+          )}
+
+          <input
+            type="text"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
+            placeholder="Ask Anything"
+            disabled={isLoading}
+            className={`absolute top-[18px] left-[30px] w-[250px] bg-transparent outline-none font-normal italic text-[15px] tracking-[0.75px] leading-[normal] 
+              ${isDarkMode ? 'text-white placeholder:text-gray-400' : 'text-[#111311] placeholder:text-[#111311]'}`}
+          />
+
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSendMessage();
+            }}
+            disabled={isLoading || !inputValue.trim()}
+            className="absolute top-[15px] right-[12px] w-[35px] h-[35px] bg-[#95ab33] rounded-full flex items-center justify-center hover:bg-[#7a8f2a] transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <span className="text-white text-lg">→</span>
+          </button>
+        </div>
+
+        <img
+          className="absolute top-[605px] left-[1360px] w-[34px] h-[34px] aspect-[1] object-cover cursor-pointer hover:opacity-80"
+          alt="Gallery"
+          src="/gall.svg"
+          onClick={(e) => {
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
+        />
+
+        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleFileSelect} className="hidden" />
+
+        {/* Main Center Content Area */}
+        <div 
+          className={`absolute top-[25px] left-[444px] w-[552px] h-[650px] rounded-[76px] border border-dashed overflow-hidden z-10 flex flex-col items-center justify-center transition-colors duration-300
+          ${isDarkMode 
+            ? 'bg-[#6d8a6d] border-[#dad2b9]' 
+            : 'bg-[#d9d9d95c] border-[#140e0e]'}`}
+        >
+          
+          {/* Default State (Buttons) */}
+          {!showCamera && (
+            <>
+              <img className="absolute top-[78px] left-[203px] w-[146px] h-[146px] aspect-[1] object-cover" alt="Binoculars" src="/bin.svg" />
+              <div className="absolute top-[205px] left-[122px] w-[305px] font-extrabold text-black text-2xl tracking-[1.20px] leading-[normal] text-center">Spotted Anything?</div>
+
+              {/* Open Camera Button */}
+              <div className="absolute top-[380px] left-[120px] w-[327px] h-[60px] cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200" onClick={openCamera}>
+                <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
+                <div className="absolute top-[15px] left-[110px] w-[251px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">Open Camera</div>
+                <img className="absolute top-2.5 left-14 w-[38px] h-[38px] aspect-[1] object-cover" alt="Cam" src="/cam.svg" />
+              </div>
+
+              {/* Upload Photo Button */}
+              <div className="absolute top-[475px] left-[120px] w-[329px] h-[60px] cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200" onClick={() => fileInputRef.current?.click()}>
+                <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
+                <div className="absolute top-[15px] left-[68px] w-[178px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">Upload Photo</div>
+                <img className="absolute top-2.5 left-[227px] w-[37px] h-[38px] aspect-[1] object-cover" alt="Pic" src="/pic.svg" />
+              </div>
+            </>
+          )}
+
+          {/* Active Camera View */}
+          {showCamera && (
+            <div className="relative w-full h-full bg-black">
+              {/* Loading Overlay */}
+              {isCameraLoading && (
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 text-white">
+                  <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4"></div>
+                  <p className="font-semibold tracking-wider text-sm">STARTING CAMERA...</p>
+                </div>
+              )}
+
+              {/* Video Element */}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+
+              {/* Overlay Controls */}
+              {!isCameraLoading && (
+                <div className="absolute inset-0 z-10 flex flex-col justify-end pb-12">
+                  <div className="flex items-center justify-center gap-8 px-8">
+                    
+                    {/* 1. Upload Button (Left) */}
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition border border-white/30 shadow-lg"
+                      title="Upload Photo"
+                    >
+                      <img src="/pic.svg" alt="Upload" className="w-6 h-6 object-contain" />
+                    </button>
+
+                    {/* 2. Shutter Button (Center) */}
+                    <button onClick={capturePhoto} className="group relative w-20 h-20 rounded-full border-4 border-white bg-transparent flex items-center justify-center hover:scale-105 transition-transform shadow-xl mx-2">
+                      <div className="w-16 h-16 bg-white rounded-full group-active:scale-90 transition-transform" />
+                    </button>
+
+                    {/* 3. Exit Button (Right) */}
+                    <button onClick={closeCamera} className="w-14 h-14 bg-red-500/80 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-red-600 transition shadow-lg border border-red-400/50" title="Close Camera">
+                      <span className="text-2xl font-bold mb-0.5">×</span>
+                    </button>
+                    
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* User Icons & Footer Info */}
+        <img className="top-[640px] left-[-10px] w-[30px] h-[30px] absolute aspect-[1] object-cover" alt="User" src="/user (2) 6.svg" />
+        
+        <div className={`absolute top-[643px] left-[35px] w-[156px] font-black text-base tracking-[0.80px] leading-[normal] ${isDarkMode ? 'text-[#a0c563]' : 'text-[#072d0d]'}`}>
+          @username
+        </div>
+        
+        <div className={`absolute top-[120px] left-[20px] w-[251px] font-extrabold text-xl tracking-[1.00px] leading-[normal] ${isDarkMode ? 'text-[#dad2b9]' : 'text-[#4d4d4d]'}`}>
+          Chat History
+        </div>
+
+        {/* Back Button */}
+        <div className="absolute top-[25px] left-[-15px] w-[104px] h-[30px] cursor-pointer hover:scale-105 hover:shadow-2xl transition-all duration-200">
+          <div className={`absolute top-0 left-0 w-[104px] h-[30px] rounded-[43px] hover:opacity-80 transition ${isDarkMode ? 'bg-[#95ab33]' : 'bg-[#d0e58fb2]'}`} />
+          <img className="absolute top-[6.5px] left-[16px] w-[17px] h-[17px] aspect-[1] object-cover" alt="Back" src="/back.svg" />
+          <div className={`absolute top-[3px] left-[42px] w-[47px] font-bold text-base tracking-[0] leading-[normal] ${isDarkMode ? 'text-[#292d29]' : 'text-[#072d0db0]'}`}>
+            back
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
