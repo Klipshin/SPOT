@@ -1,9 +1,9 @@
-import { AiChatLoggedIn } from "./AI_chat/AI_chat";
+import HomePage from "./landing/page";
 
 export default function Home() {
   return (
     <>
-      <AiChatLoggedIn />
+      <HomePage />
     </>
   );
 }
