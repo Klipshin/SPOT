@@ -139,10 +139,21 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Camera Icon with Focus Frame - Click routes to upload page */}
+            {/* Camera Icon with Focus Frame - Click routes to upload page and opens camera */}
             <button 
               className="absolute top-[106px] left-[536px] w-[474px] h-[400px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
-              onClick={handleUploadClick}
+              onClick={() => {
+                try {
+                  // Signal the upload page to open camera on mount
+                  localStorage.setItem('spot_upload_open_camera', '1');
+                  // clear any pending uploads
+                  localStorage.removeItem('spot_pending_upload');
+                  localStorage.removeItem('spot_pending_upload_static');
+                } catch (err) {
+                  console.error('Failed to set camera flag', err);
+                }
+                router.push('/upload');
+              }}
             >
               <div className="absolute top-[31px] left-6 w-[382px] h-[341px] bg-[#b3d060] rounded-[64px] rotate-[-8.25deg]" />
               <div className="absolute top-[29px] left-[65px] w-[382px] h-[341px] bg-[#748348] rounded-[64px] rotate-[9.59deg]" />
