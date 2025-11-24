@@ -15,6 +15,13 @@ type Prediction = {
   wiki_summary?: string | null;
   wiki_link?: string | null;
   wiki_image?: string | null;
+  // iNaturalist fields
+  inat_taxon_id?: number | null;
+  inat_url?: string | null;
+  inat_default_photo?: string | null;
+  inat_observations?: number | null;
+  inat_conservation_status?: string | null;
+  inat_preferred_common_name?: string | null;
 };
 
 export default function Upload() {
@@ -31,6 +38,9 @@ export default function Upload() {
   const [isIdentifying, setIsIdentifying] = useState<boolean>(false);
   const [predictions, setPredictions] = useState<Prediction[] | null>(null);
   const [identifyError, setIdentifyError] = useState<string | null>(null);
+  // Modal for showing wiki details (instead of opening a new tab)
+  const [modalPred, setModalPred] = useState<Prediction | null>(null);
+  const [modalTab, setModalTab] = useState<'wiki' | 'inat'>('wiki');
 
   async function identifyFromFile(file: File) {
     setIsIdentifying(true);
@@ -72,7 +82,42 @@ export default function Upload() {
       const res = await fetch(path);
       if (!res.ok) throw new Error('Failed to fetch demo image');
       const blob = await res.blob();
-      const file = new File([blob], 'demo.jpg', { type: blob.type || 'image/jpeg' });
+
+      // If the demo asset is an SVG (vector), convert it to a raster JPEG
+      // because the identification pipeline expects a photographic image
+      // and some downstream APIs/models may reject SVG content.
+      let file: File;
+      const isSvg = blob.type === 'image/svg+xml' || path.toLowerCase().endsWith('.svg');
+      if (isSvg) {
+        try {
+          const svgText = await blob.text();
+          const svgBase64 = typeof window !== 'undefined'
+            ? btoa(unescape(encodeURIComponent(svgText)))
+            : Buffer.from(svgText, 'utf8').toString('base64');
+          const img = document.createElement('img');
+          img.crossOrigin = 'anonymous';
+          img.src = `data:image/svg+xml;base64,${svgBase64}`;
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = () => reject(new Error('Failed to load SVG for conversion'));
+          });
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth || 800;
+          canvas.height = img.naturalHeight || 600;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Canvas not supported');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const rasterBlob: Blob | null = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
+          if (!rasterBlob) throw new Error('Failed to rasterize SVG');
+          file = new File([rasterBlob], 'demo.jpg', { type: rasterBlob.type || 'image/jpeg' });
+        } catch (convErr) {
+          console.error('SVG conversion failed, falling back to original blob', convErr);
+          file = new File([blob], 'demo.jpg', { type: blob.type || 'image/jpeg' });
+        }
+      } else {
+        file = new File([blob], 'demo.jpg', { type: blob.type || 'image/jpeg' });
+      }
+
       await identifyFromFile(file);
     } catch (err: unknown) {
       console.error('identifyFromUrl error', err);
@@ -344,7 +389,7 @@ export default function Upload() {
           <div className="w-full lg:w-[500px] flex flex-col gap-8">
             
             {/* AI Response Card */}
-            <div className="bg-white/90 backdrop-blur-sm rounded-[30px] p-8 min-h-[350px] shadow-lg border border-white/50">
+            <div className="bg-white/90 backdrop-blur-sm rounded-[30px] p-8 min-h-[350px] max-h-[420px] overflow-y-auto shadow-lg border border-white/50">
               <h2 className="text-[18px] font-bold text-black mb-4">
                 AI Response
               </h2>
@@ -376,13 +421,79 @@ export default function Upload() {
                       </div>
                       {pred.wiki_summary && <p className="text-xs mt-2 text-gray-700">{pred.wiki_summary}</p>}
                       {pred.wiki_link && (
-                        <a href={pred.wiki_link} target="_blank" rel="noreferrer" className="text-xs text-blue-500 underline mt-1 inline-block">Read more</a>
+                        <button onClick={() => setModalPred(pred)} className="text-xs text-blue-500 underline mt-1 inline-block">Read more</button>
                       )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
+          {/* Wiki Modal (shown when user clicks Read more) */}
+          {modalPred && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center">
+              <div className="absolute inset-0 bg-black/60" onClick={() => setModalPred(null)} />
+              <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-[94%] mx-4 p-4 z-60 overflow-auto max-h-[80vh]">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold">{modalPred.common_name || modalPred.scientific_name}</h3>
+                    {modalPred.scientific_name && (
+                      <p className="text-xs italic text-gray-600">{modalPred.scientific_name}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex rounded-md bg-gray-100 p-1">
+                      <button onClick={() => setModalTab('wiki')} className={`px-3 py-1 rounded ${modalTab === 'wiki' ? 'bg-white shadow' : 'text-gray-600'}`}>Wikipedia</button>
+                      <button onClick={() => setModalTab('inat')} className={`px-3 py-1 rounded ${modalTab === 'inat' ? 'bg-white shadow' : 'text-gray-600'}`}>iNaturalist</button>
+                    </div>
+                    <button onClick={() => setModalPred(null)} className="text-gray-500 hover:text-gray-800">✕</button>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  {modalTab === 'wiki' ? (
+                    <div className="flex flex-col md:flex-row gap-4">
+                      {modalPred.wiki_image && (
+                        <img src={modalPred.wiki_image} alt={modalPred.common_name || modalPred.scientific_name || 'Image'} className="w-full md:w-48 h-auto object-cover rounded" />
+                      )}
+                      <div className="flex-1">
+                        {modalPred.wiki_summary ? (
+                          <p className="text-sm text-gray-700 whitespace-pre-line">{modalPred.wiki_summary}</p>
+                        ) : (
+                          <p className="text-sm text-gray-600">No additional information available.</p>
+                        )}
+
+                        {modalPred.wiki_link && (
+                          <div className="mt-4">
+                            <a href={modalPred.wiki_link} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open on Wikipedia</a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {modalPred.inat_default_photo ? (
+                        <img src={modalPred.inat_default_photo} alt={modalPred.inat_preferred_common_name || modalPred.scientific_name || 'iNaturalist image'} className="w-full md:w-48 h-auto object-cover rounded" />
+                      ) : (
+                        <div className="w-full md:w-48 h-40 bg-gray-100 rounded flex items-center justify-center text-gray-500">No image</div>
+                      )}
+
+                      <div>
+                        {modalPred.inat_preferred_common_name && <p className="text-sm font-semibold">{modalPred.inat_preferred_common_name}</p>}
+                        <p className="text-xs italic text-gray-600">Observations: {modalPred.inat_observations ?? '—'}</p>
+                        {modalPred.inat_conservation_status && <p className="text-xs text-red-600">Conservation: {modalPred.inat_conservation_status}</p>}
+                        {modalPred.inat_url && (
+                          <div className="mt-2">
+                            <a href={modalPred.inat_url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open on iNaturalist</a>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
             {/* CTA Section */}
             <div className="text-center">

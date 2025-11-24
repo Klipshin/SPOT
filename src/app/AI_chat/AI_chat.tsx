@@ -12,6 +12,13 @@ interface Prediction {
   wiki_summary?: string;
   wiki_link?: string;
   wiki_image?: string;
+  // iNaturalist enrichment
+  inat_taxon_id?: number | null;
+  inat_url?: string | null;
+  inat_default_photo?: string | null;
+  inat_observations?: number | null;
+  inat_conservation_status?: string | null;
+  inat_preferred_common_name?: string | null;
 }
 
 interface Message {
@@ -27,6 +34,8 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [modalPred, setModalPred] = useState<Prediction | null>(null);
+  const [modalTab, setModalTab] = useState<'wiki' | 'inat'>('wiki');
   const [showCamera, setShowCamera] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -374,7 +383,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                           </div>
                           {pred.wiki_summary && <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{pred.wiki_summary}</p>}
                           {pred.wiki_link && (
-                            <a href={pred.wiki_link} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 underline mt-1 inline-block">Learn more →</a>
+                            <button onClick={() => { setModalPred(pred); setModalTab('wiki'); }} className="text-xs text-blue-400 underline mt-1 inline-block">Learn more →</button>
                           )}
                         </div>
                       ))}
@@ -393,6 +402,65 @@ export const AiChatLoggedIn = (): React.ReactElement => {
             )}
           </div>
         </div>
+
+              {/* Modal for Wikipedia / iNaturalist details */}
+              {modalPred && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/60" onClick={() => setModalPred(null)} />
+                  <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-[94%] mx-4 p-4 z-60 overflow-auto max-h-[80vh]">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-bold">{modalPred.common_name || modalPred.scientific_name}</h3>
+                        {modalPred.scientific_name && <p className="text-xs italic text-gray-600">{modalPred.scientific_name}</p>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex rounded-md bg-gray-100 p-1">
+                          <button onClick={() => setModalTab('wiki')} className={`px-3 py-1 rounded ${modalTab === 'wiki' ? 'bg-white shadow' : 'text-gray-600'}`}>Wikipedia</button>
+                          <button onClick={() => setModalTab('inat')} className={`px-3 py-1 rounded ${modalTab === 'inat' ? 'bg-white shadow' : 'text-gray-600'}`}>iNaturalist</button>
+                        </div>
+                        <button onClick={() => setModalPred(null)} className="text-gray-500 hover:text-gray-800">✕</button>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      {modalTab === 'wiki' ? (
+                        <div className="flex flex-col md:flex-row gap-4">
+                          {modalPred.wiki_image ? (
+                            <img src={modalPred.wiki_image} alt={modalPred.common_name || modalPred.scientific_name || 'Image'} className="w-full md:w-48 h-auto object-cover rounded" />
+                          ) : null}
+                          <div className="flex-1">
+                            {modalPred.wiki_summary ? (
+                              <p className="text-sm text-gray-700 whitespace-pre-line">{modalPred.wiki_summary}</p>
+                            ) : (
+                              <p className="text-sm text-gray-600">No additional information available.</p>
+                            )}
+                            {modalPred.wiki_link && (
+                              <div className="mt-4"><a href={modalPred.wiki_link} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open on Wikipedia</a></div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {modalPred.inat_default_photo ? (
+                            <img src={modalPred.inat_default_photo} alt={modalPred.inat_preferred_common_name || modalPred.scientific_name || 'iNaturalist image'} className="w-full md:w-48 h-auto object-cover rounded" />
+                          ) : (
+                            <div className="w-full md:w-48 h-40 bg-gray-100 rounded flex items-center justify-center text-gray-500">No image</div>
+                          )}
+
+                          <div>
+                            {modalPred.inat_preferred_common_name && <p className="text-sm font-semibold">{modalPred.inat_preferred_common_name}</p>}
+                            <p className="text-xs italic text-gray-600">Observations: {modalPred.inat_observations ?? '—'}</p>
+                            {modalPred.inat_conservation_status && <p className="text-xs text-red-600">Conservation: {modalPred.inat_conservation_status}</p>}
+                            {modalPred.inat_url && (
+                              <div className="mt-2"><a href={modalPred.inat_url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open on iNaturalist</a></div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
         {/* Left Chat History Panel */}
         <div 

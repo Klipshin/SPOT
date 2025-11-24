@@ -41,7 +41,37 @@ type Prediction = {
   wiki_summary?: string | null;
   wiki_link?: string | null;
   wiki_image?: string | null;
+  // iNaturalist enrichment
+  inat_taxon_id?: number | null;
+  inat_url?: string | null;
+  inat_default_photo?: string | null;
+  inat_observations?: number | null;
+  inat_conservation_status?: string | null;
+  inat_preferred_common_name?: string | null;
 };
+
+// iNaturalist helper: find best matching taxon for a scientific name
+async function getINatTaxon(scientificName: string) {
+  try {
+    const q = encodeURIComponent(scientificName);
+    const res = await fetch(`https://api.inaturalist.org/v1/taxa?q=${q}&per_page=1`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const taxon = json.results?.[0];
+    if (!taxon) return null;
+    return {
+      taxon_id: taxon.id,
+      url: taxon.url || `https://www.inaturalist.org/taxa/${taxon.id}`,
+      default_photo: taxon.default_photo?.medium_url || taxon.default_photo?.square_url || null,
+      preferred_common_name: taxon.preferred_common_name || null,
+      observations_count: taxon.observations_count ?? null,
+      conservation_status: taxon.conservation_status?.status_name || null,
+    };
+  } catch (err) {
+    console.error('iNaturalist lookup failed for', scientificName, err);
+    return null;
+  }
+}
 
 /**
  * POST handler for /api/identify
@@ -133,6 +163,24 @@ Do not include any explanations or text outside the JSON.
       item.wiki_summary = wiki?.summary || "No summary found.";
       item.wiki_link = wiki?.link;
       item.wiki_image = wiki?.image;
+    }
+
+    // iNaturalist enrichment (non-blocking per-item)
+    for (const item of predictions) {
+      if (!item.scientific_name) continue;
+      try {
+        const inat = await getINatTaxon(item.scientific_name);
+        if (inat) {
+          item.inat_taxon_id = inat.taxon_id;
+          item.inat_url = inat.url;
+          item.inat_default_photo = inat.default_photo;
+          item.inat_observations = inat.observations_count;
+          item.inat_conservation_status = inat.conservation_status;
+          item.inat_preferred_common_name = inat.preferred_common_name;
+        }
+      } catch (e) {
+        console.error('Failed to enrich prediction with iNaturalist', e);
+      }
     }
 
     return NextResponse.json({ predictions });
