@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import Image from 'next/image';
 import LandingNavBar from "@/src/components/LandingNavBar";
 import { useRouter } from 'next/navigation';
@@ -7,7 +7,43 @@ import { useRouter } from 'next/navigation';
 export default function HomePage() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange: React.ChangeEventHandler<HTMLInputElement> = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        // Store selected image as data URL for the upload page to consume
+        localStorage.setItem('spot_pending_upload', reader.result as string);
+        localStorage.removeItem('spot_pending_upload_static'); // Clear static path
+      } catch (err) {
+        console.error('Failed to store selected image', err);
+      }
+      router.push('/upload');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handler for static sample images
+  const handleSampleUpload = (imageSrc: string) => {
+      try {
+          // Store the static asset path and clear file upload
+          localStorage.setItem('spot_pending_upload_static', imageSrc);
+          localStorage.removeItem('spot_pending_upload'); 
+      } catch (err) {
+          console.error('Failed to store sample image path', err);
+      }
+      router.push('/upload');
+  };
+  
+  // --- FAQ Data (Unchanged for brevity, but included for completeness) ---
   const leftFAQs = [
     {
       question: "Who is SPOT built for?",
@@ -103,12 +139,20 @@ export default function HomePage() {
               />
             </div>
 
-            {/* Camera Icon with Focus Frame */}
+            {/* Camera Icon with Focus Frame - Click routes to upload page and opens camera */}
             <button 
               className="absolute top-[106px] left-[536px] w-[474px] h-[400px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
               onClick={() => {
-                // Add your click handler here
-                console.log('Camera icon clicked!');
+                try {
+                  // Signal the upload page to open camera on mount
+                  localStorage.setItem('spot_upload_open_camera', '1');
+                  // clear any pending uploads
+                  localStorage.removeItem('spot_pending_upload');
+                  localStorage.removeItem('spot_pending_upload_static');
+                } catch (err) {
+                  console.error('Failed to set camera flag', err);
+                }
+                router.push('/upload');
               }}
             >
               <div className="absolute top-[31px] left-6 w-[382px] h-[341px] bg-[#b3d060] rounded-[64px] rotate-[-8.25deg]" />
@@ -162,12 +206,11 @@ export default function HomePage() {
             </div>
             
             {/* Upload Button */}
+            <>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
             <button 
               className="absolute top-[500px] left-[600px] w-[327px] h-[50px] justify-center-safe cursor-pointer hover:scale-105 transition-transform duration-300"
-              onClick={() => {
-                // Add your click handler here
-                console.log('Upload Image clicked!');
-              }}
+              onClick={handleUploadClick}
             >
               <div className="relative">
                 <Image
@@ -189,141 +232,159 @@ export default function HomePage() {
                 </div>
               </div>
             </button>
+            </>
 
-                {/* Sample Images */}
-                <div className="absolute top-[601px] left-[573px] w-[628px] h-[91px] justify-center-safe">
-                  <div className="absolute top-0 left-0 w-[626px] h-[91px] bg-white/85 rounded-[20px] justify-center-safe" />
-                  <p className="absolute top-[22px] left-[39px] font-bold text-[#1e613b] text-[15px]">
-                    No image?<br />Try one of these:
-                  </p>
-                  <Image src="/sample2.svg" alt="Sample 1" width={96} height={68} className="absolute top-[11px] left-[302px]" />
-                  <Image src="/sample3.svg" alt="Sample 2" width={85} height={68} className="absolute top-[11px] left-[417px]" />
-                  <Image src="/sample1.svg" alt="Sample 3" width={74} height={68} className="absolute top-[11px] left-[209px]" />
-                  <Image src="/sample4.svg" alt="Sample 4" width={74} height={68} className="absolute top-[11px] left-[521px]" />
-                </div>
+            {/* Sample Images (Now clickable) */}
+            <div className="absolute top-[601px] left-[573px] w-[628px] h-[91px] justify-center-safe">
+              <div className="absolute top-0 left-0 w-[626px] h-[91px] bg-white/85 rounded-[20px] justify-center-safe" />
+              <p className="absolute top-[22px] left-[39px] font-bold text-[#1e613b] text-[15px]">
+                No image?<br />Try one of these:
+              </p>
+              
+              {/* Sample Image 3: Snake (routed to handler) */}
+              <div className="absolute top-[11px] left-[209px] cursor-pointer" onClick={() => handleSampleUpload('/sample1.svg')}>
+                <Image src="/sample1.svg" alt="Sample 3" width={74} height={68} />
               </div>
-              </section>
+              
+              {/* Sample Image 1: Green snake (routed to handler) */}
+              <div className="absolute top-[11px] left-[302px] cursor-pointer" onClick={() => handleSampleUpload('/sample2.svg')}>
+                <Image src="/sample2.svg" alt="Sample 1" width={96} height={68} />
+              </div>
+              
+              {/* Sample Image 2: Frog (routed to handler) */}
+              <div className="absolute top-[11px] left-[417px] cursor-pointer" onClick={() => handleSampleUpload('/sample3.svg')}>
+                <Image src="/sample3.svg" alt="Sample 2" width={85} height={68} />
+              </div>
+              
+              {/* Sample Image 4: Lizard (routed to handler) */}
+              <div className="absolute top-[11px] left-[521px] cursor-pointer" onClick={() => handleSampleUpload('/sample4.svg')}>
+                <Image src="/sample4.svg" alt="Sample 4" width={74} height={68} />
+              </div>
 
-              {/* Photo Cards Section */}
-              <section className="relative m-0 p-0 py-0 justify-center-safe">
-              <p className="relative top-[200px] left-[150px] text-center text-black text-[32px] font-bold max-w-[668px] mx-auto mb-12 justify-items-center-safe">
-          From snakes in your backyard<br />to rare birds in the wild,
-        </p>
-
-                {/* Card 1 */}
-        <div className="relative w-[430px] h-[283px] mx-auto mb-8">
-          {/* Background Layer */}
-          <div className="absolute top-[10px] left-[300px] w-[430px] h-[283px] bg-[#7b6832] rounded-[32px] rotate-[9deg] shadow-lg"></div>
-
-          {/* Foreground Image */}
-          <div className="relative w-[430px] h-[283px] left-[275px] rotate-[-1deg] rounded-[32px]">
-            <Image
-              src="/pic1.svg"
-              alt="Wildlife"
-              width={430}
-              height={283}
-              className="object-cover"
-            />
+            </div>
           </div>
-        </div>
+          </section>
 
-                <p className="relative top-[80px] left-[755px] text-center text-[32px] font-medium text-[#36683d] max-w-[600px] mx-auto mb-8">
-                  SPOT helps you know what you see — <span className="font-extrabold text-[#0d3b13]">instantly</span>.
-                </p>
-
-                {/* Card 2 */}
-        <div className="relative w-[420px] h-[279px] mx-auto mb-8 justify-center-safe">
-          {/* Background Layer */}
-          <div className="absolute top-[-100px] left-[-300px] w-[429px] h-[282px] bg-[#9e6e50] rounded-[31px] rotate-[-12deg] shadow-lg justify-center-safe"></div>
-
-          {/* Foreground Image */}
-          <div className="relative w-[420px] h-[279px] top-[-100px] left-[-275px] rotate-[1deg] rounded-[35px] justify-center-safe">
-            <Image
-              src="/pic2.svg"
-              alt="Wildlife"
-              width={420}
-              height={279}
-              className="object-cover"
-            />
-          </div>
-        </div>
-      </section>
-      </div>
-
-      {/* What is SPOT */}
-      <section id="what-is-spot">
-      <section className="relative h-auto bg-cover bg-center bg-no-repeat m-0 p-0 max-w-[1634px] mx-auto">
-        <Image
-          src="/wisbg.svg"
-          alt="Background"
-          width={1140}
-          height={750}
-          className="object-cover absolute top-0 left-0"
-          priority
-        />
-        <Image
-          src="/wis.svg"
-          alt="Decorative"
-          width={494}
-          height={750}
-          className="absolute top-0 right-0"
-        />
-
-        <div className="relative z-10 max-w-[800px] mt-[-32] ml-28 pt-20 text-center px-8">
-        <h2 className="text-[40px] font-bold italic text-[#f5df9d] [text-shadow:1px_1px_0_#000000] mb-6">
-  What is{' '}
-  <span 
-    className="font-extrabold not-italic text-[48px] leading-normal 
-               bg-[linear-gradient(175deg,_#95AB33_51.81%,_#23732F_81.92%,_#082E0D_110.23%)] 
-               bg-clip-text text-transparent 
-               [-webkit-text-stroke:1px_#000] 
-               [text-shadow:none]"
-  >
-    SPOT
-  </span>
-  {' '}?
-</h2>
-
-          <div className="h-6" />
-
-          <p className="text-2xl font-medium text-[#b1a06b] mb-6">
-            SPOT stands for
+          {/* Photo Cards Section */}
+          <section className="relative m-0 p-0 py-0 justify-center-safe">
+          <p className="relative top-[200px] left-[150px] text-center text-black text-[32px] font-bold max-w-[668px] mx-auto mb-12 justify-items-center-safe">
+            From snakes in your backyard<br />to rare birds in the wild,
           </p>
-          
-          <div className="h-3" />
 
-          <div className="bg-[#f2ffce] rounded-[43px] py-4 px-8 mb-12 inline-flex items-center gap-4 w-[635px] h-[52px]">
-            <span className="flex items-baseline gap-1">
-              <span className="text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">S</span>
-              <span className="text-2xl font-medium relative" style={{ top: "-6px" }}>pecies</span>
-            </span>
-            <span className="flex items-baseline gap-1">
-              <span className="text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">P</span>
-              <span className="text-2xl font-medium relative" style={{ top: "-6px" }}>rotection</span>
-            </span>
-            <span className="text-2xl font-medium mx-2">&</span>
-            <span className="flex items-baseline gap-1">
-              <span className="text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">O</span>
-              <span className="text-2xl font-medium relative" style={{ top: "-6px" }}>nline</span>
-            </span>
-            <span className="flex items-baseline gap-1">
-              <span className="text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">T</span>
-              <span className="text-2xl font-medium relative" style={{ top: "-6px" }}>racking</span>
-            </span>
+            {/* Card 1 */}
+          <div className="relative w-[430px] h-[283px] mx-auto mb-8">
+            {/* Background Layer */}
+            <div className="absolute top-[10px] left-[300px] w-[430px] h-[283px] bg-[#7b6832] rounded-[32px] rotate-[9deg] shadow-lg"></div>
+
+            {/* Foreground Image */}
+            <div className="relative w-[430px] h-[283px] left-[275px] rotate-[-1deg] rounded-[32px]">
+              <Image
+                src="/pic1.svg"
+                alt="Wildlife"
+                width={430}
+                height={283}
+                className="object-cover"
+              />
+            </div>
           </div>
 
-        <p className="text-3xl font-medium text-[#ffec84] mb-24">
-          SPOT is an AI-powered wildlife identification platform that helps communities recognize species quickly, safely, and accurately.
-        </p>
+            <p className="relative top-[80px] left-[755px] text-center text-[32px] font-medium text-[#36683d] max-w-[600px] mx-auto mb-8">
+              SPOT helps you know what you see — <span className="font-extrabold text-[#0d3b13]">instantly</span>.
+            </p>
 
-        <div className="h-15" /> 
+            {/* Card 2 */}
+          <div className="relative w-[420px] h-[279px] mx-auto mb-8 justify-center-safe">
+            {/* Background Layer */}
+            <div className="absolute top-[-100px] left-[-300px] w-[429px] h-[282px] bg-[#9e6e50] rounded-[31px] rotate-[-12deg] shadow-lg justify-center-safe"></div>
 
-        <p className="text-3xl font-medium text-[#ffec84]">
-          By combining technology and community knowledge, SPOT bridges the gap between humans and wildlife, reducing risks while protecting biodiversity.
-        </p>
-      </div>
-      </section>
-      </section>
+            {/* Foreground Image */}
+            <div className="relative w-[420px] h-[279px] top-[-100px] left-[-275px] rotate-[1deg] rounded-[35px] justify-center-safe">
+              <Image
+                src="/pic2.svg"
+                alt="Wildlife"
+                width={420}
+                height={279}
+                className="object-cover"
+              />
+            </div>
+          </div>
+        </section>
+        </div>
+
+        {/* What is SPOT */}
+        <section id="what-is-spot">
+        <section className="relative h-auto bg-cover bg-center bg-no-repeat m-0 p-0 max-w-[1634px] mx-auto">
+          <Image
+            src="/wisbg.svg"
+            alt="Background"
+            width={1140}
+            height={750}
+            className="object-cover absolute top-0 left-0"
+            priority
+          />
+          <Image
+            src="/wis.svg"
+            alt="Decorative"
+            width={494}
+            height={750}
+            className="absolute top-0 right-0"
+          />
+
+          <div className="relative z-10 max-w-[800px] mt-[-32] ml-28 pt-20 text-center px-8">
+          <h2 className="text-[40px] font-bold italic text-[#f5df9d] [text-shadow:1px_1px_0_#000000] mb-6">
+        What is{' '}
+        <span 
+          className="font-extrabold not-italic text-[48px] leading-normal 
+                bg-[linear-gradient(175deg,_#95AB33_51.81%,_#23732F_81.92%,_#082E0D_110.23%)] 
+                bg-clip-text text-transparent 
+                [-webkit-text-stroke:1px_#000] 
+                [text-shadow:none]"
+        >
+          SPOT
+        </span>
+        {' '}?
+      </h2>
+
+            <div className="h-6" />
+
+            <p className="text-2xl font-medium text-[#b1a06b] mb-6">
+              SPOT stands for
+            </p>
+            
+            <div className="h-3" />
+
+            <div className="bg-[#f2ffce] rounded-[43px] py-4 px-8 mb-12 inline-flex items-center gap-4 w-[635px] h-[52px]">
+              <span className="flex items-baseline gap-1">
+                <span className="text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">S</span>
+                <span className="text-2xl font-medium relative" style={{ top: "-6px" }}>pecies</span>
+              </span>
+              <span className="flex items-baseline gap-1">
+                <span className="text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">P</span>
+                <span className="text-2xl font-medium relative" style={{ top: "-6px" }}>rotection</span>
+              </span>
+              <span className="text-2xl font-medium mx-2">&</span>
+              <span className="flex items-baseline gap-1">
+                <span className="text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">O</span>
+                <span className="text-2xl font-medium relative" style={{ top: "-6px" }}>nline</span>
+              </span>
+              <span className="flex items-baseline gap-1">
+                <span className="text-[40px] font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">T</span>
+                <span className="text-2xl font-medium relative" style={{ top: "-6px" }}>racking</span>
+              </span>
+            </div>
+
+          <p className="text-3xl font-medium text-[#ffec84] mb-24">
+            SPOT is an AI-powered wildlife identification platform that helps communities recognize species quickly, safely, and accurately.
+          </p>
+
+          <div className="h-15" /> 
+
+          <p className="text-3xl font-medium text-[#ffec84]">
+            By combining technology and community knowledge, SPOT bridges the gap between humans and wildlife, reducing risks while protecting biodiversity.
+          </p>
+          </div>
+        </section>
+        </section>
 
 {/* How SPOT Works */}
 <section id="how-it-works">
@@ -475,7 +536,7 @@ export default function HomePage() {
       className="absolute top-[55px] right-[10%]"
     />
 
-    {/* Explorer ticket button */}
+    {/* Explorer ticket button - Routes to signup */}
     <button 
       className="relative mt-[50px] cursor-pointer hover:scale-105 transition-transform duration-300"
       onClick={() => {
@@ -512,11 +573,11 @@ export default function HomePage() {
     className="absolute top-[557px] left-[1050px]"
   />
 
+{/* Mascot button - Routes to home */}
 <button
   className="absolute top-[1px] left-[45px] cursor-pointer hover:scale-105 transition-transform duration-300"
   onClick={() => {
-    // Add your click handler here
-    console.log('Mascot clicked!');
+    router.push('/');
   }}
 >
   <Image
