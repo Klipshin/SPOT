@@ -3,6 +3,8 @@ import { useState, useRef, ChangeEvent, KeyboardEvent} from 'react';
 import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase } from 'lucide-react';
 import { Settings, HelpCircle, LogOut, Clock } from 'lucide-react';
 import { Share2, Flag, EyeOff, X, Users } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/src/utils/supabase/client';
 
 type Post = {
   id: number;
@@ -31,6 +33,7 @@ type Comment = {
 };
 
 export default function Dashboard() {
+  const router = useRouter();
   const [activePost, setActivePost] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -487,11 +490,26 @@ const closeCommentModal = () => {
       </div>
 
       {/* Log Out Section */}
-      <div className="border-t border-gray-400">
+        <div className="border-t border-gray-400">
         <button 
           className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
-          onClick={() => {
-            // Add your Log Out logic here
+          onClick={async () => {
+            try {
+              const supabase = createClient();
+              const { error } = await supabase.auth.signOut();
+              if (error) console.error('Error signing out:', error.message || error);
+              else console.log('Sign out successful');
+              // still redirect to login to clear client state
+            } catch (err) {
+              console.error('Sign out failed:', err);
+            }
+            // Redirect to login page after sign out (use full navigation to ensure client state cleared)
+            try {
+              router.push('/');
+            } finally {
+              // Fallback to full page load
+              window.location.href = '/';
+            }
           }}
         >
           <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
@@ -828,10 +846,10 @@ style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
   </div>
 </div>
 
-            <button 
-    className="absolute -bottom-[350px] right-[-20px] w-[450px] h-auto hover:scale-105 transition-transform duration-300 cursor-pointer group"
-            onClick={() => console.log('Spot clicked!')}
-  >
+                <button 
+              className="absolute -bottom-[350px] right-[-20px] w-[450px] h-auto hover:scale-105 transition-transform duration-300 cursor-pointer group"
+                onClick={() => router.push('/ai-chat')}
+            >
     <img 
       src="/spotdb.svg" 
       alt="Spot Database Icon" 

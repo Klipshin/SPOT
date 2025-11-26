@@ -78,8 +78,7 @@ export async function signInWithGoogle() {
     console.log(error);
     redirect("/error");
   }
-
-  redirect(data.url);
+  return data.url;
 }
 
 export async function signInWithFacebook() {
@@ -95,8 +94,7 @@ export async function signInWithFacebook() {
     console.log(error)
     redirect('/error')
   }
-
-  redirect(data.url)
+  return data.url
 }
 
 export async function signUpWithGoogle(role: 'enthusiast' | 'expert') {
@@ -113,8 +111,7 @@ export async function signUpWithGoogle(role: 'enthusiast' | 'expert') {
     console.log(error);
     redirect("/error");
   }
-
-  redirect(data.url);
+  return data.url;
 }
 
 export async function signUpWithFacebook(role: 'enthusiast' | 'expert') {
@@ -130,6 +127,5 @@ export async function signUpWithFacebook(role: 'enthusiast' | 'expert') {
     console.log(error);
     redirect("/error");
   }
-
-  redirect(data.url);
+  return data.url;
 }
