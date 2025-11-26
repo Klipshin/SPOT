@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown } from 'lucide-react';
+import { useState, useRef, ChangeEvent, KeyboardEvent} from 'react';
+import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase } from 'lucide-react';
 import { Settings, HelpCircle, LogOut, Clock } from 'lucide-react';
 import { Share2, Flag, EyeOff, X, Users } from 'lucide-react';
 
@@ -41,6 +41,14 @@ export default function Dashboard() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const [showRepostModal, setShowRepostModal] = useState(false);
+  const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
+  const [selectedPostForComment, setSelectedPostForComment] = useState<Post | null>(null);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [attachedCommentImage, setAttachedCommentImage] = useState<string | null>(null);
+  const [replyingToId, setReplyingToId] = useState<number | null>(null);
+  const [replyingToUser, setReplyingToUser] = useState<string>('');
+
+const commentFileInputRef = useRef<HTMLInputElement>(null);
 
   const community = [
     { id: 1, name: "Wildlife Watchers", color: "bg-green-100" },
@@ -73,6 +81,112 @@ export default function Dashboard() {
   },
   // ... more posts
 ]);
+
+const handleCommentFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    const imageUrl = URL.createObjectURL(file);
+    setAttachedCommentImage(imageUrl);
+  }
+};
+
+const handleReplyClick = (postId: number, commentId: number, username: string) => {
+  setActivePost(postId);
+  setReplyingToId(commentId);
+  setReplyingToUser(username);
+  
+  const mentionText = `@${username.replace('@', '')} `;
+  setNewCommentText(mentionText);
+
+  setTimeout(() => {
+    const input = document.getElementById(`comment-input-${postId}`) as HTMLTextAreaElement;
+    if (input) {
+      input.focus();
+      const len = input.value.length;
+      input.setSelectionRange(len, len);
+    }
+  }, 50);
+};
+
+const cancelReply = () => {
+  setReplyingToId(null);
+  setReplyingToUser('');
+  setNewCommentText('');
+};
+
+const handlePostComment = (postId: number) => {
+  if (!newCommentText.trim() && !attachedCommentImage) return;
+  
+  const newComment: Comment = {
+    id: Date.now(),
+    user: '@currentUser',
+    date: 'Just now',
+    text: newCommentText,
+    image: attachedCommentImage,
+    vote: null,
+    upvotes: 0,
+    downvotes: 0,
+    isReply: replyingToId !== null,
+  };
+  
+  setPosts(prevPosts => prevPosts.map(post => {
+    if (post.id !== postId) return post;
+    let updatedComments = [...post.comments];
+    
+    if (replyingToId !== null) {
+      const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
+      if (parentIndex !== -1) {
+        let insertIndex = parentIndex + 1;
+        while (insertIndex < updatedComments.length && updatedComments[insertIndex].isReply) {
+          insertIndex++;
+        }
+        updatedComments.splice(insertIndex, 0, newComment);
+      } else {
+        updatedComments.push(newComment);
+      }
+    } else {
+      updatedComments.push(newComment);
+    }
+    
+    return { ...post, comments: updatedComments };
+  }));
+  
+  // Update selectedPostForComment if modal is open
+  if (selectedPostForComment && selectedPostForComment.id === postId) {
+    setSelectedPostForComment(prevPost => {
+      if (!prevPost) return null;
+      let updatedComments = [...prevPost.comments];
+      
+      if (replyingToId !== null) {
+        const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
+        if (parentIndex !== -1) {
+          let insertIndex = parentIndex + 1;
+          while (insertIndex < updatedComments.length && updatedComments[insertIndex].isReply) {
+            insertIndex++;
+          }
+          updatedComments.splice(insertIndex, 0, newComment);
+        } else {
+          updatedComments.push(newComment);
+        }
+      } else {
+        updatedComments.push(newComment);
+      }
+      
+      return { ...prevPost, comments: updatedComments };
+    });
+  }
+  
+  setNewCommentText('');
+  setAttachedCommentImage(null);
+  cancelReply();
+};
+
+const handleCommentKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>, postId: number) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    handlePostComment(postId);
+  }
+};
 
 // ===== HELPER FUNCTION =====
 const formatVoteCount = (count: number) => {
@@ -145,6 +259,22 @@ const handleCommentVote = (postId: number, commentId: number, type: 'up' | 'down
   }));
 };
 
+// ===== HANDLERS: COMMENT MODAL =====
+const openCommentModal = (post: Post) => {
+  setSelectedPostForComment(post);
+  setIsCommentModalOpen(true);
+  setActivePost(post.id);
+};
+
+const closeCommentModal = () => {
+  setIsCommentModalOpen(false);
+  setSelectedPostForComment(null);
+  setNewCommentText('');
+  setAttachedCommentImage(null);
+  setReplyingToId(null);
+  setReplyingToUser('');
+};
+
   return (
 <div 
   className="h-screen flex flex-col bg-gradient-to-b from-green-50 to-amber-50" 
@@ -179,7 +309,7 @@ const handleCommentVote = (postId: number, commentId: number, type: 'up' | 'down
                  bg-white/44 
                  focus:outline-none focus:ring-1 focus:#9A9A9A"
       style={{
-        borderColor: 'rgba(20, 0, 0, 0.43)',
+        borderColor: 'rgba(0, 0, 0, 0.43)',
         position: 'relative',
         top: '3px',
       }}
@@ -400,7 +530,7 @@ const handleCommentVote = (postId: number, commentId: number, type: 'up' | 'down
               
               <div className="space-y-2.5 text-base">
                 <div className="flex items-center gap-2">
-                  <MapPin className="w-5 h-5" />
+                  <Briefcase className="w-5 h-5" />
                   <span className="font-medium">occupation</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -652,14 +782,12 @@ style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
 
   {/* Comment Button */}
   <button 
-    onClick={() => { 
-      setActivePost(post.id); 
-      setTimeout(() => document.getElementById(`comment-input-${post.id}`)?.focus(), 10); 
-    }} 
+    onClick={() => openCommentModal(post)} 
     className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm ml-2 bg-[#D9D9D9] hover:bg-blue-200 transition-colors"
   >
-    <MessageCircle className="w-6 h-6 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
+      <MessageCircle className="w-6 h-6 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
   </button>
+
 </div>
   </article>
   ))}
