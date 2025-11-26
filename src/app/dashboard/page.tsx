@@ -1,11 +1,37 @@
 'use client';
 import { useState } from 'react';
-import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User } from 'lucide-react';
+import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown } from 'lucide-react';
 import { Settings, HelpCircle, LogOut, Clock } from 'lucide-react';
 import { Share2, Flag, EyeOff, X, Users } from 'lucide-react';
 
+type Post = {
+  id: number;
+  timestamp: number;
+  user: string;
+  date: string;
+  heading: string;
+  image?: string | null;
+  caption: string;
+  vote: 'up' | 'down' | null;  
+  upvotes: number;              
+  downvotes: number;            
+  comments: Comment[];
+};
+
+type Comment = {
+  id: number;
+  user: string;
+  date: string;
+  text: string;
+  image?: string | null;
+  vote: 'up' | 'down' | null;  
+  upvotes: number;              
+  downvotes: number;           
+  isReply: boolean;
+};
+
 export default function Dashboard() {
-  const [activePost, setActivePost] = useState(null);
+  const [activePost, setActivePost] = useState<number | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
@@ -30,19 +56,94 @@ export default function Dashboard() {
     { id: 4, name: "mommy oni", color: "bg-yellow-100" }
   ];
 
-  const posts = [
-    {
-      id: 1,
-      community: "Wildlife Watchers",
-      username: "@username",
-      date: "Month DD, YYYY",
-      heading: "Morning hike discovery",
-      caption: "Found this amazing viewpoint after a 2-hour trek. The wildlife here is incredible!",
-      upvotes: 142,
-      downvotes: 3,
-      comments: 28
+  // sample/initial posts (moved to state further down)
+
+  const [posts, setPosts] = useState<Post[]>([
+  {
+    id: 1,
+    timestamp: Date.now(),
+    user: '@example_user',
+    date: '2 hours ago',
+    heading: 'Example Post',
+    caption: 'This is an example post',
+    vote: null,        
+    upvotes: 255,      
+    downvotes: 2,      
+    comments: []
+  },
+  // ... more posts
+]);
+
+// ===== HELPER FUNCTION =====
+const formatVoteCount = (count: number) => {
+  if (count >= 1000000) return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
+  if (count >= 1000) return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return count.toString();
+};
+
+// ===== VOTE HANDLER FOR POSTS =====
+const handlePostVote = (postId: number, type: 'up' | 'down') => {
+  setPosts(prevPosts => prevPosts.map(post => {
+    if (post.id !== postId) return post;
+    
+    let newVote = post.vote;
+    let newUpvotes = post.upvotes;
+    let newDownvotes = post.downvotes;
+    
+    // If clicking the same vote, remove it
+    if (post.vote === type) {
+      newVote = null;
+      if (type === 'up') newUpvotes--;
+      else newDownvotes--;
+    } else {
+      // Remove previous vote if exists
+      if (post.vote === 'up') newUpvotes--;
+      if (post.vote === 'down') newDownvotes--;
+      
+      // Add new vote
+      newVote = type;
+      if (type === 'up') newUpvotes++;
+      else newDownvotes++;
     }
-  ];
+    
+    return { ...post, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+  }));
+};
+
+// ===== VOTE HANDLER FOR COMMENTS =====
+const handleCommentVote = (postId: number, commentId: number, type: 'up' | 'down') => {
+  setPosts(prevPosts => prevPosts.map(post => {
+    if (post.id !== postId) return post;
+    
+    const updatedComments = post.comments.map(comment => {
+      if (comment.id !== commentId) return comment;
+      
+      let newVote = comment.vote;
+      let newUpvotes = comment.upvotes;
+      let newDownvotes = comment.downvotes;
+      
+      // If clicking the same vote, remove it
+      if (comment.vote === type) {
+        newVote = null;
+        if (type === 'up') newUpvotes--;
+        else newDownvotes--;
+      } else {
+        // Remove previous vote if exists
+        if (comment.vote === 'up') newUpvotes--;
+        if (comment.vote === 'down') newDownvotes--;
+        
+        // Add new vote
+        newVote = type;
+        if (type === 'up') newUpvotes++;
+        else newDownvotes++;
+      }
+      
+      return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+    });
+    
+    return { ...post, comments: updatedComments };
+  }));
+};
 
   return (
 <div 
@@ -71,14 +172,14 @@ export default function Dashboard() {
     <Search className="absolute left-3 top-[calc(75%-3px)] -translate-y-1/2 w-5 h-5 text-gray-400" />
     <input
       type="text"
-      placeholder="Search anything..."
+      placeholder="                                      Search anything..."
       className="w-full pl-10 pr-4 h-7 fixed-center 
                  border border-gray-200 
                  rounded-[15px] 
                  bg-white/44 
                  focus:outline-none focus:ring-1 focus:#9A9A9A"
       style={{
-        borderColor: 'rgba(0, 0, 0, 0.43)',
+        borderColor: 'rgba(20, 0, 0, 0.43)',
         position: 'relative',
         top: '3px',
       }}
@@ -374,7 +475,8 @@ style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
   </div>
 
     {/* Post Card */}
-<article 
+  {posts.map((post) => (
+    <article 
   className="rounded-3xl shadow-lg p-6 -mt-8" 
   style={{
     borderRadius: '25px',
@@ -503,22 +605,64 @@ style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
   <p className="text-gray-700 mb-6">caption</p><br />
 
   {/* Action Buttons */}
-  <div className="flex items-center gap-3">
-    <button className="p-3 bg-green-400 hover:bg-green-500 rounded-full transition shadow-md">
-      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M10 3l2 6h6l-5 4 2 6-5-4-5 4 2-6-5-4h6z"/>
-      </svg>
+<div className="flex items-center gap-3 mt-auto">
+  {/* Upvote Button with Count */}
+  <div className="flex items-center gap-1.5 rounded-full px-2 py-1 bg-[#E0E0E0]/50 h-10 min-w-max">
+    <button 
+      onClick={() => handlePostVote(post.id, 'up')} 
+      className={`p-1 rounded-full transition-colors flex items-center justify-center ${
+        post.vote === 'up' ? "bg-white/50" : "hover:bg-black/5"
+      }`}
+    >
+      <ArrowBigUp className={`w-7 h-7 ${
+        post.vote === 'up' 
+          ? "text-[#00C92C] fill-[#00C92C]" 
+          : "text-[#00C92C]"
+      }`} />
     </button>
-    <button className="p-3 bg-red-400 hover:bg-red-500 rounded-full transition shadow-md">
-      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-        <path d="M10 17l-2-6H2l5-4-2 6 5 4 5-4-2 6 5 4h-6z"/>
-      </svg>
-    </button>
-    <button className="p-3 bg-blue-200 hover:bg-blue-300 rounded-full transition shadow-md">
-      <MessageCircle className="w-5 h-5 text-blue-700" />
-    </button>
+
+    <span className={`font-bold text-lg leading-none pt-0.5 px-1 text-center ${
+      isDarkMode ? "text-white" : "text-black"
+    }`}>
+      {formatVoteCount(post.upvotes)}
+    </span>
   </div>
-</article>
+
+  {/* Downvote Button with Count */}
+  <div className="flex items-center gap-1.5 rounded-full px-2 py-1 bg-[#E0E0E0]/50 h-10 min-w-max">
+    <button 
+      onClick={() => handlePostVote(post.id, 'down')} 
+      className={`p-1 rounded-full transition-colors flex items-center justify-center ${
+        post.vote === 'down' ? "bg-white/50" : "hover:bg-black/5"
+      }`}
+    >
+      <ArrowBigDown className={`w-7 h-7 ${
+        post.vote === 'down' 
+          ? "text-[#FF4C4C] fill-[#FF4C4C]" 
+          : "text-[#FF4C4C]"
+      }`} />
+    </button>
+
+    <span className={`font-bold text-lg leading-none pt-0.5 px-1 text-center ${
+      isDarkMode ? "text-white" : "text-black"
+    }`}>
+      {formatVoteCount(post.downvotes)}
+    </span>
+  </div>
+
+  {/* Comment Button */}
+  <button 
+    onClick={() => { 
+      setActivePost(post.id); 
+      setTimeout(() => document.getElementById(`comment-input-${post.id}`)?.focus(), 10); 
+    }} 
+    className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm ml-2 bg-[#D9D9D9] hover:bg-blue-200 transition-colors"
+  >
+    <MessageCircle className="w-6 h-6 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
+  </button>
+</div>
+  </article>
+  ))}
   </div>
 </main>
           {/* Right Sidebar - Trending */}
@@ -558,7 +702,7 @@ style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
 
             <button 
     className="absolute -bottom-[350px] right-[-20px] w-[450px] h-auto hover:scale-105 transition-transform duration-300 cursor-pointer group"
-    onClick={() => console.log('Spot clicked!')}
+            onClick={() => console.log('Spot clicked!')}
   >
     <img 
       src="/spotdb.svg" 
