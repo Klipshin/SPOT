@@ -19,14 +19,25 @@ export default function ForgotPasswordPage() {
         setLoading(true);
 
         const formData = new FormData(e.currentTarget as HTMLFormElement);
-        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
+        const confirmPassword = formData.get("confirm-password") as string;
 
-        await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        if (password !== confirmPassword) {
+        alert("Passwords do not match!");
+        setLoading(false);
+        return;
+        }
+        const { data, error } = await supabase.auth.updateUser({
+        password,
         });
 
-        setSent(true);
+        if (error) {
+        alert(error.message);
         setLoading(false);
+        return;
+        }
+
+        router.push("/auth/login");
     }
 
   return (
