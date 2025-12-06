@@ -260,8 +260,9 @@ export default function SignUpForm({role, onBack} : Props) {
 
                 <div className="flex flex-row items-center gap-5 w-100">
                     <button 
-                        onClick={() => {
-                            signUpWithGoogle(role);
+                        onClick={async () => {
+                            const url = await signUpWithGoogle(role);
+                            if (url) window.location.href = url;
                         }}
                         className="w-full relative rounded-lg font-poppins-semibold text-base py-2 px-5  text-gray-500 bg-white flex items-center justify-center
                             shadow-[0_4px_8px_rgba(0,0,0,0.2)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer border border-gray-400"
@@ -271,8 +272,9 @@ export default function SignUpForm({role, onBack} : Props) {
                     </button>
 
                     <button 
-                        onClick={() => {
-                            signUpWithFacebook(role);
+                        onClick={async () => {
+                            const url = await signUpWithFacebook(role);
+                            if (url) window.location.href = url;
                         }}      
                         className="w-full relative rounded-lg font-poppins-semibold text-base py-2 px-5  text-gray-500 bg-white flex items-center justify-center
                             shadow-[0_4px_8px_rgba(0,0,0,0.2)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer border border-gray-400">

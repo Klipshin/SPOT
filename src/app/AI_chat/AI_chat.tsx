@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/src/utils/supabase/client';
 
 // Type definitions
 interface Prediction {
@@ -44,6 +46,8 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const router = useRouter();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -327,17 +331,65 @@ export const AiChatLoggedIn = (): React.ReactElement => {
             <div className="top-2.5 absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
             
             <img className="absolute top-0 left-[-32px] w-[75px] h-[47px] aspect-[1.48] object-cover" alt="Spoticon" src="/spicon0.svg" />
-            <img className="absolute top-[5px] left-[1406px] w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/down-chevron 1.svg" />
-            
-            {/* DARK MODE TOGGLE */}
+
+            {/* DARK MODE TOGGLE (restored) */}
             <img 
               className="absolute top-1.5 left-[1340px] w-[47px] h-[31px] aspect-[1.51] cursor-pointer hover:opacity-80 transition-opacity" 
               alt="Element" 
               onClick={() => setIsDarkMode(!isDarkMode)}
               src={isDarkMode ? "/dark-mode 1.svg" : "/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"} 
             />
-            
-            <img className="top-[5px] left-[1444px] w-[35px] h-[35px] absolute aspect-[1] object-cover" alt="User" src="/user (2) 9.svg" />
+
+            {/* Profile button (chevron + pfp) */}
+            <div className="absolute top-[5px] left-[1406px]">
+              <button
+                onClick={() => setIsProfileOpen(!isProfileOpen)}
+                onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
+                className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+              >
+                <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/down-chevron 1.svg" />
+                <img className="w-[35px] h-[35px] aspect-[1] object-cover rounded-full" alt="User" src="/user (2) 9.svg" />
+              </button>
+
+              {isProfileOpen && (
+                <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50" style={{ border: '2px solid #899A3C' }} onMouseDown={(e) => e.preventDefault()}>
+                  <div className="px-4 py-3 border-b border-gray-300">
+                    <h3 className="text-base font-bold text-gray-900">@username</h3>
+                    <p className="text-xs text-gray-600 mt-0.5">username@gmail.com</p>
+                  </div>
+                  <div className="py-1">
+                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { /* view profile */ }}>
+                      <svg className="w-4 h-4 text-gray-700" />
+                      <span className="text-sm font-medium text-gray-900">View Profile</span>
+                    </button>
+                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { /* account settings */ }}>
+                      <svg className="w-4 h-4 text-gray-700" />
+                      <span className="text-sm font-medium text-gray-900">Account Settings</span>
+                    </button>
+                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { /* help center */ }}>
+                      <svg className="w-4 h-4 text-gray-700" />
+                      <span className="text-sm font-medium text-gray-900">Help Center</span>
+                    </button>
+                  </div>
+                  <div className="border-t border-gray-400">
+                    <button className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group" onClick={async () => {
+                      try {
+                        const supabase = createClient();
+                        const { error } = await supabase.auth.signOut();
+                        if (error) console.error('Error signing out:', error.message || error);
+                        else console.log('Sign out successful');
+                      } catch (err) {
+                        console.error('Sign out failed:', err);
+                      }
+                      try { router.push('/'); } finally { window.location.href = '/'; }
+                    }}>
+                      <svg className="w-4 h-4 text-gray-700 group-hover:text-white" />
+                      <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -613,7 +665,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         </div>
 
         {/* Back Button */}
-        <div className="absolute top-[25px] left-[-15px] w-[104px] h-[30px] cursor-pointer hover:scale-105 hover:shadow-2xl transition-all duration-200">
+        <div className="absolute top-[25px] left-[-15px] w-[104px] h-[30px] cursor-pointer hover:scale-105 hover:shadow-2xl transition-all duration-200" onClick={() => router.back()}>
           <div className={`absolute top-0 left-0 w-[104px] h-[30px] rounded-[43px] hover:opacity-80 transition ${isDarkMode ? 'bg-[#95ab33]' : 'bg-[#d0e58fb2]'}`} />
           <img className="absolute top-[6.5px] left-[16px] w-[17px] h-[17px] aspect-[1] object-cover" alt="Back" src="/back.svg" />
           <div className={`absolute top-[3px] left-[42px] w-[47px] font-bold text-base tracking-[0] leading-[normal] ${isDarkMode ? 'text-[#292d29]' : 'text-[#072d0db0]'}`}>

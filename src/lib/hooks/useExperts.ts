@@ -5,7 +5,7 @@ import { useUser } from "./useUser";
 import { Expert } from "@/src/utils/supabase/models";
 import { expertService } from "../services";
 
-export default function useExperts(){
+export default function useExperts(userId: string){
     const { user } = useUser();
     const [experts, setExperts] = useState<Expert[]>([]);
     const [ expert, setExpert ] = useState<Expert | null>(null);
@@ -13,10 +13,10 @@ export default function useExperts(){
     const [ expertError, setExpertError ] = useState<string | null>(null);
 
     useEffect(() => {
-        if (user){
-            loadExpert(user.id);
+        if (user && userId) {
+            loadExpert(userId);
         }
-    }, [user] )
+    }, [user, userId] )
 
     async function loadExpert(userId: string) {
         if (!user) return;
@@ -40,12 +40,12 @@ export default function useExperts(){
         diploma_docu: string;
         academic_profile?: string;
     }) {
-        if (!user) throw new Error("User does not exist.");
+        if (!userId) throw new Error("User does not exist.");
 
         try {
             const newExpert = await expertService.createExpert(
                 {
-                    user_id: user.id,
+                    user_id: userId,
                     occupation: expertData.occupation,
                     id_docu: expertData.id_docu,
                     employment_proof: expertData.employment_proof,
