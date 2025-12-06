@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useState, useRef, ChangeEvent, KeyboardEvent, useMemo, useContext, createContext } from 'react';
@@ -8,7 +9,14 @@ import {
 
 // --- MOCK UTILS ---
 const usePathname = () => '/community';
-const Link = ({ href, children, className }: any) => <a href={href} className={className}>{children}</a>;
+
+// FIX: Added proper typing instead of 'any'
+interface LinkProps {
+  href: string;
+  children: React.ReactNode;
+  className?: string;
+}
+const Link = ({ href, children, className }: LinkProps) => <a href={href} className={className}>{children}</a>;
 
 // --- THEME CONTEXT ---
 const ThemeContext = createContext({
@@ -80,6 +88,9 @@ type Post = {
   comments: Comment[];
 };
 
+// FIX: Define Sort Option Type
+type SortOptionType = 'default' | 'newest' | 'oldest' | 'popular' | 'least';
+
 // --- MAIN CONTENT COMPONENT ---
 function CommunityPageContent() {
   const { isDarkMode } = useTheme();
@@ -88,7 +99,7 @@ function CommunityPageContent() {
   const [isJoined, setIsJoined] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [isSortOpen, setIsSortOpen] = useState(false);
-  const [sortOption, setSortOption] = useState<'default' | 'newest' | 'oldest' | 'popular' | 'least'>('default');
+  const [sortOption, setSortOption] = useState<SortOptionType>('default');
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isClosingPostModal, setIsClosingPostModal] = useState(false);
   const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
@@ -179,7 +190,7 @@ function CommunityPageContent() {
   const [replyingToUser, setReplyingToUser] = useState<string>('');
   const [activePostId, setActivePostId] = useState<number | null>(null);
 
-  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  // FIX: Removed unused commentInputRef
   const commentFileInputRef = useRef<HTMLInputElement>(null);
 
   // ===== LOGIC: SORTING =====
@@ -194,7 +205,7 @@ function CommunityPageContent() {
     }
   }, [posts, sortOption]);
 
-  const handleSortSelect = (option: 'default' | 'newest' | 'oldest' | 'popular' | 'least') => {
+  const handleSortSelect = (option: SortOptionType) => {
     setSortOption(option);
     setIsSortOpen(false);
   };
@@ -344,7 +355,10 @@ function CommunityPageContent() {
     };
     setPosts(prevPosts => prevPosts.map(post => {
       if (post.id !== postId) return post;
-      let updatedComments = [...post.comments];
+      
+      // FIX: Changed let to const as this variable is not reassigned
+      const updatedComments = [...post.comments];
+      
       if (replyingToId !== null) {
         const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
         if (parentIndex !== -1) {
@@ -385,7 +399,6 @@ function CommunityPageContent() {
       <div className="flex-1 flex flex-col w-full max-w-[1400px] mx-auto px-4 md:px-8">
         
         {/* === INFO HEADER CARD === */}
-        {/* FIX: Changed rounded-[40px] to rounded-none for straight edges */}
         <div className={`relative z-10 w-full transition-colors duration-300 flex-1 mb-0 flex flex-col ${isDarkMode ? "bg-[#222222] shadow-lg" : "bg-white shadow-sm"} rounded-none overflow-visible p-3`}>
           
           {/* BANNER */}
@@ -469,6 +482,7 @@ function CommunityPageContent() {
           </div>
 
           {/* STICKY SORT BAR */}
+          {/* FIX: Explicitly cast 'option' to SortOptionType to resolve the 'any' error */}
           <div className={`sticky top-[50px] z-30 w-full px-8 py-2 border-b backdrop-blur-xl flex justify-end transition-colors duration-300 ${isDarkMode ? "bg-[#222222]/80 border-white/40 text-gray-200" : "bg-white/80 border-black/50 text-gray-600"}`}>
               <div className="relative">
                 <button onClick={() => setIsSortOpen(!isSortOpen)} className={`flex items-center gap-2 font-bold text-xs transition-colors ${isDarkMode ? "hover:text-white" : "hover:text-black"}`}>
@@ -479,7 +493,7 @@ function CommunityPageContent() {
                   <div className="absolute top-full right-0 mt-4 w-48 rounded-[15px] p-1.5 z-50 animate-in fade-in slide-in-from-top-4 duration-300" style={{ filter: "url('#goo')" }}>
                     <div className="backdrop-blur-md border rounded-[15px] overflow-hidden p-1 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]" style={{ background: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.65)', borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)' }}>
                       {['default', 'newest', 'oldest', 'popular', 'least'].map((option, i) => (
-                        <button key={option} onClick={() => handleSortSelect(option as any)} className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-between font-normal ${sortOption === option ? (isDarkMode ? "bg-white/20 text-white" : "bg-black/10 text-black") : "hover:bg-black/5 hover:pl-4"} ${isDarkMode ? "text-white" : "text-black"}`} style={{ transitionDelay: `${i * 50}ms` }}>
+                        <button key={option} onClick={() => handleSortSelect(option as SortOptionType)} className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-between font-normal ${sortOption === option ? (isDarkMode ? "bg-white/20 text-white" : "bg-black/10 text-black") : "hover:bg-black/5 hover:pl-4"} ${isDarkMode ? "text-white" : "text-black"}`} style={{ transitionDelay: `${i * 50}ms` }}>
                           <span className="capitalize">{option}</span>
                           {sortOption === option && <Check className="w-3 h-3 text-green-500" />}
                         </button>
