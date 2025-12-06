@@ -1,9 +1,9 @@
-import ProfilePage from "./profile/page";
+import ExpertProfilePage from "./profile-expert/page";
 
 export default function Home() {
   return (
     <>
-      <ProfilePage />
+      <ExpertProfilePage />
     </>
   );
 }
