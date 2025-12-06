@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@developer-hub/liquid-glass": "^1.2.3",
+    "@supabase/supabase-js": "^2.84.0",
     "@tailwindcss/postcss": "^4.1.14",
     "gsap": "^3.13.0",
     "lucide-react": "^0.554.0",
