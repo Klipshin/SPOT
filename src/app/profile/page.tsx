@@ -2,8 +2,13 @@
 import React, { useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft } from 'lucide-react';
 
 export default function ProfilePage() {
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     username: '',
     name: '',
@@ -28,6 +33,8 @@ export default function ProfilePage() {
     location: useRef<HTMLInputElement>(null),
   };
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -43,79 +50,149 @@ export default function ProfilePage() {
     setEditableFields(prev => ({ ...prev, [field]: false }));
   };
 
+  const handleProfilePictureClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfileImage(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  }
+};
+
   return (
-    <div className="min-h-screen relative overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
-        <Image 
-          src="/landingbg1.png" 
-          alt="Background"
-          fill
-          className="object-cover opacity-70"
-          priority
-        />
-        {/* Additional overlay for muted effect */}
-        <div className="absolute inset-0 bg-gradient-to-b from-[#f5f0e8]/30 to-[#e8e0d0]/40"></div>
+    <div 
+      className="h-screen flex flex-col bg-gradient-to-b from-green-50 to-amber-50 overflow-hidden" 
+      style={{ 
+        backgroundImage: `url('/${isDarkMode ? 'dark.png' : 'light.png'}')`, 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center', 
+        backgroundAttachment: 'fixed',
+        zoom: '100%',
+      }}
+    >
+      <div className="fixed top-0 left-0 right-0 w-full z-50">
+        
+          {/* Background Bar */}
+          <div className={`w-full h-11 justify-center ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`} />
+
+        {/* SPOT Logo Text */}
+            <div className="absolute -top-0.5 left-[70px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
+              SPOT
+            </div>
+
+        {/* Logo Icon */}
+            <img className="absolute top-0 left-[15px] w-[50px] h-[40px] aspect-[1.48] object-cover" alt="Spoticon" src="/eyecon.svg" />
+
+      {/* Right Side Icons */}
+            <button 
+    className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+    onClick={() => setIsDarkMode(!isDarkMode)}
+>
+    {isDarkMode ? (
+        <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
+    ) : (
+        <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
+    )}
+</button>
+
+{/* User Profile Button (Chevron + PFP combined) */}
+<div className="absolute top-[5px] left-[1440px]">
+  <button 
+    className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+    onClick={() => setIsProfileOpen(!isProfileOpen)}
+    onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
+  >
+    <img 
+      className="w-[35px] h-[35px] aspect-[1] object-cover" 
+      alt="Down chevron" 
+      src="/downn.svg" 
+    />
+    <img 
+      className="w-[35px] h-[35px] aspect-[1] object-cover rounded-full" 
+      alt="User" 
+      src="/pfpp.svg" 
+    />
+  </button>
+
+  {/* Profile Dropdown */}
+  {isProfileOpen && (
+    <div 
+     className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50"
+      style={{ border: '2px solid #899A3C' }}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      {/* User Info Section */}
+      <div className="px-4 py-3 border-b border-gray-300">
+        <h3 className="text-base font-bold text-gray-900">@username</h3>
+        <p className="text-xs text-gray-600 mt-0.5">username@gmail.com</p>
       </div>
 
-      {/* Header Bar */}
-      <header className="relative z-20 w-full h-24 bg-[#d1e39b] flex items-center justify-between px-12 shadow-lg">
-        {/* Logo */}
-        <div className="flex items-center gap-3">
-          <Image 
-            src="/spot icon.svg" 
-            alt="SPOT Icon"
-            width={60}
-            height={60}
-            className="w-12 h-12"
-          />
-          <span className="text-3xl font-extrabold bg-gradient-to-b from-[#95ab33] via-[#23732f] to-[#082e0d] bg-clip-text text-transparent">
-            SPOT
-          </span>
-        </div>
+      {/* Menu Items */}
+      <div className="py-1">
+        <button 
+          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          onClick={() => {
+            // Add your View Profile logic here
+          }}
+        >
+          <User className="w-4 h-4 text-gray-700" />
+          <span className="text-sm font-medium text-gray-900">View Profile</span>
+        </button>
+        
+        <button 
+          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          onClick={() => {
+            // Add your Account Settings logic here
+          }}
+        >
+          <Settings className="w-4 h-4 text-gray-700" />
+          <span className="text-sm font-medium text-gray-900">Account Settings</span>
+        </button>
+        
+        <button 
+          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          onClick={() => {
+            // Add your Help Center logic here
+          }}
+        >
+          <HelpCircle className="w-4 h-4 text-gray-700" />
+          <span className="text-sm font-medium text-gray-900">Help Center</span>
+        </button>
+      </div>
 
-        {/* Navigation Links */}
-        <nav className="flex items-center gap-10 font-semibold text-[#1f4e2d] text-sm lg:text-base">
-          {['Home', 'About', 'Explore', 'FAQs', 'Contact'].map(label => (
-            <Link
-              key={label}
-              href={`#${label.toLowerCase()}`}
-              className="hover:text-[#0f2d18] transition-colors"
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
+      {/* Log Out Section */}
+      <div className="border-t border-gray-400">
+        <button 
+          className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
+          onClick={() => {
+            // Add your Log Out logic here
+          }}
+        >
+          <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
+          <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+        </button>
+      </div>
+    </div>
+  )}
+</div>
+          </div>
 
-        {/* Right side icons */}
-        <div className="flex items-center gap-5">
-          {/* Theme Toggle (Moon Icon) */}
-          <button className="w-9 h-9 flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="#306137"/>
-            </svg>
-          </button>
-          
-          {/* Chevron Down */}
-          <button className="w-9 h-9 flex items-center justify-center hover:opacity-80 transition-opacity cursor-pointer">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M6 9l6 6 6-6" stroke="#306137" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            </svg>
-          </button>
 
-          {/* Profile Icon */}
-          <button className="w-11 h-11 rounded-full bg-white border-2 border-[#306137] flex items-center justify-center overflow-hidden hover:opacity-80 transition-opacity cursor-pointer">
-            <div className="w-9 h-9 bg-[#306137] rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">L</span>
-            </div>
-          </button>
-        </div>
-      </header>
+      <div className="flex-1 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 h-full flex gap-6">
+      </div>
+      </div>
 
       {/* Main Content */}
-      <div className="relative z-10 flex gap-10 px-12 py-16 max-w-[1700px] mx-auto">
+      <div className="relative z-10 flex gap-10 px-12 py-20 max-w-[1800px] mx-auto">
         {/* Left Panel - Profile Editing Form */}
-        <div className="flex-1 bg-white rounded-[40px] p-10 shadow-2xl">
+        <div className="flex-1 bg-white rounded-[40px] p-15 shadow-2xl w-250">
           <div className="flex gap-8">
             {/* Form Fields */}
             <div className="flex-1 space-y-6">
@@ -276,112 +353,98 @@ export default function ProfilePage() {
             </div>
 
             {/* Profile Picture Area */}
-            <div className="flex flex-col items-center">
-              <div className="relative w-64 h-64">
-                {/* Profile Picture Circle */}
-                <div className="w-64 h-64 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 border-4 border-gray-400 flex items-center justify-center overflow-hidden">
-                  {/* Placeholder for llama image - using a simple div for now */}
-                  <div className="w-full h-full bg-[#306137] flex items-center justify-center">
-                    <span className="text-white text-6xl font-bold">L</span>
+<div className="flex flex-col items-center">
+  <div className="relative w-64 h-64">
+    {/* Profile Picture Circle */}
+    <div className="w-64 h-64 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 border-4 border-gray-400 flex items-center justify-center overflow-hidden">
+      {/* Placeholder for profile image */}
+      {profileImage ? (
+        <img 
+          src={profileImage} 
+          alt="Profile" 
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full bg-[#FFFFFF] flex items-center justify-center">
+        </div>
+      )}
+    </div>
+    
+    {/* Hidden file input */}
+    <input
+      type="file"
+      ref={fileInputRef}
+      onChange={handleFileChange}
+      accept="image/*"
+      className="hidden"
+    />
+    
+    {/* Edit Icon (bottom right) */}
+    <button 
+      onClick={handleProfilePictureClick}
+      className="absolute bottom-4 right-4 w-12 h-12 bg-[#306137] rounded-full shadow-lg flex items-center justify-center hover:bg-[#246440] transition-colors cursor-pointer"
+    >
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+          </div>
+        </div>
+
+        {/* Right Sidebar - User Profile */}
+        <aside className="w-80 flex-shrink-0 flex flex-col">
+          <div
+            className="p-8 text-white shadow-lg relative overflow-hidden"
+            style={{
+               background: 'linear-gradient(131deg, #2A5528 15.98%, #927D31 125.22%)',
+              borderRadius: '15px',
+            }}
+          >
+            
+            {/* Content wrapper with relative positioning */}
+            <div className="relative z-10">
+              <div className="flex items-start gap-4 mb-5">
+                <div className="w-15 h-15 bg-white/30 rounded-full flex items-center justify-center">
+                  <User className="w-10 h-10 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-base font-semibold opacity-90">@username</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xl font-bold">Cliff Edward Alsonado</p>
                   </div>
                 </div>
-                
-                {/* Upload Icon (bottom left) - Landscape icon */}
-                <button className="absolute bottom-6 left-6 w-12 h-12 bg-white rounded-full shadow-xl flex items-center justify-center hover:bg-gray-100 transition-colors border-2 border-gray-300 cursor-pointer">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3 12h18M12 3v18" stroke="#306137" strokeWidth="2" strokeLinecap="round"/>
-                    <circle cx="12" cy="12" r="3" stroke="#306137" strokeWidth="2"/>
-                    <path d="M6 6l3 3M15 15l3 3M6 18l3-3M15 9l3-3" stroke="#306137" strokeWidth="1.5" strokeLinecap="round"/>
-                  </svg>
-                </button>
-
-                {/* Edit Icon (bottom right) */}
-                <button className="absolute bottom-4 right-4 w-12 h-12 bg-[#306137] rounded-full shadow-lg flex items-center justify-center hover:bg-[#246440] transition-colors">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </button>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Panel - Profile Preview */}
-        <div className="w-[420px] bg-[#0a0a1a] rounded-[40px] p-10 shadow-2xl border-[3px] border-yellow-400 relative overflow-hidden">
-          {/* Background Image for Preview - Night Sky/Aurora Effect */}
-          <div className="absolute inset-0 opacity-40">
-            <Image 
-              src="/landingbg2.png" 
-              alt="Preview Background"
-              fill
-              className="object-cover"
-            />
-          </div>
-          {/* Dark overlay for better contrast */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0a0a1a]/90 via-[#1a1a2e]/80 to-[#0a0a1a]/90"></div>
-
-          {/* Preview Content */}
-          <div className="relative z-10 flex flex-col items-center text-center space-y-4">
-            {/* Profile Picture */}
-            <div className="w-36 h-36 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 border-4 border-white flex items-center justify-center overflow-hidden shadow-xl mb-2">
-              <div className="w-full h-full bg-[#306137] flex items-center justify-center">
-                <span className="text-white text-4xl font-bold">L</span>
-              </div>
-            </div>
-
-            {/* Username */}
-            <div className="text-white text-2xl font-bold mt-2">
-              {formData.username || 'Username'}
-            </div>
-
-            {/* Name with Badge */}
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-white text-lg font-semibold">
-                {formData.name || 'Name'}
-              </span>
-              {formData.name && (
-                <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center shadow-md">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20 6L9 17l-5-5" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+              
+              <div className="space-y-2.5 text-base">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-5 h-5" />
+                  <span className="font-medium">occupation</span>
                 </div>
-              )}
-            </div>
-
-            {/* Job */}
-            <div className="flex items-center gap-2 text-white mt-3">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="text-white text-base">{formData.job || 'Job/Occupation'}</span>
-            </div>
-
-            {/* Location */}
-            <div className="flex items-start gap-2 text-white mt-4 max-w-[300px]">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="mt-0.5 flex-shrink-0">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="#ef4444"/>
-                <circle cx="12" cy="10" r="3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="white"/>
-              </svg>
-              <span className="text-white text-sm leading-relaxed">{formData.location || 'Location'}</span>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-5 h-5" />
+                  <span>location</span>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Back Button */}
-      <div className="relative z-10 flex justify-end px-12 pb-12">
-        <Link href="/">
-          <button className="bg-[#306137] text-white px-8 py-4 rounded-full font-semibold hover:bg-[#246440] transition-colors flex items-center gap-3 shadow-xl text-lg">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M19 12H5M5 12l6-6M5 12l6 6" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span>back</span>
-          </button>
-        </Link>
+         {/* Save and Back Buttons */}
+<div className="mt-auto pt-6 space-y-3">
+  {/* Save Button */}
+  <button className="w-full transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl">
+    <img src="/savee.svg" alt="Save Changes" className="w-full h-auto" />
+  </button>
+
+  {/* Back Button */}
+  <button className="w-full transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl">
+    <img src="/backz.svg" alt="Back" className="w-full h-auto" />
+  </button>
+</div>
+        </aside>
       </div>
     </div>
   );
 }
-
