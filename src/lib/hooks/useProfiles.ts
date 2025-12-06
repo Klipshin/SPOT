@@ -39,7 +39,7 @@ export function useProfiles(userId: string) {
         profile_picture: string;
         location: string;
     }) {
-        if (!user) throw new Error("User does not exist.");
+        if (!userId) throw new Error("User does not exist.");
 
         try {
             const newProfile = await profileService.createUserProfile(
@@ -49,7 +49,7 @@ export function useProfiles(userId: string) {
                     profile_picture: profileData.profile_picture,
                     location: profileData.location,
                 },
-                user.id
+                userId
             );
             setUserProfiles((prev) => [newProfile, ...prev]);
             setUserProfile(newProfile);
