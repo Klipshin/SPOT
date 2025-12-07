@@ -104,7 +104,7 @@ export async function POST(req: Request) {
     const base64Image = buffer.toString("base64");
     const mimeType = file.type || "image/jpeg";
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" }); // 2.0 or 1.5 Flash is recommended
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // 2.0 or 1.5 Flash is recommended
 
     // UPDATED PROMPT WITH STRICT FILTERS
     const prompt = `
