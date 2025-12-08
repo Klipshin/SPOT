@@ -1,7 +1,9 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // ... other configs (like reactStrictMode: true) ...
 
-const nextConfig: NextConfig = {
-  /* config options here */
+  // ADD THIS SECTION:
+  transpilePackages: ['lucide-react'], // Replace with the actual package name if different
 };
 
-export default nextConfig;
+module.exports = nextConfig;

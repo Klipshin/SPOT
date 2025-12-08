@@ -1,4 +1,4 @@
-import SignUpChoose from '@/src/components/auth/SignUpChoose'
+import SignUpChoose from '@/src/components/auth/SignUpChoose';
 import React from 'react'
 
 export default function SignUpPage() {
