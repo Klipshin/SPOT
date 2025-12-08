@@ -61,6 +61,36 @@ export async function signout() {
   redirect("/logout");
 }
 
+export async function sendResetPasswordEmail(email: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+
+  if (error) {
+    console.log(error);
+    redirect("/error");
+  }
+
+  return {
+    success: "Please check your email.",
+    error: '',
+  }
+}
+
+export async function updatePassword(password: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.updateUser({password: password})
+
+  if (error) {
+    console.log(error);
+    redirect("/error");
+  }
+
+  return {
+    success: "Password updated.",
+    error: '',
+  }
+}
+
 export async function signInWithGoogle() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -78,8 +108,7 @@ export async function signInWithGoogle() {
     console.log(error);
     redirect("/error");
   }
-
-  redirect(data.url);
+  return data.url;
 }
 
 export async function signInWithFacebook() {
@@ -95,8 +124,7 @@ export async function signInWithFacebook() {
     console.log(error)
     redirect('/error')
   }
-
-  redirect(data.url)
+  return data.url
 }
 
 export async function signUpWithGoogle(role: 'enthusiast' | 'expert') {
@@ -113,8 +141,7 @@ export async function signUpWithGoogle(role: 'enthusiast' | 'expert') {
     console.log(error);
     redirect("/error");
   }
-
-  redirect(data.url);
+  return data.url;
 }
 
 export async function signUpWithFacebook(role: 'enthusiast' | 'expert') {
@@ -130,6 +157,5 @@ export async function signUpWithFacebook(role: 'enthusiast' | 'expert') {
     console.log(error);
     redirect("/error");
   }
-
-  redirect(data.url);
+  return data.url;
 }

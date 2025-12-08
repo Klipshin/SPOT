@@ -1,5 +1,7 @@
+"use client";
 import Image from 'next/image';
 import React from 'react'
+import Link from 'next/link';
 
 export default function LandingNavBar() {
     
@@ -82,22 +84,13 @@ export default function LandingNavBar() {
     
             {/* Auth Buttons */}
             <div className="absolute top-[15px] right-[40px] flex items-center gap-4">
-                <button className="cursor-pointer font-bold text-[#246440] text-[15px] hover:underline transition-all"
-                    onClick={() => {
-                    // Add your click handler here
-                    console.log('Log In Clicked!');
-                }}
-                >
+                <Link href="/auth/login" className="cursor-pointer font-bold text-[#246440] text-[15px] hover:underline transition-all">
                     Log In
-                </button>
-                <button className="cursor-pointer w-[108px] h-[33px] bg-[#d1e39b] rounded-[9px] font-bold text-[#25451f] text-[15px] hover:bg-[#c5d78f] transition-all"
-                onClick={() => {
-                    // Add your click handler here
-                    console.log('Sign Up Clicked!');
-                }}
-                >
+                </Link>
+
+                <Link href="/auth/signup" className="cursor-pointer w-[108px] h-[33px] bg-[#d1e39b] rounded-[9px] font-bold text-[#25451f] text-[15px] hover:bg-[#c5d78f] transition-all flex items-center justify-center">
                     Sign Up
-                </button>
+                </Link>
             </div>
         </div>
     </header>

@@ -9,7 +9,7 @@ import { IoChevronBackCircle } from "react-icons/io5";
 import VerificationModal from './VerificationModal';
 import useExperts from '@/src/lib/hooks/useExperts';
 
-export default function ExpertVerification() {
+export default function ExpertVerification({currentUser} : {currentUser: string}) {
     const jobOptions = [
         "Software Engineer",
         "Product Manager",
@@ -27,7 +27,7 @@ export default function ExpertVerification() {
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { createExpert } = useExperts();
+    const { createExpert } = useExperts(currentUser);
     const router = useRouter();
     const handleBack = () => {
         if (window.history.length > 1) {

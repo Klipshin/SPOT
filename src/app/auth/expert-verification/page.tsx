@@ -16,7 +16,7 @@ export default async function ExpertVerificationPage() {
         <div className="absolute top-0 right-0 w-200 h-200 bg-[#DDFEE9] rounded-full filter blur-3xl translate-x-1/2 -translate-y-1/2"></div>
         <div className="absolute bottom-0 left-0 w-200 h-200 bg-[##D0E690] rounded-full filter blur-3xl -translate-x-1/2 translate-y-1/2"></div>
 
-        <ExpertVerification />
+        <ExpertVerification currentUser={user.id} />
     </div>
   )
 }
