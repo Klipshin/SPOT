@@ -4,13 +4,9 @@
 import React, { useState, useRef, ChangeEvent, KeyboardEvent, useMemo, useContext, createContext } from 'react';
 import {
   MapPin, Users, Crown, Plus, ChevronDown, ArrowBigUp, ArrowBigDown,
-  MessageCircle, Image as ImageIcon, Send, X, Reply, UploadCloud, Check, Sun, Moon, User
+  MessageCircle, Image as ImageIcon, Send, X, Reply, UploadCloud, Check, Sun, Moon, User, Edit2, ShieldCheck, UserMinus
 } from "lucide-react";
 
-// --- MOCK UTILS ---
-const usePathname = () => '/community';
-
-// FIX: Added proper typing instead of 'any'
 interface LinkProps {
   href: string;
   children: React.ReactNode;
@@ -25,40 +21,47 @@ const ThemeContext = createContext({
 });
 const useTheme = () => useContext(ThemeContext);
 
+// --- CONSTANTS: CITIES, PROVINCES & BARANGAYS ---
+const philippineLocations = [
+  "Angeles City, Pampanga", "Antipolo, Rizal", "Bacolod City, Negros Occidental", "Bacoor, Cavite", "Baguio City, Benguet", "Bantayan, Cebu", "Batangas City, Batangas", "Biñan, Laguna", "Bogo City, Cebu", "Butuan City, Agusan del Norte", "Cabanatuan, Nueva Ecija", "Cagayan de Oro, Misamis Oriental", "Calamba, Laguna", "Caloocan City, Metro Manila", "Camotes, Cebu", "Carcar City, Cebu", "Catbalogan City, Samar", "Cavite City, Cavite", "Cebu City, Cebu", "Clark, Pampanga", "Consolacion, Cebu", "Cotabato City, Maguindanao", "Dagupan, Pangasinan", "Danao City, Cebu", "Dasmarinas, Cavite", "Davao City, Davao del Sur", "Dumaguete City, Negros Oriental", "General Santos, South Cotabato", "Iligan City, Lanao del Norte", "Iloilo City, Iloilo", "Imus, Cavite", "Lapu-Lapu City, Cebu", "Las Piñas, Metro Manila", "Legazpi City, Albay", "Liloan, Cebu", "Lipa, Batangas", "Lucena, Quezon", "Makati City, Metro Manila", "Malabon, Metro Manila", "Mandaluyong, Metro Manila", "Mandaue City, Cebu", "Manila, Metro Manila", "Marikina, Metro Manila", "Minglanilla, Cebu", "Moalboal, Cebu", "Muntinlupa, Metro Manila", "Naga City, Camarines Sur", "Naga City, Cebu", "Navotas, Metro Manila", "Olongapo, Zambales", "Ormoc City, Leyte", "Oslob, Cebu", "Paranaque, Metro Manila", "Pasay, Metro Manila", "Pasig City, Metro Manila", "Puerto Princesa, Palawan", "Quezon City, Metro Manila", "Roxas City, Capiz", "San Juan, Metro Manila", "San Pablo, Laguna", "San Pedro, Laguna", "Santa Rosa, Laguna", "Santiago, Isabela", "Siargao, Surigao del Norte", "Subic, Zambales", "Tacloban City, Leyte", "Tagaytay City, Cavite", "Tagbilaran City, Bohol", "Taguig City, Metro Manila", "Talisay City, Cebu", "Tanauan, Batangas", "Tarlac City, Tarlac", "Toledo City, Cebu", "Trece Martires, Cavite", "Tuguegarao, Cagayan", "Valenzuela, Metro Manila", "Vigan City, Ilocos Sur", "Zamboanga City, Zamboanga",
+  "Adlaon, Cebu City", "Agsungot, Cebu City", "Apas, Cebu City", "Babag, Cebu City", "Bacayan, Cebu City", "Banilad, Cebu City", "Basak Pardo, Cebu City", "Basak San Nicolas, Cebu City", "Binaliw, Cebu City", "Bonbon, Cebu City", "Budlaan, Cebu City", "Buhisan, Cebu City", "Bulacao, Cebu City", "Busay, Cebu City", "Calamba, Cebu City", "Cambinocot, Cebu City", "Camputhaw, Cebu City", "Capitol Site, Cebu City", "Carreta, Cebu City", "Cogon Pardo, Cebu City", "Cogon Ramos, Cebu City", "Day-as, Cebu City", "Duljo Fatima, Cebu City", "Ermita, Cebu City", "Guadalupe, Cebu City", "Guba, Cebu City", "Hipodromo, Cebu City", "Inayawan, Cebu City", "Kalubihan, Cebu City", "Kalunasan, Cebu City", "Kamagayan, Cebu City", "Kamputhaw, Cebu City", "Kasambagan, Cebu City", "Kinasang-an Pardo, Cebu City", "Labangon, Cebu City", "Lahug, Cebu City", "Lorega San Miguel, Cebu City", "Lusaran, Cebu City", "Luz, Cebu City", "Mabini, Cebu City", "Mabolo, Cebu City", "Malubog, Cebu City", "Mambaling, Cebu City", "Pahina Central, Cebu City", "Pahina San Nicolas, Cebu City", "Pamutan, Cebu City", "Pari-an, Cebu City", "Paril, Cebu City", "Pasil, Cebu City", "Pit-os, Cebu City", "Pulangbato, Cebu City", "Pung-ol Sibugay, Cebu City", "Punta Princesa, Cebu City", "Quiot, Cebu City", "Sambag I, Cebu City", "Sambag II, Cebu City", "San Antonio, Cebu City", "San Jose, Cebu City", "San Nicolas Proper, Cebu City", "San Roque, Cebu City", "Santa Cruz, Cebu City", "Santo Niño, Cebu City", "Sapangdaku, Cebu City", "Sawang Calero, Cebu City", "Sinsin, Cebu City", "Sirao, Cebu City", "Suba, Cebu City", "Sudlon I, Cebu City", "Sudlon II, Cebu City", "T. Padilla, Cebu City", "Tabunan, Cebu City", "Tagba-o, Cebu City", "Talamban, Cebu City", "Taptap, Cebu City", "Tejero, Cebu City", "Tinago, Cebu City", "Tisa, Cebu City", "Toong, Cebu City", "Zapatera, Cebu City",
+  "Bel-Air, Makati City", "San Lorenzo, Makati City", "Poblacion, Makati City", "Urdaneta, Makati City", "Dasmarinas Village, Makati City", "Forbes Park, Makati City", "Magallanes, Makati City", 
+  "Fort Bonifacio, Taguig City", "Pinagsama, Taguig City", "Upper Bicutan, Taguig City", "Lower Bicutan, Taguig City",
+  "Loyola Heights, Quezon City", "Diliman, Quezon City", "Cubao, Quezon City", "New Manila, Quezon City", "Commonwealth, Quezon City", "Batasan Hills, Quezon City",
+  "Alabang, Muntinlupa", "Ayala Alabang, Muntinlupa", "Poblacion, Muntinlupa",
+  "Ortigas Center, Pasig City", "San Antonio, Pasig City", "Kapitolyo, Pasig City",
+  "Greenhills, San Juan", "Wack-Wack, Mandaluyong"
+].sort();
+
 // --- HEADER COMPONENT ---
 function Header() {
-  const pathname = usePathname();
   const { isDarkMode, toggleTheme } = useTheme(); 
-  const isCommunityPage = pathname === '/community';
-
-  if (isCommunityPage) {
-    return (
-      <header 
-        className={`fixed top-0 left-0 w-full h-[50px] border-b z-[100] flex items-center justify-between px-4 font-poppins shadow-sm transition-all duration-300 backdrop-blur-xl
-        ${isDarkMode 
-          ? 'bg-[#333333]/95 border-white/10' 
-          : 'bg-[#E2DFC8]/95 border-black/5'}`}
-      >
-        <Link href="/" className="flex items-center gap-2">
-          <img src="/spot icon.svg" alt="SPOT Icon" width={44} height={44} className={`object-contain ${isDarkMode ? "drop-shadow-[0_0_4px_white] brightness-110" : ""}`} />
-          <span className={`text-4xl font-extrabold tracking-tighter drop-shadow-sm leading-none mt-1 ${isDarkMode ? 'text-[#4CA954]' : 'text-[#36683d]'}`}>SPOT</span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <div className="relative flex items-center cursor-pointer h-9 mr-2" onClick={toggleTheme}>
-            <div className={`w-[60px] h-9 rounded-full shadow-inner transition-colors duration-300 ${isDarkMode ? 'bg-[#3F3C56]' : 'bg-[#4B4A2C]'}`}></div>
-            <div className={`absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-md border-[2px] transition-all duration-300 ${isDarkMode ? 'left-[22px] bg-white border-[#333]' : '-left-1 bg-[#FFD500] border-[#E2DFC8]'}`}>
-               {isDarkMode ? (<Moon className="w-6 h-6 text-[#3F3C56] fill-[#3F3C56]" />) : (<Sun className="w-6 h-6 text-[#F59E0B] fill-[#F59E0B]" />)}
-            </div>
-          </div>
-          <ChevronDown className={`w-6 h-6 cursor-pointer stroke-[3] ${isDarkMode ? 'text-white' : 'text-black'}`} />
-          <div className={`w-11 h-11 rounded-full flex items-center justify-center overflow-hidden border-[2px] shadow-sm cursor-pointer ${isDarkMode ? 'bg-[#9CA3AF] border-[#767D85]' : 'bg-[#B6BEC7] border-[#767D85]'}`}>
-             <User className={`w-7 h-7 ${isDarkMode ? 'text-[#D1D5DB] fill-current' : 'text-[#7E868E] fill-current'}`} />
+  
+  return (
+    <header 
+      className={`fixed top-0 left-0 w-full h-[50px] border-b z-[100] flex items-center justify-between px-4 font-poppins shadow-sm transition-all duration-300 backdrop-blur-xl
+      ${isDarkMode 
+        ? 'bg-[#333333]/95 border-white/10' 
+        : 'bg-[#E2DFC8]/95 border-black/5'}`}
+    >
+      <Link href="/" className="flex items-center gap-2">
+        <img src="/spot icon.svg" alt="SPOT Icon" width={44} height={44} className={`object-contain ${isDarkMode ? "drop-shadow-[0_0_4px_white] brightness-110" : ""}`} />
+        <span className={`text-4xl font-extrabold tracking-tighter drop-shadow-sm leading-none mt-1 ${isDarkMode ? 'text-[#4CA954]' : 'text-[#36683d]'}`}>SPOT</span>
+      </Link>
+      <div className="flex items-center gap-3">
+        <div className="relative flex items-center cursor-pointer h-9 mr-2" onClick={toggleTheme}>
+          <div className={`w-[60px] h-9 rounded-full shadow-inner transition-colors duration-300 ${isDarkMode ? 'bg-[#3F3C56]' : 'bg-[#4B4A2C]'}`}></div>
+          <div className={`absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-md border-[2px] transition-all duration-300 ${isDarkMode ? 'left-[22px] bg-white border-[#333]' : '-left-1 bg-[#FFD500] border-[#E2DFC8]'}`}>
+             {isDarkMode ? (<Moon className="w-6 h-6 text-[#3F3C56] fill-[#3F3C56]" />) : (<Sun className="w-6 h-6 text-[#F59E0B] fill-[#F59E0B]" />)}
           </div>
         </div>
-      </header>
-    );
-  }
-  return null;
+        <ChevronDown className={`w-6 h-6 cursor-pointer stroke-[3] ${isDarkMode ? 'text-white' : 'text-black'}`} />
+        <div className={`w-11 h-11 rounded-full flex items-center justify-center overflow-hidden border-[2px] shadow-sm cursor-pointer ${isDarkMode ? 'bg-[#9CA3AF] border-[#767D85]' : 'bg-[#B6BEC7] border-[#767D85]'}`}>
+           <User className={`w-7 h-7 ${isDarkMode ? 'text-[#D1D5DB] fill-current' : 'text-[#7E868E] fill-current'}`} />
+        </div>
+      </div>
+    </header>
+  );
 }
 
 // --- TYPES ---
@@ -88,22 +91,41 @@ type Post = {
   comments: Comment[];
 };
 
-// FIX: Define Sort Option Type
+type Member = { id: number; name: string; role: 'moderator' | 'member'; online: boolean; };
 type SortOptionType = 'default' | 'newest' | 'oldest' | 'popular' | 'least';
 
 // --- MAIN CONTENT COMPONENT ---
-function CommunityPageContent() {
+function ModeratorPageContent() {
   const { isDarkMode } = useTheme();
 
-  // ===== STATE =====
-  const [isJoined, setIsJoined] = useState(false);
+  // ===== STATE: MODERATOR MODE =====
+  const isModerator = true; 
+
+  // ===== STATE: COMMUNITY DATA =====
+  const [communityBanner, setCommunityBanner] = useState('/landd.svg');
+  const [communityProfile, setCommunityProfile] = useState('/binoculars.svg');
+  const [communityLocation, setCommunityLocation] = useState('Cebu City, Philippines');
+
+  // ===== STATE: EDITING =====
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [tempLocationText, setTempLocationText] = useState('');
+  const locationInputRef = useRef<HTMLInputElement>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const profileInputRef = useRef<HTMLInputElement>(null);
+
+  // ===== STATE: GLOBAL UI =====
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortOption, setSortOption] = useState<SortOptionType>('default');
+  
+  // ===== STATE: MODALS =====
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
-  const [isClosingPostModal, setIsClosingPostModal] = useState(false);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [isClosingModal, setIsClosingModal] = useState(false);
   const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
+  
   const createPostBtnRef = useRef<HTMLButtonElement>(null);
+  const membersBtnRef = useRef<HTMLButtonElement>(null);
   
   // New Post Form
   const [newPostHeading, setNewPostHeading] = useState("");
@@ -111,7 +133,26 @@ function CommunityPageContent() {
   const [newPostImage, setNewPostImage] = useState<string | null>(null);
   const createPostFileInputRef = useRef<HTMLInputElement>(null);
 
-  // ===== STATE: POSTS & COMMENTS =====
+  // ===== STATE: MEMBERS =====
+  const [membersList, setMembersList] = useState<Member[]>([
+    { id: 1, name: '@nature_explorer', role: 'moderator', online: true },
+    { id: 2, name: '@cebu_pet_advocate', role: 'member', online: true },
+    { id: 3, name: '@bio_student_cebu', role: 'member', online: false },
+    { id: 4, name: '@snake_hunter_ph', role: 'member', online: true },
+    { id: 5, name: '@newbie_hiker', role: 'member', online: false },
+    { id: 6, name: '@bird_watcher_99', role: 'member', online: true },
+    { id: 7, name: '@marine_life_fan', role: 'member', online: false },
+    { id: 8, name: '@cebu_trekker', role: 'member', online: true },
+    { id: 9, name: '@dog_lover_ph', role: 'member', online: false },
+    { id: 10, name: '@cat_lady_cebu', role: 'member', online: true },
+    { id: 11, name: '@wildlife_photog', role: 'member', online: false },
+    { id: 12, name: '@forest_ranger_wannabe', role: 'member', online: true },
+    { id: 13, name: '@mountain_goat', role: 'member', online: false },
+    { id: 14, name: '@ocean_blue', role: 'member', online: true },
+    { id: 15, name: '@green_earth', role: 'member', online: false },
+  ]);
+
+  // ===== STATE: POSTS =====
   const [posts, setPosts] = useState<Post[]>([
     {
       id: 5,
@@ -189,11 +230,13 @@ function CommunityPageContent() {
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyingToUser, setReplyingToUser] = useState<string>('');
   const [activePostId, setActivePostId] = useState<number | null>(null);
-
-  // FIX: Removed unused commentInputRef
   const commentFileInputRef = useRef<HTMLInputElement>(null);
 
-  // ===== LOGIC: SORTING =====
+  // ===== LOGIC: SORTING & FILTERING =====
+  const filteredLocations = useMemo(() => {
+    return philippineLocations.filter(loc => loc.toLowerCase().includes(tempLocationText.toLowerCase()));
+  }, [tempLocationText]);
+
   const sortedPosts = useMemo(() => {
     const sorted = [...posts];
     switch (sortOption) {
@@ -216,30 +259,69 @@ function CommunityPageContent() {
     return count.toString();
   };
 
-  // ===== HANDLERS =====
-  const handleJoin = () => setIsJoined(!isJoined);
+  // ===== HANDLERS: MODALS & ACTIONS =====
   const openLightbox = (src: string) => setLightboxImage(src);
   const closeLightbox = () => setLightboxImage(null);
 
+  // -- Modal Openers --
   const openCreatePostModal = () => {
     if (createPostBtnRef.current) {
       const rect = createPostBtnRef.current.getBoundingClientRect();
       setModalOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
     }
     setIsCreatePostOpen(true);
-    setIsClosingPostModal(false);
+    setIsClosingModal(false);
   };
 
-  const closeCreatePostModal = () => {
-    setIsClosingPostModal(true);
+  const openMembersModal = () => {
+    if (membersBtnRef.current) {
+        const rect = membersBtnRef.current.getBoundingClientRect();
+        setModalOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
+    setIsMembersModalOpen(true);
+    setIsClosingModal(false);
+  };
+
+  // -- Modal Closers --
+  const closeModal = (setter: (val: boolean) => void) => {
+    setIsClosingModal(true);
     setTimeout(() => {
-      setIsCreatePostOpen(false);
-      setIsClosingPostModal(false);
+      setter(false);
+      setIsClosingModal(false);
       setNewPostHeading("");
       setNewPostCaption("");
       setNewPostImage(null);
     }, 400);
   };
+
+  // -- Moderator Actions --
+  const handleRemoveMember = (id: number) => { 
+    setMembersList((prev) => prev.filter((member) => member.id !== id)); 
+  };
+
+  const handleBannerSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setCommunityBanner(URL.createObjectURL(file));
+  };
+  
+  const handleProfileSelect = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setCommunityProfile(URL.createObjectURL(file));
+  };
+  
+  const startEditingLocation = () => {
+    setTempLocationText(communityLocation);
+    setIsEditingLocation(true);
+    setTimeout(() => locationInputRef.current?.focus(), 50);
+  };
+  
+  const saveLocation = () => {
+    if (tempLocationText.trim()) setCommunityLocation(tempLocationText);
+    setIsEditingLocation(false);
+  };
+  
+  const cancelEditLocation = () => setIsEditingLocation(false);
+
 
   const handleCreatePostFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -273,7 +355,7 @@ function CommunityPageContent() {
       comments: []
     };
     setPosts([newPost, ...posts]);
-    closeCreatePostModal();
+    closeModal(setIsCreatePostOpen);
   };
 
   const handlePostVote = (postId: number, type: 'up' | 'down') => {
@@ -355,10 +437,7 @@ function CommunityPageContent() {
     };
     setPosts(prevPosts => prevPosts.map(post => {
       if (post.id !== postId) return post;
-      
-      // FIX: Changed let to const as this variable is not reassigned
       const updatedComments = [...post.comments];
-      
       if (replyingToId !== null) {
         const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
         if (parentIndex !== -1) {
@@ -390,6 +469,10 @@ function CommunityPageContent() {
   return (
     <div className={`relative min-h-screen pt-[50px] flex flex-col font-poppins transition-colors duration-300 w-full ${isDarkMode ? "text-white" : "text-black"}`}>
       
+      {/* HIDDEN INPUTS FOR UPLOAD */}
+      <input type="file" accept="image/*" ref={bannerInputRef} onChange={handleBannerSelect} className="hidden" />
+      <input type="file" accept="image/*" ref={profileInputRef} onChange={handleProfileSelect} className="hidden" />
+
       {/* BACKGROUND */}
       <div className="!fixed !top-0 !left-0 !w-screen !h-screen -z-50">
         <img src={isDarkMode ? "/communitybgdrk.svg" : "/communitybg.svg"} alt="bg" className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500" />
@@ -399,112 +482,178 @@ function CommunityPageContent() {
       <div className="flex-1 flex flex-col w-full max-w-[1400px] mx-auto px-4 md:px-8">
         
         {/* === INFO HEADER CARD === */}
-        <div className={`relative z-10 w-full transition-colors duration-300 flex-1 mb-0 flex flex-col ${isDarkMode ? "bg-[#222222] shadow-lg" : "bg-white shadow-sm"} rounded-none overflow-visible p-3`}>
+        {/* FIX: Straight edges (rounded-none) */}
+        <div className={`relative z-10 w-full transition-colors duration-300 flex-1 mb-0 flex flex-col min-h-[calc(100vh-70px)] ${isDarkMode ? "bg-[#222222] shadow-lg" : "bg-white shadow-sm"} rounded-none overflow-visible p-3`}>
           
-          {/* BANNER */}
-          <div 
-            className="relative shrink-0 w-[95%] mx-auto h-[180px] cursor-pointer hover:opacity-95 transition-opacity rounded-[35px] overflow-hidden"
-            onClick={() => openLightbox('/landd.svg')}
-          >
-            <div className="absolute inset-0 w-full h-full bg-[#C4C4C4]">
-               <img src="/landd.svg" alt="Banner" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+          {/* ===== BANNER ===== */}
+          {/* FIX: Width [95%] and mx-auto */}
+          <div className="relative w-[95%] mx-auto h-[180px] shrink-0 group mt-3 rounded-[35px] overflow-hidden">
+            <div className="w-full h-full cursor-pointer hover:opacity-95 transition-opacity" onClick={() => openLightbox(communityBanner)}>
+              <img src={communityBanner} alt="Banner" className="absolute inset-0 w-full h-full object-cover opacity-80" />
             </div>
+             {/* MODERATOR: Edit Banner Button */}
+             {isModerator && (
+              <button onClick={() => bannerInputRef.current?.click()} className="absolute bottom-4 right-4 w-9 h-9 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md transition-all hover:scale-110" title="Edit Banner"><Edit2 className="w-4 h-4" /></button>
+            )}
           </div>
 
           {/* INFO HEADER CONTENT */}
           <div className="px-8 pb-6 shrink-0 flex flex-col lg:flex-row items-end gap-6 pt-6"> 
               
-            {/* Profile Picture */}
-            <div 
-              className={`-mt-[135px] -ml-10 w-[230px] h-[230px] rounded-full relative z-20 shadow-md shrink-0 overflow-hidden cursor-pointer hover:scale-105 transition-transform 
-              ${isDarkMode ? "bg-[#444] border-[4px] border-[#222222]" : "bg-[#D9D9D9] border-[4px] border-white"}`}
-              onClick={() => openLightbox('/binoculars.svg')}
-            >
-              <div className="w-full h-full bg-[#D9D9D9] flex items-center justify-center">
-                  <img src="/binoculars.svg" alt="Profile" className="w-full h-full object-contain p-6" />
+             {/* ===== PROFILE PICTURE ===== */}
+             {/* FIX: Size 230px, Hug bottom left (-mt-135, -ml-10), Thinner border, No opacity */}
+            <div className="relative -mt-[135px] -ml-10 z-20 shrink-0 group">
+              <div className={`w-[230px] h-[230px] rounded-full border-[4px] shadow-md overflow-hidden cursor-pointer hover:scale-105 transition-transform ${isDarkMode ? "bg-[#444] border-[#222222]" : "bg-[#D9D9D9] border-white"}`} onClick={() => openLightbox(communityProfile)}>
+                <div className="w-full h-full bg-[#D9D9D9] flex items-center justify-center">
+                    <img src={communityProfile} alt="Profile" className="w-full h-full object-contain p-6" />
+                </div>
               </div>
+                {/* MODERATOR: Edit Profile Button */}
+                {isModerator && (
+                 <button onClick={() => profileInputRef.current?.click()} className="absolute bottom-3 right-3 w-9 h-9 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center shadow-md transition-all hover:scale-110 z-30" title="Edit Profile Picture"><Edit2 className="w-4 h-4" /></button>
+               )}
             </div>
-
+            
             {/* WRAPPER for Text and Buttons */}
             <div className="flex-1 min-w-0 flex flex-col lg:flex-row justify-between items-start ml-6 gap-4 w-full">
+              
+              {/* Text Info */}
+              <div className="flex flex-col flex-1">
+                <div className="flex items-center gap-3">
+                  {/* FIX: Text size */}
+                  <h1 className={`text-4xl lg:text-5xl font-black tracking-tight leading-none whitespace-nowrap ${isDarkMode ? "text-white" : "text-black"}`}>Cebu Animal Identifier</h1>
+                </div>
+
+                <div>
+                  {/* FIX: Font weight semibold, no italic, text-lg */}
+                  <div className={`flex flex-wrap items-center gap-6 mt-6 font-semibold ${isDarkMode ? "text-gray-300" : "text-black"}`}>
+                    <div className="flex items-center gap-2 text-lg"><Users className="w-5 h-5 text-[#5E5CE6]" /><span>12.5k members</span></div>
+                    <div className="flex items-center gap-2 text-lg"><div className="w-3 h-3 bg-[#00C92C] rounded-full shadow-[0_0_8px_#00C92C]"></div><span>450 online</span></div>
+                  </div>
+                  
+                  {/* ===== LOCATION SELECTOR (MODERATOR EDITABLE) ===== */}
+                  <div className={`flex items-center gap-2 font-semibold text-lg mt-3 group w-fit min-h-[32px] ${isDarkMode ? "text-gray-300" : "text-black"}`}>
+                    <MapPin className="w-5 h-5 text-[#FFD700] shrink-0" />
+                    
+                    {isEditingLocation ? (
+                        <div className="relative">
+                            <div className="flex items-center gap-2 animate-in fade-in">
+                                <input 
+                                    ref={locationInputRef}
+                                    type="text" 
+                                    value={tempLocationText}
+                                    onChange={(e) => setTempLocationText(e.target.value)}
+                                    onFocus={(e) => e.target.select()}
+                                    onKeyDown={(e) => { if(e.key === 'Enter') saveLocation(); if(e.key === 'Escape') cancelEditLocation(); }}
+                                    className={`bg-transparent outline-none border-b-2 italic px-1 pr-4 ${isDarkMode ? "border-white text-white" : "border-black text-black"}`}
+                                    placeholder="Search city..."
+                                />
+                                <button onClick={saveLocation} className="p-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"><Check className="w-4 h-4" /></button>
+                                <button onClick={cancelEditLocation} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"><X className="w-4 h-4" /></button>
+                            </div>
+                            {/* DROPDOWN */}
+                            <div className={`absolute top-full left-0 mt-2 w-72 max-h-60 overflow-y-auto rounded-xl border p-2 shadow-xl backdrop-blur-xl z-50 custom-scrollbar ${isDarkMode ? "bg-[#222222]/95 border-white/10" : "bg-white/95 border-black/5"}`}>
+                                {filteredLocations.length > 0 ? (
+                                    filteredLocations.map((loc) => (
+                                        <button key={loc} onClick={() => setTempLocationText(loc)} className={`w-full text-left px-4 py-2 rounded-lg text-sm transition-colors ${isDarkMode ? "hover:bg-white/10 text-gray-200" : "hover:bg-black/5 text-gray-800"}`}>{loc}</button>
+                                    ))
+                                ) : (<div className="p-4 text-center text-sm opacity-50">No results found</div>)}
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <span>{communityLocation}</span>
+                            {isModerator && (
+                            <button onClick={startEditingLocation} className="ml-2 p-1.5 bg-blue-500 text-white rounded-full transition-all hover:scale-110 hover:bg-blue-600 shadow-sm" title="Edit Location"><Edit2 className="w-3 h-3" /></button>
+                            )}
+                        </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT SIDE ACTIONS (MODERATOR UI) */}
+              <div className="flex flex-col items-end gap-4 shrink-0 pb-4">
+                  
+                 {/* MODERATOR BADGE */}
+                 <div className="flex items-center gap-3">
+                   {/* CUSTOM TOOLTIP FOR MODERATOR */}
+                   <div className="relative z-10 group/crown">
+                     {/* FIX: Reverted to larger w-12 h-12 size as requested */}
+                     <div className="w-12 h-12 bg-[#00A3FF] rounded-full flex items-center justify-center shadow-md [perspective:1000px] cursor-pointer">
+                         <div className="relative w-full h-full transition-all duration-500 [transform-style:preserve-3d] group-hover/crown:[transform:rotateY(180deg)]">
+                            {/* Front */}
+                            <div className="absolute inset-0 w-full h-full bg-[#00A3FF] rounded-full flex items-center justify-center [backface-visibility:hidden]">
+                               <Crown className="w-6 h-6 text-[#FFD700] fill-current" />
+                            </div>
+                            {/* Back */}
+                            <div className="absolute inset-0 w-full h-full bg-white rounded-full overflow-hidden border-2 border-[#00A3FF] [transform:rotateY(180deg)] [backface-visibility:hidden]">
+                               <img src="/binoculars.svg" alt="Mod" className="w-full h-full object-contain p-2" />
+                            </div>
+                         </div>
+                     </div>
+                     {/* Tooltip Content */}
+                     <div className="absolute bottom-[130%] left-1/2 -translate-x-1/2 w-max opacity-0 group-hover/crown:opacity-100 transition-all duration-300 pointer-events-none z-50 group-hover/crown:-translate-y-2">
+                       <div className="px-3 py-1.5 rounded-lg flex flex-col items-center backdrop-blur-md border shadow-md"
+                         style={{ background: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.8)', borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)' }}>
+                           <span className={`text-xs font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>Current user is the moderator</span>
+                       </div>
+                     </div>
+                   </div>
+
+                   {/* FIX: Kept text small as requested */}
+                   <span className={`font-bold text-xl ${isDarkMode ? "text-white" : "text-black"}`}>Moderator</span>
+                 </div>
                 
-                {/* Text Info */}
-                <div className="flex flex-col flex-1">
-                    <h1 className={`text-4xl lg:text-5xl font-black tracking-tight leading-none whitespace-nowrap ${isDarkMode ? "text-white" : "text-black"}`}>Cebu Animal Identifier</h1>
-                    <div>
-                        <div className={`flex flex-wrap items-center gap-6 mt-6 font-semibold ${isDarkMode ? "text-gray-300" : "text-black"}`}>
-                            <div className="flex items-center gap-2 text-lg"><Users className="w-5 h-5 text-[#5E5CE6]" /><span>12.5k members</span></div>
-                            <div className="flex items-center gap-2 text-lg"><div className="w-3 h-3 bg-[#00C92C] rounded-full shadow-[0_0_8px_#00C92C]"></div><span>450 online</span></div>
-                        </div>
-                        <div className={`flex items-center gap-2 font-semibold text-lg mt-3 ${isDarkMode ? "text-gray-300" : "text-black"}`}><MapPin className="w-5 h-5 text-[#FFD700]" /><span>Cebu City, Philippines</span></div>
-                    </div>
-                </div>
-
-                {/* Buttons Section */}
-                <div className="flex flex-col items-end gap-4 shrink-0">
-                    <div className="flex items-center gap-3 relative">
-                        
-                        {/* MODERATOR FLIP CARD */}
-                        <div className="relative z-10 group">
-                            {isJoined && <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-yellow-400/50 rounded-full -z-10 animate-confetti"></div>}
-                            <div className="w-12 h-12 [perspective:1000px] cursor-pointer transition-transform duration-300 group-hover:scale-125">
-                            <div className="relative w-full h-full transition-all duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
-                                <div className="absolute inset-0 w-full h-full bg-[#00A3FF] rounded-full flex items-center justify-center shadow-sm [backface-visibility:hidden]">
-                                <Crown className="w-6 h-6 text-[#FFD700] fill-current" />
-                                </div>
-                                <div className="absolute inset-0 w-full h-full bg-white rounded-full overflow-hidden border-2 border-[#00A3FF] [transform:rotateY(180deg)] [backface-visibility:hidden]">
-                                    <img src="/binoculars.svg" alt="Mod" className="absolute inset-0 w-full h-full object-contain p-2 bg-[#f0f0f0]" />
-                                </div>
-                            </div>
-                            </div>
-                            <div className="absolute bottom-[130%] left-1/2 -translate-x-1/2 mb-2 w-max opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none z-50 group-hover:-translate-y-2">
-                            <div className="px-4 py-2 rounded-xl flex flex-col items-center backdrop-blur-md border shadow-md"
-                                style={{ background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.25)', borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)' }}>
-                                <span className={`uppercase text-[10px] font-bold tracking-widest opacity-80 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Moderator</span>
-                                <span className={`text-sm font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>@nature_explorer</span>
-                            </div>
-                            </div>
-                        </div>
-
-                        {/* JOIN BUTTON */}
-                        <button onClick={handleJoin} className={`px-8 py-3 rounded-lg font-bold text-lg shadow-sm transition-all whitespace-nowrap ${isJoined ? "bg-gray-500 text-white" : "bg-[#0041C2] hover:bg-blue-800 text-white"}`}>
-                            {isJoined ? "Joined" : "Join"}
-                        </button>
-                    </div>
-
-                    {/* CREATE POST BUTTON */}
-                    <button ref={createPostBtnRef} onClick={openCreatePostModal} className={`w-full px-6 py-1.5 rounded-full font-semibold text-lg flex items-center justify-center gap-3 transition-all shadow-sm ${isDarkMode ? "bg-[#444] text-white hover:bg-gray-600" : "bg-[#E4E6EB] text-black hover:bg-gray-300"}`}>
-                        <div className="bg-[#0057FF] p-0.5 rounded text-white"><Plus className="w-5 h-5" /></div>Create Post
-                    </button>
-                </div>
+                {/* FIX: Create Post Font Semibold, Thinner padding */}
+                <button 
+                  ref={createPostBtnRef} 
+                  onClick={openCreatePostModal}
+                  className={`px-6 py-1.5 rounded-full font-semibold text-lg flex items-center gap-2 transition-all shadow-sm 
+                  ${isDarkMode ? "bg-[#D9D9D9] text-black hover:bg-gray-400" : "bg-[#D9D9D9] text-black hover:bg-gray-300"}`}
+                >
+                  <div className="bg-[#0057FF] p-0.5 rounded text-white"><Plus className="w-5 h-5" /></div>
+                  Create Post
+                </button>
+              </div>
             </div>
 
           </div>
 
-          {/* STICKY SORT BAR */}
-          {/* FIX: Explicitly cast 'option' to SortOptionType to resolve the 'any' error */}
-          <div className={`sticky top-[50px] z-30 w-full px-8 py-2 border-b backdrop-blur-xl flex justify-end transition-colors duration-300 ${isDarkMode ? "bg-[#222222]/80 border-white/40 text-gray-200" : "bg-white/80 border-black/50 text-gray-600"}`}>
+          {/* STICKY NAV: MEMBERS & SORT */}
+          {/* FIX: Font size xs for Members to match Sort By */}
+          <div className={`sticky top-[50px] z-30 w-full shrink-0 px-10 py-2 border-b backdrop-blur-xl transition-colors duration-300 ${isDarkMode ? "bg-[#222222]/80 border-white/40 text-gray-200" : "bg-white/80 border-black/50 text-gray-600"}`}>
+            <div className="flex justify-end items-center gap-6 mr-4">
+              
+              {/* MEMBERS BUTTON */}
+              <button 
+                ref={membersBtnRef}
+                onClick={openMembersModal}
+                className={`font-bold text-xs transition-colors hover:underline ${isDarkMode ? "text-gray-300 hover:text-white" : "text-gray-500 hover:text-black"}`}
+              >
+                Members
+              </button>
+
               <div className="relative">
                 <button onClick={() => setIsSortOpen(!isSortOpen)} className={`flex items-center gap-2 font-bold text-xs transition-colors ${isDarkMode ? "hover:text-white" : "hover:text-black"}`}>
-                  Sort by: <span className="capitalize">{sortOption}</span> 
-                  <ChevronDown className={`w-3.5 h-3.5 stroke-[3] transition-transform duration-300 ${isSortOpen ? 'rotate-180' : ''}`} />
+                    Sort by: <span className="capitalize">{sortOption}</span> <ChevronDown className={`w-3.5 h-3.5 stroke-[3] transition-transform duration-300 ${isSortOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isSortOpen && (
-                  <div className="absolute top-full right-0 mt-4 w-48 rounded-[15px] p-1.5 z-50 animate-in fade-in slide-in-from-top-4 duration-300" style={{ filter: "url('#goo')" }}>
-                    <div className="backdrop-blur-md border rounded-[15px] overflow-hidden p-1 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)]" style={{ background: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.65)', borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)' }}>
-                      {['default', 'newest', 'oldest', 'popular', 'least'].map((option, i) => (
-                        <button key={option} onClick={() => handleSortSelect(option as SortOptionType)} className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all flex items-center justify-between font-normal ${sortOption === option ? (isDarkMode ? "bg-white/20 text-white" : "bg-black/10 text-black") : "hover:bg-black/5 hover:pl-4"} ${isDarkMode ? "text-white" : "text-black"}`} style={{ transitionDelay: `${i * 50}ms` }}>
-                          <span className="capitalize">{option}</span>
-                          {sortOption === option && <Check className="w-3 h-3 text-green-500" />}
+                    <div className={`absolute top-full right-0 mt-4 w-56 rounded-[20px] border p-2 shadow-2xl z-50 animate-dropdown-morph ${isDarkMode ? "bg-[#222222]/90 border-white/10 text-white" : "bg-white/90 border-black/10 text-black"}`}>
+                    {['default', 'newest', 'oldest', 'popular', 'least'].map((option) => (
+                        <button key={option} onClick={() => handleSortSelect(option as SortOptionType)} className={`w-full text-left px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-between ${sortOption === option ? (isDarkMode ? "bg-white/10 text-white" : "bg-black/5 text-black") : "hover:bg-black/5 hover:pl-3"}`}>
+                        <span className="capitalize">{option}</span>
+                        {sortOption === option && <Check className="w-4 h-4 text-green-500" />}
                         </button>
-                      ))}
+                    ))}
                     </div>
-                  </div>
                 )}
               </div>
+            </div>
           </div>
 
-          {/* POSTS LIST (COMPACT VIEW) */}
+          {/* ===== POSTS LIST ===== */}
+          {/* FIX: Reverted to COMPACT / FITTED view (mx-8, p-5, h-280px) */}
           {sortedPosts.map(post => (
             <div key={post.id} className={`mx-8 mt-4 mb-8 rounded-[20px] border p-5 flex flex-col lg:flex-row gap-6 min-h-[400px] transition-colors duration-300 items-stretch ${isDarkMode ? "bg-[#393A2C] border-black" : "bg-[#F8FDEB] border-black"}`}>
               
@@ -649,34 +798,47 @@ function CommunityPageContent() {
         </div>
       </div>
 
-      {/* MODALS */}
+      {/* MEMBERS MODAL (MODERATOR: REMOVE BUTTON) */}
+      {isMembersModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingModal ? 'opacity-0' : 'opacity-100'}`} onClick={() => closeModal(setIsMembersModalOpen)}/>
+          <div className="relative w-full max-w-lg" style={{ transformOrigin: `${modalOrigin.x}px ${modalOrigin.y}px` }}>
+             <div className={`w-full rounded-[40px] border p-8 shadow-2xl max-h-[80vh] flex flex-col ${isClosingModal ? 'animate-bubbly-out' : 'animate-bubbly-in'} ${isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"}`}>
+              <div className="flex justify-between items-center mb-6 shrink-0">
+                <div className="flex items-center gap-3"><Users className="w-8 h-8 text-[#5E5CE6]" /><h2 className="font-extrabold text-2xl italic">Members</h2></div>
+                <button onClick={() => closeModal(setIsMembersModalOpen)} className="p-2 hover:bg-black/5 rounded-full transition-colors"><X className="w-6 h-6" /></button>
+              </div>
+              <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2">
+                {membersList.map((member) => (
+                    <div key={member.id} className={`flex items-center justify-between p-3 rounded-2xl transition-colors ${isDarkMode ? "hover:bg-white/5" : "hover:bg-black/5"}`}>
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-[#A8A8A8] rounded-full border border-gray-400 relative">{member.online && <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#00C92C] rounded-full border-2 border-white"></div>}</div>
+                            <div><p className="font-bold text-lg">{member.name}</p>{member.role === 'moderator' ? (<span className="text-xs font-bold text-blue-500 flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Moderator</span>) : (<span className={`text-xs font-medium ${isDarkMode ? "text-gray-400" : "text-gray-500"}`}>Member</span>)}</div>
+                        </div>
+                        {isModerator && member.role !== 'moderator' && (<button onClick={() => handleRemoveMember(member.id)} className="p-2 text-red-400 hover:bg-red-100/20 hover:text-red-500 rounded-full transition-colors" title="Remove Member"><UserMinus className="w-5 h-5" /></button>)}
+                    </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE POST MODAL */}
       {isCreatePostOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingPostModal ? 'opacity-0' : 'opacity-100'}`} onClick={closeCreatePostModal}/>
+          <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingModal ? 'opacity-0' : 'opacity-100'}`} onClick={() => closeModal(setIsCreatePostOpen)}/>
           <div className="relative w-full max-w-3xl" style={{ transformOrigin: `${modalOrigin.x}px ${modalOrigin.y}px` }}>
-             <div className={`w-full rounded-[40px] border p-8 shadow-2xl ${isClosingPostModal ? 'animate-genie-out' : 'animate-genie-in'} ${isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"}`}>
-              {/* ... create post content ... */}
+             <div className={`w-full rounded-[40px] border p-8 shadow-2xl ${isClosingModal ? 'animate-genie-out' : 'animate-genie-in'} ${isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"}`}>
               <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 bg-[#A8A8A8] rounded-full border border-gray-400"></div>
-                  <h2 className="font-extrabold text-3xl italic">Create Post</h2>
-                </div>
-                <button onClick={closeCreatePostModal} className="p-2 hover:bg-black/5 rounded-full transition-colors"><X className="w-8 h-8" /></button>
+                <div className="flex items-center gap-4"><div className="w-14 h-14 bg-[#A8A8A8] rounded-full border border-gray-400"></div><h2 className="font-extrabold text-3xl italic">Create Post</h2></div>
+                <button onClick={() => closeModal(setIsCreatePostOpen)} className="p-2 hover:bg-black/5 rounded-full transition-colors"><X className="w-8 h-8" /></button>
               </div>
               <div className="flex flex-col gap-6">
-                <div>
-                  <input type="text" placeholder="Heading" value={newPostHeading} onChange={(e) => setNewPostHeading(e.target.value)} className={`w-full text-3xl font-extrabold bg-transparent outline-none placeholder:italic ${isDarkMode ? "placeholder:text-gray-500" : "placeholder:text-gray-400"}`}/>
-                  <div className="h-[2px] w-full bg-black/10 mt-2"></div>
-                </div>
-                <div onClick={() => createPostFileInputRef.current?.click()} className={`w-full h-[300px] rounded-[30px] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-black/5 transition-colors relative overflow-hidden ${isDarkMode ? "border-gray-600 bg-[#333]" : "border-gray-300 bg-[#EFEFEF]"}`}>
-                  {newPostImage ? <img src={newPostImage} alt="Upload preview" className="absolute inset-0 w-full h-full object-cover" /> : <><UploadCloud className="w-16 h-16 text-gray-400 mb-2" /><span className="font-bold text-gray-400">Click to upload image</span></>}
-                  <input type="file" accept="image/*" ref={createPostFileInputRef} onChange={handleCreatePostFileSelect} className="hidden" />
-                </div>
+                <div><input type="text" placeholder="Heading" value={newPostHeading} onChange={(e) => setNewPostHeading(e.target.value)} className={`w-full text-3xl font-extrabold bg-transparent outline-none placeholder:italic ${isDarkMode ? "placeholder:text-gray-500" : "placeholder:text-gray-400"}`}/><div className="h-[2px] w-full bg-black/10 mt-2"></div></div>
+                <div onClick={() => createPostFileInputRef.current?.click()} className={`w-full h-[300px] rounded-[30px] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-black/5 transition-colors relative overflow-hidden ${isDarkMode ? "border-gray-600 bg-[#333]" : "border-gray-300 bg-[#EFEFEF]"}`}>{newPostImage ? <img src={newPostImage} alt="Upload preview" className="absolute inset-0 w-full h-full object-cover" /> : <><UploadCloud className="w-16 h-16 text-gray-400 mb-2" /><span className="font-bold text-gray-400">Click to upload image</span></>}<input type="file" accept="image/*" ref={createPostFileInputRef} onChange={handleCreatePostFileSelect} className="hidden" /></div>
                 <textarea placeholder="Write a caption..." rows={3} value={newPostCaption} onChange={(e) => setNewPostCaption(e.target.value)} className={`w-full text-lg font-bold bg-transparent outline-none resize-none placeholder:italic ${isDarkMode ? "placeholder:text-gray-500" : "placeholder:text-gray-400"}`}/>
-                <div className="flex justify-end gap-4 mt-2">
-                  <button onClick={closeCreatePostModal} className="px-8 py-3 rounded-full font-bold text-gray-500 hover:bg-black/5 transition-colors">Cancel</button>
-                  <button onClick={handleCreatePost} disabled={!newPostHeading.trim() && !newPostCaption.trim() && !newPostImage} className={`px-12 py-3 rounded-full font-extrabold text-xl shadow-lg transition-all ${(!newPostHeading.trim() && !newPostCaption.trim() && !newPostImage) ? "bg-gray-400 cursor-not-allowed" : "bg-[#00C92C] text-white hover:bg-green-600 hover:scale-105"}`}>Post</button>
-                </div>
+                <div className="flex justify-end gap-4 mt-2"><button onClick={() => closeModal(setIsCreatePostOpen)} className="px-8 py-3 rounded-full font-bold text-gray-500 hover:bg-black/5 transition-colors">Cancel</button><button onClick={handleCreatePost} disabled={!newPostHeading.trim() && !newPostCaption.trim() && !newPostImage} className={`px-12 py-3 rounded-full font-extrabold text-xl shadow-lg transition-all ${(!newPostHeading.trim() && !newPostCaption.trim() && !newPostImage) ? "bg-gray-400 cursor-not-allowed" : "bg-[#00C92C] text-white hover:bg-green-600 hover:scale-105"}`}>Post</button></div>
               </div>
             </div>
           </div>
@@ -690,7 +852,7 @@ function CommunityPageContent() {
         </div>
       )}
 
-      {/* SVG FILTERS FOR GOOEY EFFECTS */}
+      {/* SVG FILTERS */}
       <svg className="hidden">
         <defs>
           <filter id="shadowed-goo">
@@ -715,15 +877,14 @@ function CommunityPageContent() {
 }
 
 // --- ROOT COMPONENT ---
-// This default export is required for Next.js pages
-export default function CommunityPage() {
+export default function ModeratorPage() {
   const [isDarkMode, setIsDarkMode] = useState(false); 
   const toggleTheme = () => setIsDarkMode(prev => !prev);
 
   return (
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
       <Header />
-      <CommunityPageContent />
+      <ModeratorPageContent />
     </ThemeContext.Provider>
   );
 }
