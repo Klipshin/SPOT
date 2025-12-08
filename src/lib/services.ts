@@ -1,10 +1,12 @@
 import { createClient } from "../utils/supabase/client";
 import { Expert, Profile, Community, Post, Comment, Vote } from "../utils/supabase/models";
 
-const supabase = createClient();
+// Helper function to get supabase client (lazy initialization)
+const getSupabase = () => createClient();
 
 export const profileService = {
     async getUserProfile(userId: string): Promise<Profile> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .select("*")
@@ -20,6 +22,7 @@ export const profileService = {
         profile: Omit<Profile, "user_id" | "is_expert" | "created_at">,
         userId: string,
     ) : Promise<Profile> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .upsert([{ ...profile, user_id: userId }], { onConflict: "user_id" })
@@ -34,6 +37,7 @@ export const profileService = {
 
 export const expertService = {
     async getExpert(userId: string): Promise<Expert> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("experts")
             .select("*")
@@ -48,7 +52,7 @@ export const expertService = {
     async createExpert (
         expert: Omit<Expert, "expert_id" | "is_verified" | "verified_at">
     ) : Promise<Expert> {
-
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("experts")
             .insert(expert)
@@ -63,6 +67,7 @@ export const expertService = {
 
 export const communityService = {
     async getUserCommunities(userId: string): Promise<Community[]> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("community_members")
             .select(`
@@ -85,6 +90,7 @@ export const communityService = {
     },
 
     async getAllCommunities(): Promise<Community[]> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("communities")
             .select("*")
@@ -101,6 +107,7 @@ export const communityService = {
         location?: string;
         created_by: string;
     }): Promise<Community> {
+        const supabase = getSupabase();
         // Create the community
         const { data: community, error: communityError } = await supabase
             .from("communities")
@@ -142,6 +149,7 @@ export const communityService = {
 
 export const postService = {
     async getPosts(limit: number = 20): Promise<Post[]> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("posts")
             .select(`
@@ -166,6 +174,7 @@ export const postService = {
     },
 
     async getPostsByUser(userId: string): Promise<Post[]> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("posts")
             .select(`
@@ -190,6 +199,7 @@ export const postService = {
     },
 
     async getPostsByCommunity(communityId: string, limit: number = 20): Promise<Post[]> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("posts")
             .select(`
@@ -217,6 +227,7 @@ export const postService = {
 
 export const voteService = {
     async getPostVotes(postId: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("votes")
             .select("vote_type")
@@ -224,13 +235,14 @@ export const voteService = {
 
         if (error) throw error;
 
-        const upvotes = data?.filter(v => v.vote_type === 'upvote').length || 0;
-        const downvotes = data?.filter(v => v.vote_type === 'downvote').length || 0;
+        const upvotes = data?.filter((v: any) => v.vote_type === 'upvote').length || 0;
+        const downvotes = data?.filter((v: any) => v.vote_type === 'downvote').length || 0;
 
         return { upvotes, downvotes };
     },
 
     async getUserVote(userId: string, postId: string): Promise<'upvote' | 'downvote' | null> {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("votes")
             .select("vote_type")
@@ -244,6 +256,7 @@ export const voteService = {
     },
 
     async castVote(userId: string, postId: string, voteType: 'upvote' | 'downvote') {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("votes")
             .upsert({
@@ -263,6 +276,7 @@ export const voteService = {
     },
 
     async removeVote(userId: string, postId: string) {
+        const supabase = getSupabase();
         const { error } = await supabase
             .from("votes")
             .delete()

@@ -48,7 +48,6 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [isCameraLoading, setIsCameraLoading] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
-  const [usernameLoading, setUsernameLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
   const [deleteConfirmMsg, setDeleteConfirmMsg] = useState<Message | null>(null);
   
@@ -57,7 +56,14 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   const router = useRouter();
-  const supabase = createClient(); // Initialize Supabase
+  
+  // Lazy Supabase initialization to avoid SSR issues - use useMemo to create once
+  const supabase = React.useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return createClient();
+    }
+    return null as any; // Return null during SSR, will be properly initialized on client
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -68,35 +74,21 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   useEffect(() => {
     const fetchUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setUsernameLoading(false);
-        return;
-      }
+      if (!user) return;
 
       // Set email
       setEmail(user.email || null);
 
       // Fetch user profile for username
-      console.log('Fetching username for user_id:', user.id);
-      const { data: profile, error: profileError } = await supabase
+      const { data: profile } = await supabase
         .from('user_profiles')
         .select('username')
         .eq('user_id', user.id)
         .single();
 
-      if (profileError) {
-        console.error('Error fetching username:', profileError);
-      }
-
-      console.log('Profile data:', profile);
-      
-      if (profile?.username) {
-        console.log('Setting username to:', profile.username);
+      if (profile) {
         setUsername(profile.username);
-      } else {
-        console.warn('No username found in profile');
       }
-      setUsernameLoading(false);
 
       // Fetch chat history
       const { data, error } = await supabase
@@ -106,7 +98,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         .order('created_at', { ascending: true });
 
       if (data && data.length > 0) {
-        const historyMessages: Message[] = data.map((item) => ({
+        const historyMessages: Message[] = data.map((item: any) => ({
           id: item.id,
           type: item.role === 'user' ? 'user' : 'assistant',
           content: item.content || "",
@@ -483,7 +475,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
               {isProfileOpen && (
                 <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50" style={{ border: '2px solid #899A3C' }} onMouseDown={(e) => e.preventDefault()}>
                   <div className="px-4 py-3 border-b border-gray-300">
-                    <h3 className="text-base font-bold text-gray-900">@{username || (usernameLoading ? 'loading...' : 'explorer')}</h3>
+                    <h3 className="text-base font-bold text-gray-900">@{username || 'user'}</h3>
                     <p className="text-xs text-gray-600 mt-0.5">{email || 'loading...'}</p>
                   </div>
                   <div className="py-1">
@@ -669,7 +661,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                 .order('created_at', { ascending: true });
               
               if (data) {
-                const historyMessages: Message[] = data.map((item) => ({
+                const historyMessages: Message[] = data.map((item: any) => ({
                   id: item.id,
                   type: item.role === 'user' ? 'user' : 'assistant',
                   content: item.content || "",
@@ -903,7 +895,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         {/* User Icons & Footer Info */}
         <img className="top-[640px] left-[-10px] w-[30px] h-[30px] absolute aspect-[1] object-cover" alt="User" src="/user (2) 6.svg" />
         <div className={`absolute top-[643px] left-[35px] w-[156px] font-black text-base tracking-[0.80px] leading-[normal] ${isDarkMode ? 'text-[#a0c563]' : 'text-[#072d0d]'}`}>
-          @{username || (usernameLoading ? 'loading...' : 'explorer')}
+          @{username || 'user'}
         </div>
 
         {/* Back Button */}
@@ -987,7 +979,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                           .order('created_at', { ascending: true });
                         
                         if (data) {
-                          const historyMessages: Message[] = data.map((item) => ({
+                          const historyMessages: Message[] = data.map((item: any) => ({
                             id: item.id,
                             type: item.role === 'user' ? 'user' : 'assistant',
                             content: item.content || "",
