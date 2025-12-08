@@ -79,7 +79,7 @@ type Comment = {
 };
 
 type Post = {
-  id: number | string;
+  id: string;
   postId?: string; // Actual database post_id
   userId?: string; // Post author's user_id
   timestamp: number;
@@ -272,7 +272,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   // Placeholder posts for empty state
   const [placeholderPosts] = useState<Post[]>([
     {
-      id: 5,
+      id: "5",
       timestamp: 1715425000000,
       user: '@nature_explorer',
       date: '2 hours ago',
@@ -288,7 +288,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
       ]
     },
     {
-      id: 4,
+      id: "4",
       timestamp: 1715420000000,
       user: '@cebu_pet_advocate',
       date: '4 hours ago',
@@ -301,7 +301,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
       comments: []
     },
     {
-      id: 3,
+      id: "3",
       timestamp: 1715415000000,
       user: '@snake_hunter_ph',
       date: '6 hours ago',
@@ -314,7 +314,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
       comments: []
     },
     {
-      id: 2,
+      id: "2",
       timestamp: 1715400000000,
       user: '@marine_bio_joy',
       date: '1 day ago',
@@ -327,7 +327,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
       comments: []
     },
     {
-      id: 1,
+      id: "1",
       timestamp: 1715300000000,
       user: '@newbie_hiker',
       date: '2 days ago',
@@ -346,7 +346,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   const [attachedCommentImage, setAttachedCommentImage] = useState<string | null>(null);
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyingToUser, setReplyingToUser] = useState<string>('');
-  const [activePostId, setActivePostId] = useState<number | null>(null);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
 
   // ===== LOGIC: SORTING & FILTERING =====
@@ -361,7 +361,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
       case 'least': return sorted.sort((a, b) => a.upvotes - b.upvotes);
       case 'oldest': return sorted.sort((a, b) => a.timestamp - b.timestamp);
       case 'newest': return sorted.sort((a, b) => b.timestamp - a.timestamp);
-      case 'default': default: return sorted.sort((a, b) => b.id - a.id);
+      case 'default': default: return sorted.sort((a, b) => b.timestamp - a.timestamp);
     }
   }, [posts, sortOption]);
 
@@ -573,6 +573,51 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   
   const cancelEditLocation = () => setIsEditingLocation(false);
 
+  // -- Post interaction handlers (stubs for now) --
+  const handlePostVote = (postId: string, direction: 'up' | 'down') => {
+    setPosts(prev => prev.map(post => {
+      if (post.id !== postId) return post;
+      const isUpvote = direction === 'up';
+      const wasVoted = post.vote === direction;
+      return {
+        ...post,
+        vote: wasVoted ? null : direction,
+        upvotes: isUpvote ? (wasVoted ? post.upvotes - 1 : post.upvotes + 1) : post.upvotes,
+        downvotes: !isUpvote ? (wasVoted ? post.downvotes - 1 : post.downvotes + 1) : post.downvotes
+      };
+    }));
+  };
+
+  const handleCommentVote = (postId: string, commentId: number, direction: 'up' | 'down') => {
+    // Stub implementation
+    console.log('Comment vote:', { postId, commentId, direction });
+  };
+
+  const handlePostComment = (postId: string) => {
+    // Stub implementation
+    console.log('Post comment:', { postId, text: newCommentText });
+    setNewCommentText('');
+    setAttachedCommentImage(null);
+  };
+
+  const handleReplyClick = (postId: string, commentId: number, username: string) => {
+    setReplyingToId(commentId);
+    setReplyingToUser(username);
+    setNewCommentText(`${username} `);
+  };
+
+  const handleCommentKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>, postId: string) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handlePostComment(postId);
+    }
+  };
+
+  const cancelReply = () => {
+    setReplyingToId(null);
+    setReplyingToUser('');
+    setNewCommentText('');
+  };
 
   const handleCreatePostFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -587,114 +632,6 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
     if (file) {
       const imageUrl = URL.createObjectURL(file);
       setAttachedCommentImage(imageUrl);
-    }
-  };
-
-  const handlePostVote = (postId: number, type: 'up' | 'down') => {
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId) return post;
-      let newVote = post.vote;
-      let newUpvotes = post.upvotes;
-      let newDownvotes = post.downvotes;
-      if (post.vote === type) {
-        newVote = null;
-        if (type === 'up') newUpvotes--; else newDownvotes--;
-      } else {
-        if (post.vote === 'up') newUpvotes--;
-        if (post.vote === 'down') newDownvotes--;
-        newVote = type;
-        if (type === 'up') newUpvotes++; else newDownvotes++;
-      }
-      return { ...post, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
-    }));
-  };
-
-  const handleCommentVote = (postId: number, commentId: number, type: 'up' | 'down') => {
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId) return post;
-      const updatedComments = post.comments.map(comment => {
-        if (comment.id !== commentId) return comment;
-        let newVote = comment.vote;
-        let newUpvotes = comment.upvotes;
-        let newDownvotes = comment.downvotes;
-        if (comment.vote === type) {
-          newVote = null;
-          if (type === 'up') newUpvotes--; else newDownvotes--;
-        } else {
-          if (comment.vote === 'up') newUpvotes--;
-          if (comment.vote === 'down') newDownvotes--;
-          newVote = type;
-          if (type === 'up') newUpvotes++; else newDownvotes++;
-        }
-        return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
-      });
-      return { ...post, comments: updatedComments };
-    }));
-  };
-
-  const handleReplyClick = (postId: number, commentId: number, username: string) => {
-    setActivePostId(postId);
-    setReplyingToId(commentId);
-    setReplyingToUser(username);
-    const mentionText = `@${username.replace('@', '')} `;
-    setNewCommentText(mentionText);
-    setTimeout(() => {
-        const input = document.getElementById(`comment-input-${postId}`) as HTMLTextAreaElement;
-        if (input) {
-            input.focus();
-            const len = input.value.length;
-            input.setSelectionRange(len, len);
-        }
-    }, 50);
-  };
-
-  const cancelReply = () => {
-    setReplyingToId(null);
-    setReplyingToUser('');
-    setNewCommentText(''); 
-  };
-
-  const handlePostComment = (postId: number) => {
-    if (!newCommentText.trim() && !attachedCommentImage) return;
-    const newComment: Comment = {
-      id: Date.now(),
-      user: '@currentUser',
-      date: 'Just now',
-      text: newCommentText,
-      image: attachedCommentImage,
-      vote: null,
-      upvotes: 0,
-      downvotes: 0,
-      isReply: replyingToId !== null, 
-    };
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId) return post;
-      const updatedComments = [...post.comments];
-      if (replyingToId !== null) {
-        const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
-        if (parentIndex !== -1) {
-          let insertIndex = parentIndex + 1;
-          while (insertIndex < updatedComments.length && updatedComments[insertIndex].isReply) {
-            insertIndex++;
-          }
-          updatedComments.splice(insertIndex, 0, newComment);
-        } else {
-            updatedComments.push(newComment);
-        }
-      } else {
-        updatedComments.push(newComment);
-      }
-      return { ...post, comments: updatedComments };
-    }));
-    setNewCommentText('');
-    setAttachedCommentImage(null);
-    cancelReply();
-  };
-  
-  const handleCommentKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>, postId: number) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handlePostComment(postId);
     }
   };
 
