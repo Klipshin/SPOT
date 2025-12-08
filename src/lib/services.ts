@@ -40,9 +40,11 @@ export const expertService = {
             .eq("user_id", userId)
             .single();
 
-		if (error) throw new Error(error.message);
+		if (error && error.code !== "PGRST116") { 
+            throw new Error(error.message);
+        }
 
-        return data;
+        return data || null;
     },
 
     async createExpert (

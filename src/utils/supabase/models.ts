@@ -4,7 +4,7 @@ export interface Profile {
     name: string;
     profile_picture: string;
     location: string;
-    is_expert: string;
+    is_expert: boolean;
     created_at: string;
 }
 
