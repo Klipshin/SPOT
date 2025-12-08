@@ -9,26 +9,53 @@
     "lint": "eslint"
   },
   "dependencies": {
+
+
+    "@developer-hub/liquid-glass": "^1.2.3",
+    "@supabase/supabase-js": "^2.84.0",
+    "@tailwindcss/postcss": "^4.1.14",
+    "gsap": "^3.13.0",
+    "lucide-react": "^0.554.0",
+    "next": "15.5.5",
+
     "@google/generative-ai": "^0.24.1",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.80.0",
     "@tailwindcss/postcss": "^4.1.14",
     "gsap": "^3.13.0",
+    "leaflet": "^1.9.4",
+    "leaflet-control-geocoder": "^3.3.1",
+    "leaflet-defaulticon-compatibility": "^0.1.2",
     "lucide-react": "^0.554.0",
     "next": "^16.0.7",
     "postcss": "^8.5.6",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
+    "react-leaflet": "^5.0.0",
     "tailwindcss": "^4.1.14"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@types/leaflet": "^1.9.21",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.5",
     "typescript": "^5"
-  }
+  },
+  "description": "This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Klipshin/SPOT.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Klipshin/SPOT/issues"
+  },
+  "homepage": "https://github.com/Klipshin/SPOT#readme"
 }
