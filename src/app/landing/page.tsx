@@ -21,8 +21,10 @@ export default function HomePage() {
     reader.onload = () => {
       try {
         // Store selected image as data URL for the upload page to consume
-        localStorage.setItem('spot_pending_upload', reader.result as string);
-        localStorage.removeItem('spot_pending_upload_static'); // Clear static path
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('spot_pending_upload', reader.result as string);
+          localStorage.removeItem('spot_pending_upload_static'); // Clear static path
+        }
       } catch (err) {
         console.error('Failed to store selected image', err);
       }
@@ -35,8 +37,10 @@ export default function HomePage() {
   const handleSampleUpload = (imageSrc: string) => {
       try {
           // Store the static asset path and clear file upload
-          localStorage.setItem('spot_pending_upload_static', imageSrc);
-          localStorage.removeItem('spot_pending_upload'); 
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('spot_pending_upload_static', imageSrc);
+            localStorage.removeItem('spot_pending_upload');
+          }
       } catch (err) {
           console.error('Failed to store sample image path', err);
       }
@@ -145,10 +149,12 @@ export default function HomePage() {
               onClick={() => {
                 try {
                   // Signal the upload page to open camera on mount
-                  localStorage.setItem('spot_upload_open_camera', '1');
-                  // clear any pending uploads
-                  localStorage.removeItem('spot_pending_upload');
-                  localStorage.removeItem('spot_pending_upload_static');
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('spot_upload_open_camera', '1');
+                    // clear any pending uploads
+                    localStorage.removeItem('spot_pending_upload');
+                    localStorage.removeItem('spot_pending_upload_static');
+                  }
                 } catch (err) {
                   console.error('Failed to set camera flag', err);
                 }
