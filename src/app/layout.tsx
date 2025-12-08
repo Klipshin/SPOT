@@ -1,33 +1,33 @@
+//FROM HANNAH: DO NOT MAKE THIS A CLIENT COMPONENT
+
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import './globals.css';
-import Header from './components/Header'; 
-// FIX: Added '/src' to the path to match your folder structure
-import { ThemeProvider } from './components/ThemeContext';
+import Image from 'next/image';
+import SupabaseProvider from '../components/providers/SupabaseProvider';
 
 const poppins = Poppins({
   subsets: ['latin'],
-  weight: ['100', '200', '300', '400', '500', '600', '700', '800', '900'],
+  weight: ['300', '400', '500', '600', '700', '800', '900'],
+  style: ['normal', 'italic'],
   variable: '--font-poppins',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'SPOT',
-  description: 'Species Protection & Online Tracking',
+  title: 'SPOT - Species Protection & Online Tracking',
+  description: 'AI-powered wildlife identification platform for communities',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en" className={poppins.variable}>
       <body className={`${poppins.className} antialiased`}>
-        <ThemeProvider>
-          <Header />
-          {children}
-        </ThemeProvider>
+        {children}
       </body>
     </html>
   );

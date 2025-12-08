@@ -1,65 +1,134 @@
 @import "tailwindcss";
 
-/* ===== THEME VARIABLES ===== */
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
+    --font-poppins: 'Poppins', sans-serif;
+  }
+  
+  body {
+    @apply bg-white text-black;
+    font-family: var(--font-poppins);
   }
 }
 
-/* ===== RESET ===== */
-body {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(to bottom, transparent, rgb(var(--background-end-rgb))) rgb(var(--background-start-rgb));
+/* Custom Poppins font utilities */
+@layer utilities {
+  .font-poppins-light {
+    font-family: var(--font-poppins);
+    font-weight: 300;
+  }
+
+  .font-poppins-regular {
+    font-family: var(--font-poppins);
+    font-weight: 400;
+  }
+
+  .font-poppins-medium {
+    font-family: var(--font-poppins);
+    font-weight: 500;
+  }
+
+  .font-poppins-semibold {
+    font-family: var(--font-poppins);
+    font-weight: 600;
+  }
+
+  .font-poppins-bold {
+    font-family: var(--font-poppins);
+    font-weight: 700;
+  }
+
+  .font-poppins-extrabold {
+    font-family: var(--font-poppins);
+    font-weight: 800;
+  }
+
+  .font-poppins-black {
+    font-family: var(--font-poppins);
+    font-weight: 900;
+  }
+
+  /* Italic variants */
+  .font-poppins-light-italic {
+    font-family: var(--font-poppins);
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  .font-poppins-italic {
+    font-family: var(--font-poppins);
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .font-poppins-medium-italic {
+    font-family: var(--font-poppins);
+    font-weight: 500;
+    font-style: italic;
+  }
+
+  .font-poppins-semibold-italic {
+    font-family: var(--font-poppins);
+    font-weight: 600;
+    font-style: italic;
+  }
+
+  .font-poppins-bold-italic {
+    font-family: var(--font-poppins);
+    font-weight: 700;
+    font-style: italic;
+  }
+
+  .font-poppins-extrabold-italic {
+    font-family: var(--font-poppins);
+    font-weight: 800;
+    font-style: italic;
+  }
+
+  .font-poppins-black-italic {
+    font-family: var(--font-poppins);
+    font-weight: 900;
+    font-style: italic;
+  }
 }
 
-/* ===== CUSTOM SCROLLBAR (FIXED FOR DARK MODE) ===== */
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Remove default margins */
+body, h1, h2, h3, h4, h5, h6, p {
+  margin: 0;
+  padding: 0;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-none {
+  -ms-overflow-style: none; 
+  scrollbar-width: none; 
+}
+
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
 
-/* Track: Transparent so it takes the background color of the modal */
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent; 
-  margin: 10px 0; 
+  background: transparent;
 }
 
-/* Thumb (The moving part) */
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(156, 163, 175, 0.5); /* Default gray */
-  border-radius: 20px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+  background: #888;
+  border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(107, 114, 128, 0.8);
+  background: #555;
 }
-
-/* Dark Mode Specific Scrollbar Override */
-/* This ensures the scrollbar looks dark/white when inside your dark modals */
-.dark .custom-scrollbar::-webkit-scrollbar-thumb,
-[class*="bg-[#222222]"] .custom-scrollbar::-webkit-scrollbar-thumb {
-   background-color: rgba(255, 255, 255, 0.2);
-}
-
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
-[class*="bg-[#222222]"] .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-   background-color: rgba(255, 255, 255, 0.4);
-}
-
-/* ===== ANIMATIONS ===== */
+/* ===== YOUR ANIMATIONS ===== */
 
 /* 1. Confetti Burst */
 @keyframes confetti-burst {
@@ -69,28 +138,28 @@ body {
 }
 .animate-confetti { animation: confetti-burst 0.8s ease-out forwards; }
 
-/* 2. "Genie" Liquid Entrance (For Create Post) */
+/* 2. "Genie" Liquid Entrance */
 @keyframes genie-in {
   0% { opacity: 0; transform: scale(0); border-radius: 100%; }
   100% { opacity: 1; transform: scale(1); border-radius: 40px; }
 }
 .animate-genie-in { animation: genie-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
 
-/* 3. "Genie" Liquid Exit (For Create Post) */
+/* 3. "Genie" Liquid Exit */
 @keyframes genie-out {
   0% { opacity: 1; transform: scale(1); border-radius: 40px; }
   100% { opacity: 0; transform: scale(0); border-radius: 100%; }
 }
 .animate-genie-out { animation: genie-out 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
 
-/* 4. Fluid Dropdown Morph (For Sort Menu) */
+/* 4. Fluid Dropdown Morph */
 @keyframes dropdown-morph {
   0% { opacity: 0; transform: scale(0.95) translateY(-10px); filter: blur(4px); }
   100% { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
 }
 .animate-dropdown-morph { transform-origin: top right; animation: dropdown-morph 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 
-/* 5. "Bubbly" Animation (For Members Modal) */
+/* 5. "Bubbly" Animation */
 @keyframes bubbly-in {
   0% { opacity: 0; transform: scale(0.5) translateY(20px); }
   80% { transform: scale(1.05) translateY(-5px); }
