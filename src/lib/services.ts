@@ -95,6 +95,49 @@ export const communityService = {
 
         return data || [];
     },
+
+    async createCommunity(communityData: {
+        community_name: string;
+        location?: string;
+        created_by: string;
+    }): Promise<Community> {
+        // Create the community
+        const { data: community, error: communityError } = await supabase
+            .from("communities")
+            .insert([{
+                community_name: communityData.community_name,
+                location: communityData.location || null,
+                created_by: communityData.created_by,
+                member_count: 1,
+                active_members: 1
+            }])
+            .select()
+            .single();
+
+        if (communityError) {
+            console.error('Error creating community:', communityError);
+            throw new Error(communityError.message || 'Failed to create community');
+        }
+
+        // Add creator as a member
+        const { error: memberError } = await supabase
+            .from("community_members")
+            .insert([{
+                user_id: communityData.created_by,
+                community_id: community.community_id,
+                community_role: true, // true = admin/moderator
+                is_active: true
+            }]);
+
+        if (memberError) {
+            console.error('Error adding member:', memberError);
+            // Try to rollback - delete the community if member insertion fails
+            await supabase.from("communities").delete().eq("community_id", community.community_id);
+            throw new Error(memberError.message || 'Failed to add user to community');
+        }
+
+        return community;
+    },
 }
 
 export const postService = {
@@ -140,6 +183,31 @@ export const postService = {
             `)
             .eq("user_id", userId)
             .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        return data || [];
+    },
+
+    async getPostsByCommunity(communityId: string, limit: number = 20): Promise<Post[]> {
+        const { data, error } = await supabase
+            .from("posts")
+            .select(`
+                *,
+                user_profiles!posts_user_id_fkey (
+                    user_id,
+                    username,
+                    name,
+                    profile_picture
+                ),
+                communities!posts_community_id_fkey (
+                    community_id,
+                    community_name
+                )
+            `)
+            .eq("community_id", communityId)
+            .order("created_at", { ascending: false })
+            .limit(limit);
 
         if (error) throw error;
 

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { postService, voteService } from "../services";
 import { useUser } from "./useUser";
 
-export function usePosts() {
+export function usePosts(communityId?: string) {
     const { user } = useUser();
     const [posts, setPosts] = useState<Post[]>([]);
     const [loading, setLoading] = useState(true);
@@ -13,13 +13,15 @@ export function usePosts() {
 
     useEffect(() => {
         loadPosts();
-    }, []);
+    }, [communityId]);
 
     async function loadPosts() {
         try {
             setLoading(true);
             setError(null);
-            const data = await postService.getPosts();
+            const data = communityId 
+                ? await postService.getPostsByCommunity(communityId)
+                : await postService.getPosts();
             setPosts(data);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to load posts.");

@@ -25,9 +25,18 @@ export function useCommunities() {
         try {
             setLoading(true);
             setError(null);
-            const data = await communityService.getUserCommunities(user.id);
-            setUserCommunities(data);
+            
+            // Use API route to bypass RLS
+            const response = await fetch('/api/communities/user');
+            
+            if (!response.ok) {
+                throw new Error('Failed to fetch communities');
+            }
+            
+            const result = await response.json();
+            setUserCommunities(result.communities || []);
         } catch (err) {
+            console.error('Error loading communities:', err);
             setError(err instanceof Error ? err.message : "Failed to load communities.");
         } finally {
             setLoading(false);

@@ -1,11 +1,13 @@
 'use client';
 import { useState, useRef, ChangeEvent, KeyboardEvent, useEffect, useCallback } from 'react';
 import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase } from 'lucide-react';
-import { Settings, HelpCircle, LogOut, Clock, Loader2 } from 'lucide-react';
+import { Settings, HelpCircle, LogOut, Clock, Loader2, Plus } from 'lucide-react';
 import { Share2, Flag, EyeOff, X, Users } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/src/utils/supabase/client';
 import { useCommunities } from '@/src/lib/hooks/useCommunities';
+import CreateCommunityModal from '@/src/components/CreateCommunityModal';
+import { communityService } from '@/src/lib/services';
 
 // IMPORTANT: Import the useSupabase hook (Assuming its location)
 import { useSupabase } from '@/src/components/providers/SupabaseProvider'; 
@@ -36,7 +38,13 @@ type ClientPost = {
   upvotes: number;
   downvotes: number;
   comments: Comment[];
-  scientificName: string; // Added this to show where nested data goes
+  scientificName: string;
+  communityId?: string;
+  communityName?: string;
+  communityProfilePicture?: string;
+  flairNames?: string[];
+  userId?: string;
+  authorUsername?: string;
 };
 
 // FIX: Updated Supabase Post structure for fetching to treat joined fields as arrays
@@ -74,51 +82,41 @@ type PostWithDetails = {
 
 // --- START: Supabase Data Fetching Hook ---
 function useAllPosts() {
-    const { supabase, isLoaded, session } = useSupabase();
+    const { session, isLoaded } = useSupabase();
     const [posts, setPosts] = useState<PostWithDetails[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // useCallback is used to memoize fetchPosts, ensuring it's not redefined on every render
     const fetchPosts = useCallback(async () => {
-        if (!supabase) return; // FIX 1: Supabase null check
+        if (!session) return;
         
         setIsLoading(true);
         
-        // This query fetches posts along with related user, identification, and species data
-        const { data, error: fetchError } = await supabase
-            .from('posts')
-            .select(`
-                post_id,
-                title,
-                content,
-                created_at,
-                media_url,
-                user_profiles (username, profile_picture),
-                identifications (
-                    image_url,
-                    confidence_score,
-                    species (scientific_name, common_name)
-                )
-            `)
-            .order('created_at', { ascending: false })
-            .limit(20);
-
-        if (fetchError) {
-            console.error("Error fetching posts:", fetchError);
-            setError(fetchError.message);
-            setPosts([]);
-        } else if (data) {
-            // FIX 2: Use a two-step assertion (as unknown as T[]) to resolve remaining TS incompatibility warnings.
-            setPosts(data as unknown as PostWithDetails[]); 
+        try {
+          // Fetch posts from user's communities via API
+          const response = await fetch('/api/posts/feed');
+          
+          if (!response.ok) {
+            throw new Error('Failed to fetch posts');
+          }
+          
+          const data = await response.json();
+          setPosts(data.posts || []);
+          setError(null);
+        } catch (fetchError: any) {
+          console.error("Error fetching posts:", fetchError);
+          setError(fetchError.message);
+          setPosts([]);
         }
+        
         setIsLoading(false);
-    }, [supabase]);
+    }, [session]);
 
     useEffect(() => {
-        if (!isLoaded || !supabase) return;
+        if (!isLoaded || !session) return;
         fetchPosts();
-    }, [supabase, isLoaded, session, fetchPosts]);
+    }, [session, isLoaded, fetchPosts]);
 
     return { posts, isLoading, error, fetchPosts };
 }
@@ -147,6 +145,11 @@ useEffect(() => {
   // Fetch user's communities from Supabase
   const { userCommunities, loading: communitiesLoading } = useCommunities();
 
+  // Debug logging
+  useEffect(() => {
+    console.log('Dashboard userCommunities updated:', { count: userCommunities.length, communities: userCommunities });
+  }, [userCommunities]);
+
   // --- State Hooks ---
   const [activePost, setActivePost] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -161,13 +164,27 @@ useEffect(() => {
   const [attachedCommentImage, setAttachedCommentImage] = useState<string | null>(null);
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyingToUser, setReplyingToUser] = useState<string>('');
+  const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
+  const [isClosingCommunityModal, setIsClosingCommunityModal] = useState(false);
+  const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any>({ communities: [], people: [], flairs: [] });
+  const [isSearching, setIsSearching] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [selectedFlair, setSelectedFlair] = useState<string | null>(null);
 
   const commentFileInputRef = useRef<HTMLInputElement>(null);
+  const createCommunityBtnRef = useRef<HTMLButtonElement>(null);
 
-  // Constants (for now)
-  const communities = ['Wildlife watchers', 'Trail explorers', 'Bird spotters', 'Snake finders'];
-  const tags = ['venomous snakes', 'rat snake', 'non venomous snakes', 'cobra', 'sea snakes'];
-  const recentSearches = ['Philippine cobra habitat', 'Venomous vs non-venomous', 'Snake identification guide', 'Local wildlife communities'];
+  // Load recent searches from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('recentSearches');
+    if (stored) {
+      setRecentSearches(JSON.parse(stored));
+    }
+  }, []);
   
   const community = [
     { id: 1, name: "Wildlife Watchers", color: "bg-green-100" },
@@ -189,27 +206,25 @@ useEffect(() => {
   // Effect to map Supabase data to your client-side state structure
   useEffect(() => {
       if (fetchedPosts.length > 0) {
-          const mappedPosts: ClientPost[] = fetchedPosts.map(p => ({
+          const mappedPosts: ClientPost[] = fetchedPosts.map((p: any) => ({
               id: p.post_id,
               timestamp: new Date(p.created_at).getTime(),
-              
-              // Safely access the first element of the user_profiles array
-              user: `@${p.user_profiles?.[0]?.username || 'unknown'}`, 
-
+              user: `@${p.user_profiles?.username || 'unknown'}`, 
               date: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
               heading: p.title,
               caption: p.content,
-              
-              // Safely access the first element of the identifications array for image
               image: p.media_url || p.identifications?.[0]?.image_url || null, 
-              
-              // Safely access the nested species scientific name
               scientificName: p.identifications?.[0]?.species?.[0]?.scientific_name || 'Unidentified Species',
-              
               vote: null,
-              upvotes: 0, 
-              downvotes: 0,
-              comments: [], // Comments should be loaded/managed separately
+              upvotes: p.upvotes || 0, 
+              downvotes: p.downvotes || 0,
+              comments: [],
+              communityId: p.communities?.community_id,
+              communityName: p.communities?.community_name,
+              communityProfilePicture: p.communities?.profile_picture,
+              flairNames: p.flairNames || [],
+              userId: p.user_id,
+              authorUsername: p.user_profiles?.username
           }));
           setClientPosts(mappedPosts);
       }
@@ -217,6 +232,109 @@ useEffect(() => {
 
 
   // --- Handlers (CRUD Placeholders) ---
+  
+  // Search handlers
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    if (!query || query.length < 1) {
+      setSearchResults({ communities: [], people: [], flairs: [] });
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const type = activeTab === 'All' ? 'all' : activeTab.toLowerCase();
+      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}&type=${type}`);
+      const data = await response.json();
+      console.log('Search results for', query, ':', data);
+      setSearchResults(data);
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const addToRecentSearches = (query: string) => {
+    const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 10);
+    setRecentSearches(updated);
+    localStorage.setItem('recentSearches', JSON.stringify(updated));
+  };
+
+  const handleSearchSelect = (query: string, type: 'community' | 'person' | 'flair', id?: string) => {
+    addToRecentSearches(query);
+    setIsOpen(false);
+    
+    if (type === 'community' && id) {
+      window.location.href = `/community/${id}`;
+    } else if (type === 'flair') {
+      setSelectedFlair(query);
+      // Reload posts filtered by flair
+      fetchPostsByFlair(query);
+    }
+  };
+
+  const fetchPostsByFlair = async (flairName: string) => {
+    try {
+      const response = await fetch(`/api/posts/by-flair?flair=${encodeURIComponent(flairName)}`);
+      const data = await response.json();
+      if (data.posts) {
+        // Trigger a manual re-fetch by updating the posts state
+        // Note: This is a workaround since fetchPosts doesn't accept parameters
+        window.location.href = `?flair=${encodeURIComponent(flairName)}`;
+      }
+    } catch (error) {
+      console.error('Error fetching posts by flair:', error);
+    }
+  };
+
+  const clearFlairFilter = () => {
+    setSelectedFlair(null);
+    fetchPosts(); // Reload all posts
+  };
+
+  const handleFlairClick = (flairName: string) => {
+    setSelectedFlair(flairName);
+    fetchPostsByFlair(flairName);
+  };
+
+  const handleDeletePost = async (postId: string, post: ClientPost) => {
+    const isAuthor = post.userId === currentUserId;
+    
+    let reason = null;
+    if (!isAuthor) {
+      // Moderator deleting someone else's post - ask for reason
+      reason = prompt('Please provide a reason for deleting this post:');
+      if (reason === null) return; // User cancelled
+    }
+
+    if (!confirm(`Are you sure you want to delete this post?${!isAuthor ? ' This action will be logged.' : ''}`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/delete`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete post');
+        return;
+      }
+
+      // Remove post from UI
+      setClientPosts(prev => prev.filter(p => p.id !== postId));
+      alert('Post deleted successfully');
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      alert('Failed to delete post');
+    }
+  };
+
   const handleCommentFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -248,6 +366,94 @@ useEffect(() => {
     setReplyingToUser('');
     setNewCommentText('');
     setAttachedCommentImage(null);
+  };
+
+  // ===== CREATE COMMUNITY HANDLERS =====
+  const openCreateCommunityModal = () => {
+    if (createCommunityBtnRef.current) {
+      const rect = createCommunityBtnRef.current.getBoundingClientRect();
+      setModalOrigin({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+    }
+    setIsCreateCommunityOpen(true);
+    setIsClosingCommunityModal(false);
+  };
+
+  const closeCreateCommunityModal = () => {
+    setIsClosingCommunityModal(true);
+    setTimeout(() => {
+      setIsCreateCommunityOpen(false);
+      setIsClosingCommunityModal(false);
+    }, 400);
+  };
+
+  const handleJoinCommunity = async (communityId: string) => {
+    if (!currentUserId) {
+      alert('You must be logged in to join a community');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/communities/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ communityId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to join community');
+      }
+
+      // Refresh the page to update communities list
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error joining community:', error);
+      alert(error.message || 'Failed to join community. Please try again.');
+    }
+  };
+
+  const handleCreateCommunity = async (data: { communityName: string; location: string; bannerImage?: string; profileImage?: string }) => {
+    if (!currentUserId) {
+      alert('You must be logged in to create a community');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/communities/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          community_name: data.communityName,
+          location: data.location || null,
+          banner_image: data.bannerImage || null,
+          profile_picture: data.profileImage || null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create community');
+      }
+
+      // Close modal first
+      closeCreateCommunityModal();
+      
+      // Wait a bit then reload to ensure modal closes smoothly
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+      
+    } catch (error: any) {
+      console.error('Error creating community:', error);
+      const errorMessage = error?.message || 'Failed to create community. Please try again.';
+      alert(`Error: ${errorMessage}`);
+    }
   };
 
   // ===== SUPABASE HANDLER FOR COMMENTS =====
@@ -344,7 +550,10 @@ useEffect(() => {
 
   // ===== SUPABASE HANDLER FOR POST VOTES =====
   const handlePostVote = async (postId: string, type: 'up' | 'down') => {
-    if (!currentUserId || !supabase) return;
+    if (!currentUserId || !supabase) {
+      console.warn('Cannot vote: User not logged in or Supabase not initialized');
+      return;
+    }
 
     // CLIENT-SIDE PRE-CALCULATION FOR STATE UPDATE
     let currentPost = clientPosts.find(p => p.id === postId);
@@ -385,7 +594,8 @@ useEffect(() => {
 
     let error = null;
 
-    if (action === 'insert') {
+    try {
+      if (action === 'insert') {
         const { error: insertError } = await supabase.from('votes').insert(voteData);
         error = insertError;
     } else if (action === 'update') {
@@ -399,19 +609,23 @@ useEffect(() => {
         const { error: deleteError } = await supabase
             .from('votes')
             .delete()
-            .eq('post_id', postId)
-            .eq('user_id', currentUserId);
-        error = deleteError;
+          .eq('post_id', postId)
+          .eq('user_id', currentUserId);
+      error = deleteError;
     }
 
     if (error) {
         console.error('Error handling vote:', error);
+        alert('Failed to update vote. Please try again.');
         // Do NOT update client state if DB update failed.
         return; 
     }
-    // ----------------------------------------------------
-
-    // CLIENT-SIDE STATE UPDATE (Only if DB operation was successful)
+    } catch (err: any) {
+      console.error('Error handling vote:', err);
+      alert('Failed to update vote. Please try again.');
+      return;
+    }
+    // ----------------------------------------------------    // CLIENT-SIDE STATE UPDATE (Only if DB operation was successful)
     setClientPosts(prevPosts => prevPosts.map(post => {
         if (post.id !== postId) return post;
         return { ...post, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
@@ -509,34 +723,38 @@ useEffect(() => {
               </div>
 
               {/* === UPDATED SEARCH BAR SECTION === */}
-              {/* Flexbox is used here to center the input vertically within the 44px (h-11) header */}
               <div className="flex-1 max-w-xl mx-auto h-full flex items-center justify-center">
                   <div className="relative w-full">
-                      {/* Search Icon positioned absolutely and centered vertically */}
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       
                       <input
                           type="text"
-                          placeholder="Search anything..."
-                          // Added 'text-center' to align placeholder text to the center
-                          // Removed fixed positioning and manual top styles
-                          className="w-full pl-10 pr-4 h-8 border border-gray-200 rounded-[15px] bg-white/44 focus:outline-none focus:ring-1 focus:ring-[#9A9A9A] text-center"
+                          value={searchQuery}
+                          onChange={(e) => handleSearch(e.target.value)}
+                          placeholder="Search communities, people, or flairs..."
+                          className="w-full pl-10 pr-4 h-8 border border-gray-200 rounded-[15px] bg-white/44 focus:outline-none focus:ring-1 focus:ring-[#7D9B76] text-left"
                           style={{ borderColor: 'rgba(0, 0, 0, 0.43)' }}
                           onFocus={() => setIsOpen(true)}
-                          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+                          onBlur={() => setTimeout(() => setIsOpen(false), 300)}
                       />
                       
                       {/* Dropdown */}
                       {isOpen && (
-                          <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+                          <div 
+                            className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50"
+                            onMouseDown={(e) => e.preventDefault()}
+                          >
                               {/* Tabs */}
                               <div className="flex border-b border-gray-200 px-2 py-2 gap-2">
-                                  {['All', 'Communities', 'People'].map((tab) => (
+                                  {['All', 'Communities', 'People', 'Flairs'].map((tab) => (
                                       <button
                                           key={tab}
-                                          onClick={() => setActiveTab(tab)}
+                                          onClick={() => {
+                                            setActiveTab(tab);
+                                            if (searchQuery) handleSearch(searchQuery);
+                                          }}
                                           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                                              activeTab === tab ? 'bg-gray-200 text-gray-900' : 'text-gray-600 hover:bg-gray-100'
+                                              activeTab === tab ? 'bg-[#7D9B76] text-white' : 'text-gray-600 hover:bg-gray-100'
                                           }`}
                                       >
                                           {tab}
@@ -546,58 +764,125 @@ useEffect(() => {
 
                               {/* Content based on active tab */}
                               <div className="max-h-80 overflow-y-auto">
-                                  {activeTab === 'All' && (
-                                      <div className="p-3">
-                                          <div className="mb-4">
-                                              <div className="flex flex-wrap gap-2">
-                                                  {tags.map((tag) => (
-                                                      <button
-                                                          key={tag}
-                                                          className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-sm text-gray-700 transition-colors"
-                                                      >
-                                                          {tag}
-                                                      </button>
-                                                  ))}
-                                              </div>
-                                          </div>
-                                          <div>
-                                              <div className="flex items-center gap-2 px-2 mb-2">
-                                                  <Clock className="w-4 h-4 text-gray-400" />
-                                                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Recent Searches</span>
-                                              </div>
-                                              <div className="space-y-1">
-                                                  {recentSearches.map((search, index) => (
-                                                      <button
-                                                          key={index}
-                                                          className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors"
-                                                      >
-                                                          {search}
-                                                      </button>
-                                                  ))}
-                                              </div>
-                                          </div>
-                                      </div>
-                                  )}
-                                  {activeTab === 'Communities' && (
-                                      <div className="p-3">
+                                  {isSearching ? (
+                                    <div className="p-8 text-center text-gray-500">
+                                      <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+                                    </div>
+                                  ) : (
+                                    <>
+                                      {/* Debug info */}
+                                      {searchQuery && (
+                                        <div className="p-2 text-xs text-gray-400 border-b">
+                                          Communities: {searchResults.communities?.length || 0}, 
+                                          People: {searchResults.people?.length || 0}, 
+                                          Flairs: {searchResults.flairs?.length || 0}
+                                        </div>
+                                      )}
+                                      
+                                      {(activeTab === 'All' || activeTab === 'Communities') && searchResults.communities?.length > 0 && (
+                                        <div className="p-3">
+                                          <div className="text-xs font-bold text-gray-500 uppercase mb-2 px-2">Communities</div>
                                           <div className="space-y-1">
-                                              {communities.map((community) => (
-                                                  <button
-                                                      key={community}
-                                                      className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors"
-                                                  >
-                                                      {community}
-                                                  </button>
-                                              ))}
+                                            {searchResults.communities.map((comm: any) => (
+                                              <button
+                                                key={comm.community_id}
+                                                onClick={() => handleSearchSelect(comm.community_name, 'community', comm.community_id)}
+                                                className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors flex items-center gap-3"
+                                              >
+                                                {comm.profile_picture ? (
+                                                  <img src={comm.profile_picture} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                                ) : (
+                                                  <div className="w-8 h-8 rounded-full bg-[#7D9B76] flex items-center justify-center text-white font-bold text-xs">
+                                                    {comm.community_name[0]}
+                                                  </div>
+                                                )}
+                                                <div>
+                                                  <div className="font-medium">{comm.community_name}</div>
+                                                </div>
+                                              </button>
+                                            ))}
                                           </div>
-                                      </div>
-                                  )}
-                                  {activeTab === 'People' && (
-                                      <div className="p-3">
-                                          <div className="text-center py-8 text-gray-500 text-sm">
-                                              No verified people yet
+                                        </div>
+                                      )}
+
+                                      {(activeTab === 'All' || activeTab === 'People') && searchResults.people?.length > 0 && (
+                                        <div className="p-3">
+                                          <div className="text-xs font-bold text-gray-500 uppercase mb-2 px-2">People</div>
+                                          <div className="space-y-1">
+                                            {searchResults.people.map((person: any) => (
+                                              <button
+                                                key={person.user_id}
+                                                onClick={() => handleSearchSelect(person.username, 'person')}
+                                                className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors flex items-center gap-3"
+                                              >
+                                                {person.profile_picture ? (
+                                                  <img src={person.profile_picture} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                                ) : (
+                                                  <User className="w-8 h-8 text-gray-400" />
+                                                )}
+                                                <div>
+                                                  <div className="font-medium">@{person.username}</div>
+                                                  {person.bio && (
+                                                    <div className="text-xs text-gray-500 truncate">{person.bio}</div>
+                                                  )}
+                                                </div>
+                                              </button>
+                                            ))}
                                           </div>
-                                      </div>
+                                        </div>
+                                      )}
+
+                                      {(activeTab === 'All' || activeTab === 'Flairs') && searchResults.flairs?.length > 0 && (
+                                        <div className="p-3">
+                                          <div className="text-xs font-bold text-gray-500 uppercase mb-2 px-2">Categories</div>
+                                          <div className="flex flex-wrap gap-2">
+                                            {searchResults.flairs.map((flair: any, idx: number) => (
+                                              <button
+                                                key={`${flair.flair_id}-${idx}`}
+                                                onClick={() => handleSearchSelect(flair.name, 'flair')}
+                                                className="px-3 py-1.5 bg-[#7D9B76] text-white hover:bg-[#6A8565] rounded-full text-sm font-bold transition-colors"
+                                              >
+                                                {flair.name}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* Recent Searches */}
+                                      {!searchQuery && recentSearches.length > 0 && (
+                                        <div className="p-3">
+                                          <div className="flex items-center gap-2 px-2 mb-2">
+                                            <Clock className="w-4 h-4 text-gray-400" />
+                                            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Recent Searches</span>
+                                          </div>
+                                          <div className="space-y-1">
+                                            {recentSearches.map((search, index) => (
+                                              <button
+                                                key={index}
+                                                onClick={() => {
+                                                  setSearchQuery(search);
+                                                  handleSearch(search);
+                                                }}
+                                                className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors"
+                                              >
+                                                {search}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {/* No Results */}
+                                      {searchQuery && !isSearching && 
+                                       searchResults.communities?.length === 0 && 
+                                       searchResults.people?.length === 0 && 
+                                       searchResults.flairs?.length === 0 && (
+                                        <div className="p-8 text-center text-gray-500 text-sm">
+                                          No results found for &quot;{searchQuery}&quot;
+                                        </div>
+                                      )}
+                                    </>
                                   )}
                               </div>
                           </div>
@@ -744,7 +1029,7 @@ useEffect(() => {
                       <h3 className="font-bold text-gray-800 text-lg">Your Communities</h3>
                   </div>
 
-                  <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
                       {communitiesLoading ? (
                           <div className="flex items-center justify-center py-8">
                               <Loader2 className="w-6 h-6 animate-spin text-green-600" />
@@ -753,10 +1038,15 @@ useEffect(() => {
                           userCommunities.map((comm) => (
                               <button
                                   key={comm.community_id}
+                                  onClick={() => router.push(`/community/${comm.community_id}`)}
                                   className="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-green-50 transition" 
                               >
-                                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                                      <Users className="w-6 h-6 text-green-600" />
+                                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center overflow-hidden">
+                                      {comm.profile_picture ? (
+                                          <img src={comm.profile_picture} alt={comm.community_name} className="w-full h-full object-cover" />
+                                      ) : (
+                                          <Users className="w-6 h-6 text-green-600" />
+                                      )}
                                   </div>
                                   <div className="flex-1 text-left">
                                       <span className="text-base font-medium text-gray-700 block">
@@ -774,7 +1064,39 @@ useEffect(() => {
                           </div>
                       )}
                   </div>
+                  
+                  {/* Create Community Button */}
+                  <button
+                      ref={createCommunityBtnRef}
+                      onClick={openCreateCommunityModal}
+                      className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white rounded-full py-3 px-5 flex items-center justify-center gap-2 transition shadow-md hover:shadow-lg"
+                  >
+                      <Plus className="w-5 h-5" />
+                      <span className="text-base font-semibold">Create Community</span>
+                  </button>
               </div>
+
+              {/* Active Flair Filter */}
+              {selectedFlair && (
+                <div className="mt-4 rounded-3xl shadow-lg p-5"
+                    style={{ backgroundColor: 'rgba(125, 155, 118, 0.15)' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-xs font-bold text-gray-500 uppercase mb-1">Filtering by</div>
+                      <div className="px-3 py-1.5 bg-[#7D9B76] text-white rounded-full text-sm font-bold inline-block">
+                        {selectedFlair}
+                      </div>
+                    </div>
+                    <button
+                      onClick={clearFlairFilter}
+                      className="p-2 hover:bg-white/50 rounded-full transition-colors"
+                      title="Clear filter"
+                    >
+                      <X className="w-5 h-5 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+              )}
           </aside>
 
           {/* Main Feed */}
@@ -839,15 +1161,39 @@ useEffect(() => {
                       >
                           <div className="flex items-start justify-between mb-4">
                               <div className="flex items-center gap-3">
-                                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                                      <User className="w-6 h-6 text-gray-400" />
+                                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center overflow-hidden">
+                                      {post.communityProfilePicture ? (
+                                          <img 
+                                              src={post.communityProfilePicture} 
+                                              alt={post.communityName || 'Community'}
+                                              className="w-full h-full object-cover"
+                                          />
+                                      ) : (
+                                          <Users className="w-6 h-6 text-gray-400" />
+                                      )}
                                   </div>
                                   <div>
                                       <div className="flex items-center gap-2">
-                                          <span className="font-bold text-gray-800">community name</span>
-                                          <button className="text-blue-600 text-sm font-semibold hover:underline">
-                                              • Join
-                                          </button>
+                                          {post.communityName ? (
+                                              <>
+                                                  <button
+                                                      onClick={() => router.push(`/community/${post.communityId}`)}
+                                                      className="font-bold text-gray-800 hover:underline"
+                                                  >
+                                                      {post.communityName}
+                                                  </button>
+                                                  {!userCommunities.some(c => c.community_id === post.communityId) && (
+                                                      <button
+                                                          onClick={() => handleJoinCommunity(post.communityId!)}
+                                                          className="text-blue-600 text-sm font-semibold hover:underline"
+                                                      >
+                                                          • Join
+                                                      </button>
+                                                  )}
+                                              </>
+                                          ) : (
+                                              <span className="font-bold text-gray-800">Community</span>
+                                          )}
                                       </div>
                                       <p className="text-sm text-gray-500">{post.user} • {post.date}</p>
                                   </div>
@@ -885,6 +1231,17 @@ useEffect(() => {
                                                   <Flag className="w-4 h-4 text-gray-700" />
                                                   <span className="text-sm font-medium text-gray-900">Report Post</span>
                                               </button>
+                                              
+                                              {/* Show Delete option if user is the author or a moderator */}
+                                              {(post.userId === currentUserId || userCommunities.some(c => c.community_id === post.communityId && c.role === 'moderator')) && (
+                                                <button 
+                                                    className="w-full px-4 py-2 text-left hover:bg-red-50 transition-colors flex items-center gap-2.5"
+                                                    onClick={() => { setIsPostMenuOpen(false); handleDeletePost(post.id, post); }}
+                                                >
+                                                  <X className="w-4 h-4 text-red-600" />
+                                                  <span className="text-sm font-medium text-red-600">Delete Post</span>
+                                                </button>
+                                              )}
                                           </div>
 
                                           <div className="border-t border-gray-400">
@@ -916,14 +1273,14 @@ useEffect(() => {
                                                   </button>
                                               </div>
                                               <div className="max-h-80 overflow-y-auto py-2">
-                                                  {communities.map((community) => (
+                                                  {userCommunities.map((community) => (
                                                       <button
-                                                          key={community}
+                                                          key={community.community_id}
                                                           className="w-full px-6 py-3 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-3"
-                                                          onClick={() => { console.log(`Reposting to ${community}`); setShowRepostModal(false); }}
+                                                          onClick={() => { console.log(`Reposting to ${community.community_name}`); setShowRepostModal(false); }}
                                                       >
                                                           <Users className="w-5 h-5 text-gray-600" />
-                                                          <span className="text-sm font-medium text-gray-900">{community}</span>
+                                                          <span className="text-sm font-medium text-gray-900">{community.community_name}</span>
                                                       </button>
                                                   ))}
                                               </div>
@@ -934,7 +1291,24 @@ useEffect(() => {
                           </div>
 
                           <h2 className="text-xl font-bold text-gray-800 mb-4">{post.heading}</h2>
-                          <p className="text-sm font-medium text-gray-500 mb-4">Identified Species: {post.scientificName}</p> {/* Displaying the new species data */}
+                          
+                          {/* Flair Badges - Clickable */}
+                          {post.flairNames && post.flairNames.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {post.flairNames.map((flair, index) => (
+                                <button
+                                  key={index}
+                                  onClick={() => handleFlairClick(flair)}
+                                  className="px-3 py-1 rounded-full text-xs font-bold bg-[#7D9B76] text-white shadow-sm hover:bg-[#6A8565] transition-colors cursor-pointer"
+                                  title={`Filter by ${flair}`}
+                                >
+                                  {flair}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          
+                          <p className="text-sm font-medium text-gray-500 mb-4">Identified Species: {post.scientificName}</p>
 
 
                           {/* Image Placeholder/Display */}
@@ -1236,6 +1610,16 @@ useEffect(() => {
           </div>
         </div>
       )}
+
+      {/* Create Community Modal */}
+      <CreateCommunityModal
+        isDarkMode={isDarkMode}
+        isOpen={isCreateCommunityOpen}
+        isClosing={isClosingCommunityModal}
+        onClose={closeCreateCommunityModal}
+        onCreate={handleCreateCommunity}
+        modalOrigin={modalOrigin}
+      />
     </div>
   );
 }

@@ -28,6 +28,9 @@ export interface Community {
     member_count: number;
     active_members: number;
     location: string | null;
+    banner_image: string | null;
+    profile_picture: string | null;
+    role?: 'moderator' | 'member'; // User's role in this community
 }
 
 export interface Post {
