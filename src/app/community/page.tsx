@@ -7,9 +7,6 @@ import {
   MessageCircle, Image as ImageIcon, Send, X, Reply, UploadCloud, Check, Sun, Moon, User, Edit2, ShieldCheck, UserMinus
 } from "lucide-react";
 
-// --- MOCK UTILS ---
-// Removed unused usePathname hook
-
 interface LinkProps {
   href: string;
   children: React.ReactNode;
@@ -38,7 +35,6 @@ const philippineLocations = [
 
 // --- HEADER COMPONENT ---
 function Header() {
-  // pathname removed here
   const { isDarkMode, toggleTheme } = useTheme(); 
   
   return (
@@ -118,7 +114,6 @@ function ModeratorPageContent() {
   const profileInputRef = useRef<HTMLInputElement>(null);
 
   // ===== STATE: GLOBAL UI =====
-  // isJoined removed as it was unused
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [sortOption, setSortOption] = useState<SortOptionType>('default');
@@ -265,7 +260,6 @@ function ModeratorPageContent() {
   };
 
   // ===== HANDLERS: MODALS & ACTIONS =====
-  // handleJoin removed here
   const openLightbox = (src: string) => setLightboxImage(src);
   const closeLightbox = () => setLightboxImage(null);
 
@@ -623,6 +617,7 @@ function ModeratorPageContent() {
                 </button>
               </div>
             </div>
+
           </div>
 
           {/* STICKY NAV: MEMBERS & SORT */}
