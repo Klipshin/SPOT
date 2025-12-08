@@ -1,6 +1,19 @@
 import Image from 'next/image'
 import React from 'react'
 
+function formatDate(dbDate: string) {
+  if (!dbDate) return '';
+  const date = new Date(dbDate);
+  return date.toLocaleString('en-US', {
+    month: 'short',   
+    day: 'numeric',   
+    year: 'numeric',  
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 type HistoryProps = {
     reporterProfile: string,
     reporterUsername: string,
@@ -47,7 +60,7 @@ export default function HistoryCell({
         </div>
 
         <div className="text-center">
-            {date}
+            {formatDate(date)}
         </div>
     </div>
   )
