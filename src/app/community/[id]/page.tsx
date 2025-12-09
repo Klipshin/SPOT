@@ -515,19 +515,35 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
     }
   };
 
+  // State for delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [postToDelete, setPostToDelete] = React.useState<string | number | null>(null);
+
   // -- Delete Post Action (for moderators) --
   const handleDeletePost = async (postId: string | number) => {
-    const confirmDelete = confirm('Are you sure you want to delete this post?');
-    if (!confirmDelete) return;
+    setPostToDelete(postId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePost = async () => {
+    if (!postToDelete) return;
 
     try {
-      const response = await fetch(`/api/posts/${postId}/delete`, {
+      const response = await fetch(`/api/posts/${postToDelete}/delete`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: 'Deleted by moderator'
+        }),
       });
 
       if (!response.ok) {
         const error = await response.json();
         alert(error.error || 'Failed to delete post');
+        setShowDeleteModal(false);
+        setPostToDelete(null);
         return;
       }
 
@@ -538,10 +554,13 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
         setCommunityPosts(postsData.posts || []);
       }
 
-      alert('Post deleted successfully');
+      setShowDeleteModal(false);
+      setPostToDelete(null);
     } catch (error) {
       console.error('Error deleting post:', error);
       alert('Failed to delete post. Please try again.');
+      setShowDeleteModal(false);
+      setPostToDelete(null);
     }
   };
 
@@ -1121,6 +1140,55 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
           </filter>
         </defs>
       </svg>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              setShowDeleteModal(false);
+              setPostToDelete(null);
+            }}
+          />
+          <div className="relative w-full max-w-md">
+            <div 
+              className={`w-full rounded-[40px] border shadow-2xl p-8 flex flex-col items-center animate-genie-in ${
+                isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"
+              }`}
+            >
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                isDarkMode ? 'bg-red-600' : 'bg-red-500'
+              }`}>
+                <span className="text-5xl text-white">⚠</span>
+              </div>
+              <h2 className="font-extrabold text-2xl mb-2 text-center">Delete Post?</h2>
+              <p className="text-center mb-6 opacity-80">Are you sure you want to delete this post? This action cannot be undone.</p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setPostToDelete(null);
+                  }}
+                  className={`flex-1 px-6 py-3 rounded-full font-bold transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#333] border-2 border-gray-600 text-white hover:bg-[#444]'
+                      : 'bg-white border-2 border-gray-300 text-black hover:bg-gray-100'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeletePost}
+                  className="flex-1 px-6 py-3 rounded-full font-bold bg-red-600 text-white hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

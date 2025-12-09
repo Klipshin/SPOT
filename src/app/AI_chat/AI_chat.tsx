@@ -55,6 +55,22 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
+  // Post to Community State
+  const [showPostToCommunityModal, setShowPostToCommunityModal] = useState(false);
+  const [selectedMessageToPost, setSelectedMessageToPost] = useState<Message | null>(null);
+  const [userCommunities, setUserCommunities] = useState<any[]>([]);
+  const [isPostingToCommunity, setIsPostingToCommunity] = useState(false);
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
+  
+  // Customizable post fields
+  const [postTitle, setPostTitle] = useState('');
+  const [postContent, setPostContent] = useState('');
+  const [selectedFlairs, setSelectedFlairs] = useState<string[]>([]);
+  
+  // Success/Delete confirmation modals
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
   const router = useRouter();
   
   // Lazy Supabase initialization to avoid SSR issues - use useMemo to create once
@@ -88,6 +104,23 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
       if (profile) {
         setUsername(profile.username);
+      }
+
+      // Fetch user's communities using API route (bypasses RLS)
+      try {
+        const response = await fetch('/api/communities/user');
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Communities loaded via API:', result.communities);
+          setUserCommunities(result.communities || []);
+        } else {
+          console.error('❌ Failed to fetch communities, status:', response.status);
+          setUserCommunities([]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching communities:', error);
+        setUserCommunities([]);
       }
 
       // Fetch chat history
@@ -272,6 +305,86 @@ export const AiChatLoggedIn = (): React.ReactElement => {
     setShowCamera(false);
     setShowMainContent(true);
     setIsCameraLoading(false);
+  };
+
+  // --- HANDLER: SELECT COMMUNITY (STEP 1) ---
+  const handleSelectCommunity = (communityId: string) => {
+    if (!selectedMessageToPost || !selectedMessageToPost.predictions || selectedMessageToPost.predictions.length === 0) {
+      alert('No identification results to post');
+      return;
+    }
+
+    // Set the selected community and initialize post fields
+    setSelectedCommunityId(communityId);
+    
+    const topPrediction = selectedMessageToPost.predictions[0];
+    setPostTitle(`Identification Help: ${topPrediction.common_name}`);
+    
+    // Create a nicely formatted post content with emojis and structure
+    const aiIdentification = 
+      `🤖 AI Identification Result\n\n` +
+      `Species: ${topPrediction.common_name} (${topPrediction.scientific_name})\n\n` +
+      `📊 Confidence Level: ${topPrediction.confidence || 'N/A'}%\n\n` +
+      `⚠️ Danger Level: ${topPrediction.danger_level}\n\n` +
+      `📍 Status: ${topPrediction.status}\n\n` +
+      `🌿 Conservation Status: ${topPrediction.conservation_status}\n\n`;
+    
+    setPostContent(aiIdentification + `Can anyone confirm or provide more information about this identification?`);
+    setSelectedFlairs([]);
+  };
+
+  // --- HANDLER: POST TO COMMUNITY (STEP 2) ---
+  const handlePostToCommunity = async () => {
+    if (!selectedCommunityId || !postTitle.trim() || !postContent.trim()) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setIsPostingToCommunity(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Create post in the community
+      console.log('Posting to community:', selectedCommunityId);
+      console.log('Post data:', { postTitle, postContent, image: selectedMessageToPost?.image, flairs: selectedFlairs });
+      
+      const response = await fetch(`/api/communities/${selectedCommunityId}/posts/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          communityId: selectedCommunityId,
+          title: postTitle,
+          content: postContent,
+          mediaUrl: selectedMessageToPost?.image || null,
+          flairNames: selectedFlairs.length > 0 ? selectedFlairs : undefined,
+        })
+      });
+
+      console.log('Response status:', response.status);
+      const responseData = await response.json();
+      console.log('Response data:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to create post');
+      }
+
+      // Show success modal
+      setSuccessMessage('Successfully posted to community! 🎉');
+      setShowSuccessModal(true);
+      
+      setShowPostToCommunityModal(false);
+      setSelectedMessageToPost(null);
+      setSelectedCommunityId(null);
+      setPostTitle('');
+      setPostContent('');
+      setSelectedFlairs([]);
+    } catch (error) {
+      console.error('Error posting to community:', error);
+      alert('Failed to post to community. Please try again.');
+    } finally {
+      setIsPostingToCommunity(false);
+    }
   };
 
   // --- UPDATED IDENTIFY FUNCTION ---
@@ -553,9 +666,30 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                             <span className="text-xs bg-green-100 text-black px-2 py-0.5 rounded">{pred.conservation_status}</span>
                           </div>
                           {pred.wiki_summary && <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{pred.wiki_summary}</p>}
-                          {pred.wiki_link && (
-                            <button onClick={() => { setModalPred(pred); setModalTab('wiki'); }} className="text-xs text-blue-400 underline mt-1 inline-block">Learn more →</button>
-                          )}
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            {pred.wiki_link && (
+                              <button onClick={() => { setModalPred(pred); setModalTab('wiki'); }} className="text-xs text-blue-400 underline inline-block">Learn more →</button>
+                            )}
+                            {idx === 0 && (
+                              <button 
+                                onClick={() => {
+                                  console.log('Post to Community clicked', message);
+                                  // Find the user message with the image (should be right before this assistant message)
+                                  const messageIndex = messages.findIndex(m => m.id === message.id);
+                                  const userMessage = messageIndex > 0 ? messages[messageIndex - 1] : null;
+                                  const messageToPost = {
+                                    ...message,
+                                    image: message.image || userMessage?.image
+                                  };
+                                  setSelectedMessageToPost(messageToPost);
+                                  setShowPostToCommunityModal(true);
+                                }}
+                                className="text-xs font-semibold bg-[#95ab33] text-white px-3 py-1.5 rounded-full hover:bg-[#7a8c2a] transition-colors shadow-sm"
+                              >
+                                📮 Post to Community
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1005,6 +1139,305 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                   className="px-6 py-2 rounded-full font-semibold bg-red-500 text-white hover:bg-red-600 transition"
                 >
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* POST TO COMMUNITY MODAL */}
+        {showPostToCommunityModal && selectedMessageToPost && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+              onClick={() => {
+                if (!isPostingToCommunity) {
+                  setShowPostToCommunityModal(false);
+                  setSelectedCommunityId(null);
+                  setPostTitle('');
+                  setPostContent('');
+                  setSelectedFlairs([]);
+                }
+              }}
+            />
+            <div className="relative w-full max-w-2xl">
+              <div 
+                className={`w-full rounded-[40px] border shadow-2xl max-h-[90vh] flex flex-col animate-genie-in ${isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"}`}
+              >
+                {/* Header */}
+                <div className={`flex justify-between items-center px-8 pt-8 pb-4 border-b ${isDarkMode ? "border-white/10" : "border-black/10"}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full border flex items-center justify-center ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
+                      <span className="text-2xl">📮</span>
+                    </div>
+                    <h2 className="font-extrabold text-2xl italic">
+                      {selectedCommunityId ? 'Customize Post' : 'Post to Community'}
+                    </h2>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowPostToCommunityModal(false);
+                      setSelectedCommunityId(null);
+                      setPostTitle('');
+                      setPostContent('');
+                      setSelectedFlairs([]);
+                    }}
+                    disabled={isPostingToCommunity}
+                    className="p-2 hover:bg-black/5 rounded-full transition-colors disabled:opacity-50"
+                  >
+                    <span className="text-3xl leading-none">✕</span>
+                  </button>
+                </div>
+
+                {/* Form - Scrollable Content */}
+                <div className="flex-1 overflow-y-auto px-8 py-6">
+                  {!selectedCommunityId ? (
+                    // STEP 1: Select Community
+                    <div className="flex flex-col gap-5">
+                      {/* Preview */}
+                      <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
+                        <p className="text-sm font-bold mb-3 opacity-70">Preview:</p>
+                        {selectedMessageToPost.image && (
+                          <img 
+                            src={selectedMessageToPost.image} 
+                            alt="Preview" 
+                            className="w-full h-40 object-cover rounded-xl mb-3"
+                          />
+                        )}
+                        {selectedMessageToPost.predictions && selectedMessageToPost.predictions[0] && (
+                          <div className="text-sm">
+                            <p className="font-bold">{selectedMessageToPost.predictions[0].common_name}</p>
+                            <p className="italic opacity-70">{selectedMessageToPost.predictions[0].scientific_name}</p>
+                            <p className="text-xs opacity-60 mt-1">Confidence: {selectedMessageToPost.predictions[0].confidence || 'N/A'}%</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-sm font-medium opacity-70">
+                        Select a community to post this identification:
+                      </p>
+
+                      {/* Community list */}
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                        {userCommunities.length > 0 ? (
+                          userCommunities.map((community: any) => (
+                            <button
+                              key={community.community_id}
+                              onClick={() => handleSelectCommunity(community.community_id)}
+                              className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
+                                isDarkMode 
+                                  ? "border-gray-600 bg-[#333] hover:bg-[#444] hover:border-[#7D9B76]" 
+                                  : "border-gray-300 bg-white hover:bg-[#E2DFC8] hover:border-[#7D9B76]"
+                              }`}
+                            >
+                              {community.profile_picture ? (
+                                <img 
+                                  src={community.profile_picture} 
+                                  alt={community.community_name}
+                                  className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-[#7D9B76] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                  {community.community_name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="font-bold text-base text-left">{community.community_name}</span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className={`text-center py-12 px-4 rounded-2xl border-2 ${
+                            isDarkMode ? 'border-gray-600 bg-[#333]' : 'border-gray-300 bg-white'
+                          }`}>
+                            <p className="text-base mb-4 opacity-70">You're not a member of any communities yet.</p>
+                            <button
+                              onClick={() => {
+                                setShowPostToCommunityModal(false);
+                                router.push('/dashboard');
+                              }}
+                              className="px-6 py-3 rounded-full font-bold bg-[#7D9B76] text-white hover:bg-[#6B8765]"
+                            >
+                              Join a Community →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // STEP 2: Customize Post
+                    <div className="flex flex-col gap-5">
+                      {/* Back button */}
+                      <button
+                        onClick={() => setSelectedCommunityId(null)}
+                        className="text-sm text-[#7D9B76] hover:underline self-start"
+                      >
+                        ← Back to communities
+                      </button>
+
+                      {/* Title */}
+                      <div>
+                        <label className="block text-sm font-bold mb-2 opacity-70">
+                          Title *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Can anyone identify this bird?"
+                          value={postTitle}
+                          onChange={(e) => setPostTitle(e.target.value)}
+                          maxLength={100}
+                          className={`w-full text-xl font-bold bg-transparent outline-none border-b-2 pb-2 placeholder:italic transition-colors ${
+                            isDarkMode 
+                              ? "border-gray-600 placeholder:text-gray-500 focus:border-[#5E5CE6]" 
+                              : "border-gray-300 placeholder:text-gray-400 focus:border-[#5E5CE6]"
+                          }`}
+                        />
+                        <div className="text-xs opacity-50 mt-1 text-right">
+                          {postTitle.length}/100
+                        </div>
+                      </div>
+
+                      {/* AI Identification Result (Read-only) */}
+                      {selectedMessageToPost.predictions && selectedMessageToPost.predictions[0] && (
+                        <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#2a2a2a] border-[#7D9B76]' : 'bg-[#f0f7e8] border-[#7D9B76]'}`}>
+                          <p className="text-sm font-bold mb-3 opacity-70">🤖 AI Identification Result:</p>
+                          <div className={`text-sm font-mono ${isDarkMode ? 'text-[#a8d08d]' : 'text-[#4a6b3a]'}`}>
+                            <p className="mb-1">Species: {selectedMessageToPost.predictions[0].common_name} ({selectedMessageToPost.predictions[0].scientific_name})</p>
+                            <p>📊 Confidence Level: {selectedMessageToPost.predictions[0].confidence || 'N/A'}%</p>
+                            <p>⚠️ Danger Level: {selectedMessageToPost.predictions[0].danger_level}</p>
+                            <p>📍 Status: {selectedMessageToPost.predictions[0].status}</p>
+                            <p>🌿 Conservation Status: {selectedMessageToPost.predictions[0].conservation_status}</p>
+                          </div>
+                          <p className="text-xs opacity-60 mt-2 italic">This section will be included in your post automatically</p>
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <div>
+                        <label className="block text-sm font-bold mb-2 opacity-70">
+                          Additional Details *
+                        </label>
+                        <textarea
+                          placeholder="Add your own observations, location, questions for the community..."
+                          value={postContent.split('🌿 Conservation Status: ').slice(-1)[0].split('\n\n').slice(-1)[0] || ''}
+                          onChange={(e) => {
+                            // Preserve the AI identification part and only update the user's additional text
+                            const pred = selectedMessageToPost.predictions?.[0];
+                            if (pred) {
+                              const aiPart = 
+                                `🤖 AI Identification Result\n\n` +
+                                `Species: ${pred.common_name} (${pred.scientific_name})\n` +
+                                `📊 Confidence Level: ${pred.confidence || 'N/A'}%\n` +
+                                `⚠️ Danger Level: ${pred.danger_level}\n` +
+                                `📍 Status: ${pred.status}\n` +
+                                `🌿 Conservation Status: ${pred.conservation_status}\n\n`;
+                              setPostContent(aiPart + e.target.value);
+                            } else {
+                              setPostContent(e.target.value);
+                            }
+                          }}
+                          maxLength={1000}
+                          rows={6}
+                          className={`w-full text-base bg-transparent outline-none border-2 rounded-xl p-4 placeholder:italic transition-colors resize-none ${
+                            isDarkMode 
+                              ? "border-gray-600 placeholder:text-gray-500 focus:border-[#5E5CE6]" 
+                              : "border-gray-300 placeholder:text-gray-400 focus:border-[#5E5CE6]"
+                          }`}
+                        />
+                        <div className="text-xs opacity-50 mt-1 text-right">
+                          {postContent.length}/1000
+                        </div>
+                      </div>
+
+                      {/* Categories */}
+                      <div>
+                        <label className="block text-sm font-bold mb-2 opacity-70">
+                          Categories (Optional)
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {['Mammals', 'Birds', 'Reptiles', 'Amphibians', 'Fish', 'Insects', 'Plants', 'Fungi', 'Other'].map(category => (
+                            <button
+                              key={category}
+                              onClick={() => {
+                                setSelectedFlairs(prev => 
+                                  prev.includes(category) 
+                                    ? prev.filter(f => f !== category)
+                                    : [...prev, category]
+                                );
+                              }}
+                              className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${
+                                selectedFlairs.includes(category)
+                                  ? 'bg-[#7D9B76] text-white'
+                                  : isDarkMode
+                                    ? 'bg-[#333] border-2 border-gray-600 hover:border-[#7D9B76]'
+                                    : 'bg-white border-2 border-gray-300 hover:border-[#7D9B76]'
+                              }`}
+                            >
+                              {category}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Image preview */}
+                      {selectedMessageToPost.image && (
+                        <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
+                          <p className="text-sm font-bold mb-2 opacity-70">Attached Image:</p>
+                          <img 
+                            src={selectedMessageToPost.image} 
+                            alt="Attached" 
+                            className="w-full h-40 object-cover rounded-xl"
+                          />
+                        </div>
+                      )}
+
+                      {/* Post button */}
+                      <button
+                        onClick={handlePostToCommunity}
+                        disabled={isPostingToCommunity || !postTitle.trim() || !postContent.trim()}
+                        className={`w-full py-4 rounded-full font-bold text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isDarkMode
+                            ? 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
+                            : 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
+                        }`}
+                      >
+                        {isPostingToCommunity ? 'Posting...' : 'Post to Community'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SUCCESS MODAL */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowSuccessModal(false)}
+            />
+            <div className="relative w-full max-w-md">
+              <div 
+                className={`w-full rounded-[40px] border shadow-2xl p-8 flex flex-col items-center animate-genie-in ${
+                  isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"
+                }`}
+              >
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                  isDarkMode ? 'bg-[#7D9B76]' : 'bg-[#7D9B76]'
+                }`}>
+                  <span className="text-5xl">✓</span>
+                </div>
+                <h2 className="font-extrabold text-2xl mb-2 text-center">Success!</h2>
+                <p className="text-center mb-6 opacity-80">{successMessage}</p>
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className={`px-8 py-3 rounded-full font-bold transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
+                      : 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
+                  }`}
+                >
+                  Awesome!
                 </button>
               </div>
             </div>

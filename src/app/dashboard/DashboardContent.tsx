@@ -144,6 +144,50 @@ useEffect(() => {
   const currentUsername = session?.user.user_metadata?.username || session?.user.email?.split('@')[0] || 'Guest';
   const currentEmail = session?.user.email || 'N/A';
 
+  // State for user profile data
+  const [userProfile, setUserProfile] = useState<{ name: string; location: string; occupation: string; profile_picture: string | null } | null>(null);
+
+  // Fetch user profile data
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!currentUserId) return;
+      
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select('name, location, profile_picture')
+          .eq('user_id', currentUserId)
+          .single();
+
+        if (data) {
+          console.log('User profile data:', data);
+          setUserProfile({
+            name: data.name || 'Full Name',
+            location: data.location || 'Location not set',
+            occupation: 'Wildlife Enthusiast', // Default occupation
+            profile_picture: data.profile_picture
+          });
+        }
+
+        // Fetch expert data if exists
+        const { data: expertData } = await supabase
+          .from('experts')
+          .select('occupation')
+          .eq('user_id', currentUserId)
+          .single();
+
+        if (expertData) {
+          setUserProfile(prev => prev ? { ...prev, occupation: expertData.occupation } : null);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    };
+
+    fetchUserProfile();
+  }, [currentUserId]);
+
   // Fetch user's communities from Supabase
   const { userCommunities, loading: communitiesLoading } = useCommunities();
 
@@ -197,15 +241,56 @@ useEffect(() => {
     { id: 4, name: "Snake Finders", color: "bg-yellow-100" }
   ];
 
-  const trending = [
-    { id: 1, name: "King Cobra", color: "bg-green-100" },
-    { id: 2, name: "Rat Snakes", color: "bg-amber-100" },
-    { id: 3, name: "Anaconda", color: "bg-blue-100" },
-    { id: 4, name: "mommy oni", color: "bg-yellow-100" }
-  ];
+  // Flair metadata with emojis and colors
+  const flairMetadata: Record<string, { emoji: string; color: string }> = {
+    'Reptiles': { emoji: '🦎', color: 'bg-green-100' },
+    'Birds': { emoji: '🦅', color: 'bg-blue-100' },
+    'Mammals': { emoji: '🦁', color: 'bg-amber-100' },
+    'Amphibians': { emoji: '🐸', color: 'bg-emerald-100' },
+    'Fish': { emoji: '🐠', color: 'bg-cyan-100' },
+    'Insects': { emoji: '🦋', color: 'bg-yellow-100' },
+    'Arachnids': { emoji: '🕷️', color: 'bg-purple-100' },
+    'Mollusks': { emoji: '🐚', color: 'bg-pink-100' },
+    'Crustaceans': { emoji: '🦀', color: 'bg-orange-100' },
+    'Plants': { emoji: '🌿', color: 'bg-lime-100' },
+    'Fungi': { emoji: '🍄', color: 'bg-red-100' },
+    'Other': { emoji: '🔍', color: 'bg-gray-100' }
+  };
+
+  // State for popular flairs
+  const [popularFlairs, setPopularFlairs] = useState<Array<{ name: string; count: number; emoji: string; color: string }>>([]);
   
   // Client-side state for rendering posts (initial dummy data uses UUID string)
   const [clientPosts, setClientPosts] = useState<ClientPost[]>([]);
+
+  // Effect to calculate popular flairs from posts
+  useEffect(() => {
+    if (fetchedPosts.length > 0) {
+      // Count posts per flair
+      const flairCounts: Record<string, number> = {};
+      
+      fetchedPosts.forEach((post: any) => {
+        if (post.flairNames && Array.isArray(post.flairNames)) {
+          post.flairNames.forEach((flair: string) => {
+            flairCounts[flair] = (flairCounts[flair] || 0) + 1;
+          });
+        }
+      });
+
+      // Convert to array and sort by count
+      const sortedFlairs = Object.entries(flairCounts)
+        .map(([name, count]) => ({
+          name,
+          count,
+          emoji: flairMetadata[name]?.emoji || '🔥',
+          color: flairMetadata[name]?.color || 'bg-gray-100'
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 6); // Top 6 flairs
+
+      setPopularFlairs(sortedFlairs);
+    }
+  }, [fetchedPosts]);
 
   // Effect to map Supabase data to your client-side state structure
   useEffect(() => {
@@ -1022,23 +1107,35 @@ useEffect(() => {
                   }}
               >
                   <div className="flex items-start gap-4 mb-5">
-                      <div className="w-15 h-15 bg-white/30 rounded-full flex items-center justify-center">
-                          <User className="w-10 h-10 text-white" />
+                      <div className="w-16 h-16 bg-white/30 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                          {userProfile?.profile_picture ? (
+                            <img 
+                              src={userProfile.profile_picture} 
+                              alt={currentUsername} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error('Failed to load image:', userProfile.profile_picture);
+                                e.currentTarget.style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <User className="w-10 h-10 text-white" />
+                          )}
                       </div>
                       <div className="flex-1">
                           <p className="text-base font-semibold opacity-90">@{currentUsername}</p>
-                          <p className="text-xl font-bold">Full Name Placeholder</p> 
+                          <p className="text-xl font-bold">{userProfile?.name || 'Loading...'}</p> 
                       </div>
                   </div>
                   
                   <div className="space-y-2.5 text-base">
                       <div className="flex items-center gap-2">
                           <Briefcase className="w-5 h-5" />
-                          <span className="font-medium">occupation</span>
+                          <span className="font-medium">{userProfile?.occupation || 'Wildlife Enthusiast'}</span>
                       </div>
                       <div className="flex items-center gap-2">
                           <MapPin className="w-5 h-5" />
-                          <span>location</span>
+                          <span>{userProfile?.location || 'Location not set'}</span>
                       </div>
                   </div>
 
@@ -1431,19 +1528,34 @@ useEffect(() => {
                   <h3 className="font-bold text-xl text-gray-800 mb-6">Popular Now!</h3>
 
                   <div className="mt-3 space-y-2 max-h-[170px] overflow-y-auto">
-                      {trending.map((trend) => (
-                          <button key={trend.id} className="w-full text-left">
+                      {popularFlairs.length > 0 ? (
+                        popularFlairs.map((flair, index) => (
+                          <button 
+                            key={flair.name} 
+                            className="w-full text-left hover:scale-[1.02] transition-transform"
+                            onClick={() => handleFlairClick(flair.name)}
+                          >
                               <div
-                                  className="bg-gradient-to-br from-amber-50 to-green-50 rounded-2xl border-2 border-amber-200 flex items-center gap-1 px-2"
+                                  className={`${flair.color} rounded-2xl border-2 border-amber-200 flex items-center gap-2 px-3 hover:border-[#7D9B76] transition-colors`}
                                   style={{ height: "50px" }}
                               >
-                                  <div className="text-2xl">🔥</div>
-                                  <span className="font-semibold text-gray-700 truncate">
-                                      {trend.name}
-                                  </span>
+                                  <div className="text-2xl">{flair.emoji}</div>
+                                  <div className="flex-1 flex items-center justify-between">
+                                    <span className="font-semibold text-gray-700 truncate">
+                                        {flair.name}
+                                    </span>
+                                    <span className="text-xs font-bold text-gray-500 bg-white/50 px-2 py-1 rounded-full">
+                                        {flair.count}
+                                    </span>
+                                  </div>
                               </div>
                           </button>
-                      ))}
+                        ))
+                      ) : (
+                        <div className="text-center py-4 text-gray-500 text-sm">
+                          No popular flairs yet
+                        </div>
+                      )}
                   </div>
               </div>
           </aside>
