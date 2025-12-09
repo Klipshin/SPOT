@@ -202,8 +202,10 @@ export default function Upload() {
       reader.onload = () => {
         const dataUrl = reader.result as string;
         try {
-          localStorage.setItem('spot_pending_upload', dataUrl);
-          localStorage.removeItem('spot_pending_upload_static');
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('spot_pending_upload', dataUrl);
+            localStorage.removeItem('spot_pending_upload_static');
+          }
         } catch (err) {
           console.error('Failed to store camera capture', err);
         }
@@ -219,6 +221,8 @@ export default function Upload() {
   }
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     try {
       const stored = localStorage.getItem('spot_pending_upload');
       const storedStatic = localStorage.getItem('spot_pending_upload_static');
@@ -275,7 +279,9 @@ export default function Upload() {
     reader.onload = () => {
       const data = reader.result as string;
       try {
-        localStorage.setItem('spot_pending_upload', data);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('spot_pending_upload', data);
+        }
       } catch (err) {
         console.error('Failed to store selected image', err);
       }
