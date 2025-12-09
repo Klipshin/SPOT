@@ -3,7 +3,8 @@
 import { Profile } from "@/src/utils/supabase/models";
 import { useEffect, useState } from "react";
 import { useUser } from "./useUser";
-import { profileService } from "../services";
+import { expertService, profileService } from "../services";
+import { useRouter } from "next/navigation";
 
 export function useProfiles(userId: string) {
     const { user } = useUser(); 
@@ -11,6 +12,7 @@ export function useProfiles(userId: string) {
     const [userProfiles, setUserProfiles] = useState<Profile[]>([])
     const [userLoading, setUserLoading] = useState(true);
     const [userError, setUserError] = useState<string | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
         if (user && userId) {
@@ -59,5 +61,45 @@ export function useProfiles(userId: string) {
             throw err;
         }
     }
-    return {userProfiles, userProfile, userLoading, userError, createUserProfile}
+
+    async function checkUserProfile(userId: string) {
+        if (!userId) {
+            setUserError("No user id available to check profile.");
+            return false;
+        }
+
+        try {
+            setUserLoading(true);
+            setUserError(null);
+            const profile = await profileService.getUserProfile(userId);
+        
+            if (profile.username !== null) {
+                router.push("/initial-setup");
+                return true;
+            }
+
+            if (profile.is_expert === true) {
+
+                const expert = await expertService.getExpert(userId);
+
+                if (!expert) {
+                    router.push("/auth/expert-verification");
+                    return true;
+                }
+
+                router.push("/initial-setup");
+                return true;
+            }
+            
+            router.push("/dashboard");
+            return true;
+        } catch (err) {
+            setUserError (err instanceof Error ? err.message : "Failed to load user.");
+            return false;
+        } finally {
+            setUserLoading(false);
+        }
+    }
+
+    return {userProfiles, userProfile, userLoading, userError, createUserProfile, checkUserProfile}
 }
