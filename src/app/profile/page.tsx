@@ -1,13 +1,26 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft } from 'lucide-react';
+import { createClient } from '@/src/utils/supabase/client';
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
+  ssr: false
+});
 
 export default function ProfilePage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -16,6 +29,51 @@ export default function ProfilePage() {
     email: '',
     location: '',
   });
+
+  // Load user profile data
+  useEffect(() => {
+    async function loadUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/auth/login');
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('username, name, location, profile_picture')
+          .eq('user_id', user.id)
+          .single();
+
+        // Check if user is an expert to get occupation
+        const { data: expertData } = await supabase
+          .from('experts')
+          .select('occupation')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profile) {
+          setFormData({
+            username: profile.username || '',
+            name: profile.name || '',
+            job: expertData?.occupation || 'Wildlife Enthusiast',
+            email: user.email || '',
+            location: profile.location || '',
+          });
+          if (profile.profile_picture) {
+            setProfileImage(profile.profile_picture);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadUserProfile();
+  }, [supabase, router]);
 
   const [editableFields, setEditableFields] = useState({
     username: false,
@@ -64,6 +122,53 @@ export default function ProfilePage() {
     reader.readAsDataURL(file);
   }
 };
+
+  const handleSaveProfile = async () => {
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Please log in to save your profile');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          username: formData.username,
+          name: formData.name,
+          location: formData.location,
+          profile_picture: profileImage,
+        })
+        .eq('user_id', user.id);
+
+      // If user is an expert, update occupation in experts table
+      if (formData.job) {
+        await supabase
+          .from('experts')
+          .update({ occupation: formData.job })
+          .eq('user_id', user.id);
+      }
+
+      if (error) throw error;
+
+      // Show success modal
+      setShowSuccessModal(true);
+      // Disable all field editing after save
+      setEditableFields({
+        username: false,
+        name: false,
+        job: false,
+        email: false,
+        location: false,
+      });
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div 
@@ -116,7 +221,7 @@ export default function ProfilePage() {
     <img 
       className="w-[35px] h-[35px] aspect-[1] object-cover rounded-full" 
       alt="User" 
-      src="/pfpp.svg" 
+      src={profileImage || "/pfpp.svg"} 
     />
   </button>
 
@@ -129,8 +234,8 @@ export default function ProfilePage() {
     >
       {/* User Info Section */}
       <div className="px-4 py-3 border-b border-gray-300">
-        <h3 className="text-base font-bold text-gray-900">@username</h3>
-        <p className="text-xs text-gray-600 mt-0.5">username@gmail.com</p>
+        <h3 className="text-base font-bold text-gray-900">@{formData.username || 'username'}</h3>
+        <p className="text-xs text-gray-600 mt-0.5">{formData.email || 'email@example.com'}</p>
       </div>
 
       {/* Menu Items */}
@@ -191,6 +296,15 @@ export default function ProfilePage() {
 
       {/* Main Content */}
       <div className="relative z-10 flex gap-10 px-12 py-20 max-w-[1800px] mx-auto">
+        {isLoading ? (
+          <div className="flex-1 bg-white rounded-[40px] p-15 shadow-2xl w-250 flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#306137] mx-auto mb-4"></div>
+              <p className="text-gray-600 text-lg">Loading profile...</p>
+            </div>
+          </div>
+        ) : (
+          <>
         {/* Left Panel - Profile Editing Form */}
         <div className="flex-1 bg-white rounded-[40px] p-15 shadow-2xl w-250">
           <div className="flex gap-8">
@@ -323,32 +437,52 @@ export default function ProfilePage() {
               {/* Location */}
               <div className="space-y-2">
                 <label className="text-base font-semibold text-gray-800">Location</label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="text"
-                    ref={inputRefs.location}
-                    value={formData.location}
-                    onChange={(e) => handleInputChange('location', e.target.value)}
-                    onBlur={() => disableFieldEditing('location')}
-                    readOnly={!editableFields.location}
-                    placeholder="Location"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
-                      editableFields.location
-                        ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => enableFieldEditing('location')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
-                  >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
-                </div>
+                {editableFields.location ? (
+                  <div>
+                    <LocationSearch 
+                      value={formData.location} 
+                      onChange={(location) => handleInputChange('location', location)} 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => disableFieldEditing('location')}
+                      className="mt-2 px-4 py-2 bg-[#306137] text-white rounded-lg hover:bg-[#246440] transition-colors"
+                    >
+                      Done
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={formData.location}
+                      readOnly
+                      placeholder="Location"
+                      className="flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => enableFieldEditing('location')}
+                      className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Save Button */}
+              <div className="pt-6">
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={isSaving}
+                  className="w-full bg-[#306137] hover:bg-[#246440] text-white font-semibold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
               </div>
             </div>
 
@@ -407,13 +541,17 @@ export default function ProfilePage() {
             {/* Content wrapper with relative positioning */}
             <div className="relative z-10">
               <div className="flex items-start gap-4 mb-5">
-                <div className="w-15 h-15 bg-white/30 rounded-full flex items-center justify-center">
-                  <User className="w-10 h-10 text-white" />
+                <div className="w-15 h-15 bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
+                  {profileImage ? (
+                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-10 h-10 text-white" />
+                  )}
                 </div>
                 <div className="flex-1">
-                  <p className="text-base font-semibold opacity-90">@username</p>
+                  <p className="text-base font-semibold opacity-90">@{formData.username || 'username'}</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-xl font-bold">Cliff Edward Alsonado</p>
+                    <p className="text-xl font-bold">{formData.name || 'Your Name'}</p>
                   </div>
                 </div>
               </div>
@@ -421,11 +559,11 @@ export default function ProfilePage() {
               <div className="space-y-2.5 text-base">
                 <div className="flex items-center gap-2">
                   <Briefcase className="w-5 h-5" />
-                  <span className="font-medium">occupation</span>
+                  <span className="font-medium">{formData.job || 'Wildlife Enthusiast'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5" />
-                  <span>location</span>
+                  <span>{formData.location || 'Location'}</span>
                 </div>
               </div>
             </div>
@@ -434,17 +572,88 @@ export default function ProfilePage() {
          {/* Save and Back Buttons */}
 <div className="mt-auto pt-6 space-y-3">
   {/* Save Button */}
-  <button className="w-full transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl">
+  <button 
+    onClick={handleSaveProfile}
+    disabled={isSaving}
+    className="w-full transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+  >
     <img src="/savee.svg" alt="Save Changes" className="w-full h-auto" />
   </button>
 
   {/* Back Button */}
-  <button className="w-full transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl">
+  <button 
+    onClick={() => router.push('/dashboard')}
+    className="w-full transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl"
+  >
     <img src="/backz.svg" alt="Back" className="w-full h-auto" />
   </button>
 </div>
         </aside>
+          </>
+        )}
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
+            onClick={() => setShowSuccessModal(false)}
+          />
+          <div 
+            className="relative bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl transform transition-all"
+            style={{
+              animation: 'slideIn 0.3s ease-out'
+            }}
+          >
+            <style jsx>{`
+              @keyframes slideIn {
+                from {
+                  opacity: 0;
+                  transform: scale(0.9) translateY(-20px);
+                }
+                to {
+                  opacity: 1;
+                  transform: scale(1) translateY(0);
+                }
+              }
+            `}</style>
+            
+            {/* Success Icon */}
+            <div className="flex justify-center mb-6">
+              <div 
+                className="w-20 h-20 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(131deg, #2A5528 15.98%, #927D31 125.22%)'
+                }}
+              >
+                <svg className="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Success Message */}
+            <h2 className="text-2xl font-bold text-center mb-2" style={{ color: '#2A5528' }}>
+              Profile Updated!
+            </h2>
+            <p className="text-center text-gray-600 mb-6">
+              Your changes have been saved successfully.
+            </p>
+
+            {/* Close Button */}
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full py-3 rounded-xl font-semibold text-white transition-all hover:scale-105"
+              style={{
+                background: 'linear-gradient(131deg, #2A5528 15.98%, #927D31 125.22%)'
+              }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

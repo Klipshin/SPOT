@@ -1,22 +1,68 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { createClient } from '@/src/utils/supabase/client';
+import { useRouter } from 'next/navigation';
 
-type ActiveSection = 'edit-profile' | 'change-password' | 'privacy-settings' | 'notifications';
+type ActiveSection = 'change-password' | 'privacy-settings' | 'notifications';
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<ActiveSection>('edit-profile');
+  const [activeSection, setActiveSection] = useState<ActiveSection>('change-password');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-const [showNewPassword, setShowNewPassword] = useState(false);
-const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
   
   const [formData, setFormData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@example.com',
-    bio: 'Software developer passionate about creating beautiful user experiences.',
+    firstName: '',
+    lastName: '',
+    email: '',
+    bio: '',
+    username: '',
+    location: '',
+    occupation: '',
   });
+
+  // Fetch user profile data on mount
+  useEffect(() => {
+    async function loadUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/auth/login');
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profile) {
+          setFormData({
+            firstName: profile.name?.split(' ')[0] || '',
+            lastName: profile.name?.split(' ').slice(1).join(' ') || '',
+            email: user.email || '',
+            bio: profile.bio || '',
+            username: profile.username || '',
+            location: profile.location || '',
+            occupation: profile.occupation || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadUserProfile();
+  }, [supabase, router]);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -46,16 +92,92 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission
-    console.log('Form submitted:', formData);
+    setIsSaving(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+
+      const { error } = await supabase
+        .from('user_profiles')
+        .update({
+          name: fullName,
+          bio: formData.bio,
+          username: formData.username,
+          location: formData.location,
+          occupation: formData.occupation,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      alert('Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle password change
-    console.log('Password change submitted:', passwordData);
+    
+    // Validate passwords
+    if (!passwordData.currentPassword) {
+      alert('Please enter your current password');
+      return;
+    }
+    
+    if (!passwordData.newPassword) {
+      alert('Please enter a new password');
+      return;
+    }
+    
+    if (passwordData.newPassword.length < 6) {
+      alert('New password must be at least 6 characters long');
+      return;
+    }
+    
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('New passwords do not match');
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      // Update password using Supabase Auth
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+      
+      if (error) {
+        // Check if it's an authentication error
+        if (error.message.includes('Invalid login credentials') || error.message.includes('password')) {
+          throw new Error('Current password is incorrect');
+        }
+        throw error;
+      }
+      
+      // Clear form
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      
+      alert('Password updated successfully!');
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      alert(error.message || 'Failed to update password. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handlePrivacySubmit = (e: React.FormEvent) => {
@@ -181,20 +303,21 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
       <div className="flex gap-6 p-6 max-w-7xl mx-auto pt-2">
         {/* Left Sidebar */}
         <aside className="w-75 bg-white rounded-lg shadow-lg p-6 flex flex-col">
+          <div className="mb-4">
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span className="font-medium">Back to Dashboard</span>
+            </button>
+          </div>
           <h2 className="text-2xl font-bold text-gray-800 mb-6">Account Settings</h2><br />
 
           {/* Navigation Links */}
           <nav className="flex flex-col gap-2 flex-grow mb-4">
-            <button 
-              onClick={() => setActiveSection('edit-profile')}
-              className={`text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                activeSection === 'edit-profile'
-                  ? 'bg-[#4a7c59] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Edit Profile
-            </button>
             <button 
               onClick={() => setActiveSection('change-password')}
               className={`text-left px-4 py-3 rounded-lg font-medium transition-colors ${
@@ -239,73 +362,7 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
         {/* Main Content Area */}
         <main className="flex-1 bg-white rounded-lg shadow-lg p-8">
-          {activeSection === 'edit-profile' && (
-            <>
-              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Edit Profile</h1>
-              <form onSubmit={handleSubmit} className="max-w-2xl mx-auto">
-                <div className="mb-6">
-                  <label htmlFor="firstName" className="block text-gray-700 font-medium mb-2">
-                    First Name
-                  </label>
-                  <input
-                    type="text"
-                    id="firstName"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
-                  />
-                </div>
-                <div className="mb-6">
-                  <label htmlFor="lastName" className="block text-gray-700 font-medium mb-2">
-                    Last Name
-                  </label>
-                  <input
-                    type="text"
-                    id="lastName"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
-                  />
-                </div>
-                <div className="mb-6">
-                  <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
-                  />
-                </div>
-                <div className="mb-8">
-                  <label htmlFor="bio" className="block text-gray-700 font-medium mb-2">
-                    Bio
-                  </label>
-                  <textarea
-                    id="bio"
-                    name="bio"
-                    value={formData.bio}
-                    onChange={handleInputChange}
-                    rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent resize-y"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-[#4a7c59] text-white font-medium py-3 rounded-lg hover:bg-[#3d6a4a] transition-colors"
-                >
-                  Save Changes
-                </button>
-              </form>
-            </>
-          )}
-
-{activeSection === 'change-password' && (
+          {activeSection === 'change-password' && (
             <>
               <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Change Password</h1><br />
               <form onSubmit={handlePasswordSubmit} className="max-w-2xl mx-auto">
@@ -410,9 +467,10 @@ const [showConfirmPassword, setShowConfirmPassword] = useState(false);
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-[#4a7c59] text-white font-medium py-3 rounded-lg hover:bg-[#3d6a4a] transition-colors"
+                  disabled={isSaving}
+                  className="w-full bg-[#4a7c59] text-white font-medium py-3 rounded-lg hover:bg-[#3d6a4a] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Update Password
+                  {isSaving ? 'Updating...' : 'Update Password'}
                 </button>
               </form>
             </>

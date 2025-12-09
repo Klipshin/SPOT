@@ -49,6 +49,9 @@ export async function GET(request: Request) {
         content,
         media_url,
         created_at,
+        location,
+        latitude,
+        longitude,
         user_profiles!posts_user_id_fkey (
           username,
           profile_picture

@@ -46,6 +46,9 @@ type ClientPost = {
   flairNames?: string[];
   userId?: string;
   authorUsername?: string;
+  location?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 // FIX: Updated Supabase Post structure for fetching to treat joined fields as arrays
@@ -213,6 +216,8 @@ useEffect(() => {
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [isClosingCommunityModal, setIsClosingCommunityModal] = useState(false);
   const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{ name: string; lat: number; lng: number } | null>(null);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -292,7 +297,7 @@ useEffect(() => {
     }
   }, [fetchedPosts]);
 
-  // Effect to map Supabase data to your client-side state structure
+  // Effect to map Supabase data to your client-side state structure and fetch comments
   useEffect(() => {
       if (fetchedPosts.length > 0) {
           const mappedPosts: ClientPost[] = fetchedPosts.map((p: any) => ({
@@ -313,11 +318,103 @@ useEffect(() => {
               communityProfilePicture: p.communities?.profile_picture,
               flairNames: p.flairNames || [],
               userId: p.user_id,
-              authorUsername: p.user_profiles?.username
+              authorUsername: p.user_profiles?.username,
+              location: p.location || null,
+              latitude: p.latitude || null,
+              longitude: p.longitude || null
           }));
           setClientPosts(mappedPosts);
+          
+          // Fetch comments for each post
+          mappedPosts.forEach(async (post) => {
+            try {
+              const response = await fetch(`/api/posts/${post.id}/comments`);
+              if (response.ok) {
+                const { comments } = await response.json();
+                const mappedComments: Comment[] = comments.map((c: any) => ({
+                  id: c.comment_id,
+                  user: `@${c.user_profiles?.username || 'user'}`,
+                  date: formatTimeAgo(c.created_at),
+                  text: c.content,
+                  image: c.media_url,
+                  vote: null,
+                  upvotes: 0,
+                  downvotes: 0,
+                  isReply: c.parent_comment_id !== null,
+                }));
+                
+                setClientPosts(prevPosts => prevPosts.map(p => 
+                  p.id === post.id ? { ...p, comments: mappedComments } : p
+                ));
+              }
+            } catch (error) {
+              console.error(`Error fetching comments for post ${post.id}:`, error);
+            }
+          });
       }
   }, [fetchedPosts]);
+
+  // Initialize Leaflet map when location modal opens
+  useEffect(() => {
+    if (showLocationModal && selectedLocation && typeof window !== 'undefined') {
+      // Dynamically load Leaflet if not already loaded
+      if (!(window as any).L) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => initializeMap();
+        document.head.appendChild(script);
+      } else {
+        // Leaflet already loaded
+        initializeMap();
+      }
+    }
+
+    function initializeMap() {
+      const L = (window as any).L;
+      if (!L || !selectedLocation) return;
+
+      const mapContainer = document.getElementById('dashboard-location-modal-map');
+      if (!mapContainer) return;
+
+      // Remove existing map instance if any
+      if ((mapContainer as any)._leaflet_id) {
+        const existingMap = (mapContainer as any)._leaflet_map;
+        if (existingMap) {
+          existingMap.remove();
+        }
+      }
+
+      // Create new map
+      const map = L.map('dashboard-location-modal-map').setView([selectedLocation.lat, selectedLocation.lng], 13);
+      (mapContainer as any)._leaflet_map = map;
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      L.marker([selectedLocation.lat, selectedLocation.lng])
+        .addTo(map)
+        .bindPopup(selectedLocation.name)
+        .openPopup();
+
+      // Fix map rendering issue
+      setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    // Cleanup function
+    return () => {
+      const mapContainer = document.getElementById('dashboard-location-modal-map');
+      if (mapContainer && (mapContainer as any)._leaflet_map) {
+        (mapContainer as any)._leaflet_map.remove();
+        delete (mapContainer as any)._leaflet_map;
+      }
+    };
+  }, [showLocationModal, selectedLocation]);
 
 
   // --- Handlers (CRUD Placeholders) ---
@@ -552,44 +649,41 @@ useEffect(() => {
   // ===== SUPABASE HANDLER FOR COMMENTS =====
   const handlePostComment = async (postId: string) => {
     if (!newCommentText.trim() && !attachedCommentImage) return;
-    if (!currentUserId || !supabase) return;
+    if (!currentUserId) return;
     
-    // ----------------------------------------------------
-    // TODO: SUPABASE API CALL - INSERT NEW COMMENT
-    // (You need to implement image upload to Supabase Storage here)
-    // ----------------------------------------------------
-    let commentImageUrl = attachedCommentImage; // Placeholder for now
+    try {
+      // Call API to post comment
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: newCommentText,
+          media_url: attachedCommentImage,
+          parent_comment_id: replyingToId
+        }),
+      });
 
-    const { data: insertedComment, error: commentError } = await supabase
-        .from('comments')
-        .insert({
-            post_id: postId,
-            user_id: currentUserId,
-            content: newCommentText,
-            media_url: commentImageUrl,
-            parent_comment_id: replyingToId 
-        })
-        .select()
-        .single();
-
-    if (commentError) {
-        console.error('Error posting comment:', commentError);
+      if (!response.ok) {
+        console.error('Failed to post comment');
         return;
-    }
-    // ----------------------------------------------------
+      }
 
-    // CLIENT-SIDE STATE UPDATE (after successful DB insert)
-    const newComment: Comment = {
-      id: insertedComment?.id || Date.now(), 
-      user: currentUsername,
-      date: 'Just now', 
-      text: newCommentText,
-      image: attachedCommentImage,
-      vote: null,
-      upvotes: 0,
-      downvotes: 0,
-      isReply: replyingToId !== null,
-    };
+      const { comment: insertedComment } = await response.json();
+
+      // CLIENT-SIDE STATE UPDATE (after successful DB insert)
+      const newComment: Comment = {
+        id: insertedComment?.comment_id || Date.now(), 
+        user: `@${currentUsername}`,
+        date: 'Just now', 
+        text: newCommentText,
+        image: attachedCommentImage,
+        vote: null,
+        upvotes: 0,
+        downvotes: 0,
+        isReply: replyingToId !== null,
+      };
     
     setClientPosts(prevPosts => prevPosts.map(post => {
       if (post.id !== postId) return post;
@@ -625,6 +719,9 @@ useEffect(() => {
     setNewCommentText('');
     setAttachedCommentImage(null);
     cancelReply();
+    } catch (error) {
+      console.error('Error posting comment:', error);
+    }
   };
 
   const handleCommentKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>, postId: string) => {
@@ -634,17 +731,33 @@ useEffect(() => {
     }
   };
 
-  // ===== HELPER FUNCTION =====
+  // ===== HELPER FUNCTIONS =====
   const formatVoteCount = (count: number) => {
     if (count >= 1000000) return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
     if (count >= 1000) return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     return count.toString();
   };
 
-  // ===== SUPABASE HANDLER FOR POST VOTES =====
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // ===== HANDLER FOR POST VOTES =====
   const handlePostVote = async (postId: string, type: 'up' | 'down') => {
-    if (!currentUserId || !supabase) {
-      console.warn('Cannot vote: User not logged in or Supabase not initialized');
+    if (!currentUserId) {
+      console.warn('Cannot vote: User not logged in');
       return;
     }
 
@@ -676,99 +789,112 @@ useEffect(() => {
         action = currentPost.vote ? 'update' : 'insert';
     }
 
-    // ----------------------------------------------------
-    // TODO: SUPABASE API CALL - HANDLE VOTE
-    // ----------------------------------------------------
-    const voteData = {
-        post_id: postId,
-        user_id: currentUserId,
-        vote_type: type === 'up' ? 'upvote' : 'downvote',
-    };
-
-    let error = null;
-
     try {
-      if (action === 'insert') {
-        const { error: insertError } = await supabase.from('votes').insert(voteData);
-        error = insertError;
-    } else if (action === 'update') {
-        const { error: updateError } = await supabase
-            .from('votes')
-            .update(voteData)
-            .eq('post_id', postId)
-            .eq('user_id', currentUserId);
-        error = updateError;
-    } else if (action === 'delete') {
-        const { error: deleteError } = await supabase
-            .from('votes')
-            .delete()
-          .eq('post_id', postId)
-          .eq('user_id', currentUserId);
-      error = deleteError;
-    }
+      const response = await fetch(`/api/posts/${postId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vote_type: type === 'up' ? 'upvote' : 'downvote',
+          action: action
+        }),
+      });
 
-    if (error) {
-        console.error('Error handling vote:', error);
-        alert('Failed to update vote. Please try again.');
-        // Do NOT update client state if DB update failed.
-        return; 
+      if (!response.ok) {
+        console.error('Failed to update vote');
+        return;
+      }
+
+      // CLIENT-SIDE STATE UPDATE (Only if API call was successful)
+      setClientPosts(prevPosts => prevPosts.map(post => {
+          if (post.id !== postId) return post;
+          return { ...post, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+      }));
+    } catch (error) {
+      console.error('Error handling vote:', error);
     }
-    } catch (err: any) {
-      console.error('Error handling vote:', err);
-      alert('Failed to update vote. Please try again.');
-      return;
-    }
-    // ----------------------------------------------------    // CLIENT-SIDE STATE UPDATE (Only if DB operation was successful)
-    setClientPosts(prevPosts => prevPosts.map(post => {
-        if (post.id !== postId) return post;
-        return { ...post, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
-    }));
   };
 
-  // ===== SUPABASE HANDLER FOR COMMENT VOTES =====
+  // ===== HANDLER FOR COMMENT VOTES =====
   const handleCommentVote = async (postId: string, commentId: number, type: 'up' | 'down') => {
-    // This is similar to post voting but targets the 'comment_votes' table (if you have one)
-    if (!currentUserId || !supabase) return;
+    if (!currentUserId) return;
 
-    // TODO: You will need to determine the action (insert/update/delete) based on 
-    // the current state of the comment's vote by the user, then call Supabase.
-    
-    // ----------------------------------------------------
-    // TODO: SUPABASE API CALL - HANDLE COMMENT VOTE
-    // ----------------------------------------------------
-    // (Implement comment vote logic here)
-    // ----------------------------------------------------
+    // Find current comment state
+    let currentComment: Comment | undefined;
+    const currentPost = clientPosts.find(p => p.id === postId);
+    if (currentPost) {
+      currentComment = currentPost.comments.find(c => c.id === commentId);
+    }
+    if (!currentComment) return;
 
-    // CLIENT-SIDE STATE UPDATE (Mirroring the logic above)
-    setClientPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId) return post;
+    let newVote = currentComment.vote;
+    let newUpvotes = currentComment.upvotes;
+    let newDownvotes = currentComment.downvotes;
+    let action: 'insert' | 'update' | 'delete';
+
+    if (currentComment.vote === type) {
+      // User is unvoting
+      newVote = null;
+      if (type === 'up') newUpvotes--;
+      else newDownvotes--;
+      action = 'delete';
+    } else {
+      // User is changing vote or voting for the first time
+      if (currentComment.vote === 'up') newUpvotes--;
+      if (currentComment.vote === 'down') newDownvotes--;
       
-      const updatedComments = post.comments.map(comment => {
-        if (comment.id !== commentId) return comment;
-        
-        let newVote = comment.vote;
-        let newUpvotes = comment.upvotes;
-        let newDownvotes = comment.downvotes;
-        
-        // ... (Vote logic to calculate newVote, newUpvotes, newDownvotes)
-        if (comment.vote === type) {
-          newVote = null;
-          if (type === 'up') newUpvotes--;
-          else newDownvotes--;
-        } else {
-          if (comment.vote === 'up') newUpvotes--;
-          if (comment.vote === 'down') newDownvotes--;
-          
-          newVote = type;
-          if (type === 'up') newUpvotes++;
-          else newDownvotes++;
-        }
-        
-        return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+      newVote = type;
+      if (type === 'up') newUpvotes++;
+      else newDownvotes++;
+      
+      action = currentComment.vote ? 'update' : 'insert';
+    }
+
+    try {
+      const response = await fetch(`/api/comments/${commentId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vote_type: type === 'up' ? 'upvote' : 'downvote',
+          action: action
+        }),
       });
-      
-      return { ...post, comments: updatedComments };
-    }));
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to update comment vote:', errorData);
+        return;
+      }
+
+      // CLIENT-SIDE STATE UPDATE
+      setClientPosts(prevPosts => prevPosts.map(post => {
+        if (post.id !== postId) return post;
+        
+        const updatedComments = post.comments.map(comment => {
+          if (comment.id !== commentId) return comment;
+          return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+        });
+        
+        return { ...post, comments: updatedComments };
+      }));
+
+      // Also update the modal view if it's currently open
+      if (selectedPostForComment && selectedPostForComment.id === postId) {
+        setSelectedPostForComment(prevPost => {
+          if (!prevPost) return null;
+          const updatedComments = prevPost.comments.map(comment => {
+            if (comment.id !== commentId) return comment;
+            return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+          });
+          return { ...prevPost, comments: updatedComments };
+        });
+      }
+    } catch (error) {
+      console.error('Error handling comment vote:', error);
+    }
   };
 
   // ===== HANDLERS: COMMENT MODAL =====
@@ -1026,7 +1152,21 @@ useEffect(() => {
                       onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
                   >
                       <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/down.svg" />
-                      <img className="w-[35px] h-[35px] aspect-[1] object-cover rounded-full" alt="User" src="/pfp.svg" />
+                      <div className="w-[35px] h-[35px] bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                          {userProfile?.profile_picture ? (
+                            <img 
+                              src={userProfile.profile_picture} 
+                              alt={currentUsername} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none';
+                                e.currentTarget.parentElement!.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                              }}
+                            />
+                          ) : (
+                            <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                          )}
+                      </div>
                   </button>
 
                   {/* Profile Dropdown */}
@@ -1037,24 +1177,43 @@ useEffect(() => {
                           onMouseDown={(e) => e.preventDefault()}
                       >
                           {/* User Info Section */}
-                          <div className="px-4 py-3 border-b border-gray-300">
-                              <h3 className="text-base font-bold text-gray-900">@{currentUsername}</h3>
-                              <p className="text-xs text-gray-600 mt-0.5">{currentEmail}</p>
+                          <div className="px-4 py-3 border-b border-gray-300 flex items-center gap-3">
+                              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                                  {userProfile?.profile_picture ? (
+                                    <img 
+                                      src={userProfile.profile_picture} 
+                                      alt={currentUsername} 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <User className="w-6 h-6 text-gray-500" />
+                                  )}
+                              </div>
+                              <div>
+                                  <h3 className="text-base font-bold text-gray-900">@{currentUsername}</h3>
+                                  <p className="text-xs text-gray-600 mt-0.5">{currentEmail}</p>
+                              </div>
                           </div>
 
                           {/* Menu Items */}
                           <div className="py-1">
                               <button 
                                   className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
-                                  onClick={() => {/* View Profile logic here */}}
+                                  onClick={() => {
+                                      setIsProfileOpen(false);
+                                      router.push('/profile');
+                                  }}
                               >
-                                  <User className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">View Profile</span>
+                                  <Edit className="w-4 h-4 text-gray-700" />
+                                  <span className="text-sm font-medium text-gray-900">Edit Profile</span>
                               </button>
                               
                               <button 
                                   className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
-                                  onClick={() => {/* Account Settings logic here */}}
+                                  onClick={() => {
+                                      setIsProfileOpen(false);
+                                      router.push('/settings');
+                                  }}
                               >
                                   <Settings className="w-4 h-4 text-gray-700" />
                                   <span className="text-sm font-medium text-gray-900">Account Settings</span>
@@ -1133,18 +1292,13 @@ useEffect(() => {
                           <Briefcase className="w-5 h-5" />
                           <span className="font-medium">{userProfile?.occupation || 'Wildlife Enthusiast'}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                          <MapPin className="w-5 h-5" />
-                          <span>{userProfile?.location || 'Location not set'}</span>
-                      </div>
+                  <div className="flex items-center gap-2">
+                      <MapPin className="w-5 h-5" />
+                      <span>{userProfile?.location || 'Location not set'}</span>
                   </div>
-
-                  <button className="mt-5 w-full bg-white/20 hover:bg-white/30 rounded-full py-2.5 px-5 flex items-center justify-center gap-2 transition">
-                      <Edit className="w-5 h-5" />
-                      <span className="text-base font-medium">Edit Profile</span>
-                  </button>
               </div>
-
+          </div>
+          
               {/* Communities */}
               <div className="mt-6 rounded-3xl shadow-lg p-5"
                   style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
@@ -1235,8 +1389,8 @@ useEffect(() => {
                   backgroundPosition: 'top center' 
               }}
           > 
-              <div className="w-[767px] px-5 pb-20 pt-2"> 
-                  <div className="p-8 mb-6 -ml-5">
+              <div className="w-[767px] px-5 pb-20 pt-0"> 
+                  <div className="p-6 mb-4 -ml-5">
                       <h1 className="font-bold mb-2" style={{ 
                           color: isDarkMode ? '#B6FFEA' : 'rgba(11, 87, 66, 0.93)',
                           fontFamily: 'Poppins',
@@ -1276,7 +1430,7 @@ useEffect(() => {
                   {!postsLoading && clientPosts.length > 0 ? clientPosts.map((post) => (
                       <article 
                           key={post.id} 
-                          className="rounded-3xl shadow-lg p-6 mb-8" 
+                          className="rounded-3xl shadow-lg p-6 mb-6" 
                           style={{
                               borderRadius: '25px',
                               border: '1px solid #000',
@@ -1453,7 +1607,8 @@ useEffect(() => {
                           <p className="text-gray-700 mb-6">{post.caption}</p>
 
                           {/* Action Buttons */}
-                          <div className="flex items-center gap-3 mt-auto">
+                          <div className="flex items-center gap-3 mt-auto justify-between">
+                              <div className="flex items-center gap-3">
                               {/* Upvote Button with Count */}
                               <div className="flex items-center gap-1.5 rounded-full px-2 py-1 bg-[#E0E0E0]/50 h-10 min-w-max">
                                   <button 
@@ -1494,13 +1649,37 @@ useEffect(() => {
                                   </span>
                               </div>
 
-                              {/* Comment Button */}
+                              {/* Comment Button with Count */}
                               <button 
                                   onClick={() => openCommentModal(post)} 
-                                  className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm ml-2 bg-[#D9D9D9] hover:bg-blue-200 transition-colors"
+                                  className="flex items-center gap-2 rounded-full px-3 py-2 shadow-sm bg-[#D9D9D9] hover:bg-blue-200 transition-colors"
                               >
                                   <MessageCircle className="w-6 h-6 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
+                                  <span className={`font-bold text-sm ${isDarkMode ? "text-gray-700" : "text-gray-700"}`}>
+                                      {post.comments.length}
+                                  </span>
                               </button>
+                              </div>
+
+                              {/* Location Button */}
+                              {post.location && (
+                                  <button 
+                                      onClick={() => {
+                                        setSelectedLocation({
+                                          name: post.location!,
+                                          lat: post.latitude || 0,
+                                          lng: post.longitude || 0
+                                        });
+                                        setShowLocationModal(true);
+                                      }} 
+                                      className="flex items-center gap-2 rounded-full px-3 py-2 shadow-sm bg-[#95AB33] hover:bg-[#7D9B28] transition-colors"
+                                  >
+                                      <MapPin className="w-5 h-5 text-white stroke-[2.5]" />
+                                      <span className="font-bold text-sm text-white">
+                                          Location
+                                      </span>
+                                  </button>
+                              )}
 
                           </div>
                       </article>
@@ -1759,6 +1938,66 @@ useEffect(() => {
         onCreate={handleCreateCommunity}
         modalOrigin={modalOrigin}
       />
+
+      {/* Location Modal */}
+      {showLocationModal && selectedLocation && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              setShowLocationModal(false);
+              setSelectedLocation(null);
+            }}
+          />
+          <div className="relative w-full max-w-3xl">
+            <div 
+              className={`w-full rounded-[40px] border shadow-2xl p-8 flex flex-col ${
+                isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"
+              }`}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    isDarkMode ? 'bg-[#7D9B76]' : 'bg-[#7D9B76]'
+                  }`}>
+                    <MapPin className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-extrabold text-2xl">Post Location</h2>
+                    <p className="text-sm opacity-70">{selectedLocation.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowLocationModal(false);
+                    setSelectedLocation(null);
+                  }}
+                  className="p-2 hover:bg-black/5 rounded-full transition-colors"
+                >
+                  <X className="w-8 h-8" />
+                </button>
+              </div>
+
+              {/* Map Container */}
+              <div className="w-full h-[400px] rounded-[20px] overflow-hidden border-2 border-black/10 mb-4">
+                <div id="dashboard-location-modal-map" className="w-full h-full" />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowLocationModal(false);
+                    setSelectedLocation(null);
+                  }}
+                  className="flex-1 px-6 py-3 rounded-full font-bold bg-[#7D9B76] text-white hover:bg-[#5A7353] transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

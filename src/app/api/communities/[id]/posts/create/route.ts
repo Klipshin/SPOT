@@ -17,11 +17,18 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { communityId, title, content, mediaUrl, flairNames } = body;
+    const { communityId, title, content, mediaUrl, flairNames, location, latitude, longitude } = body;
 
     if (!communityId || !title || !content) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    if (!location) {
+      return NextResponse.json(
+        { error: 'Location is required for wildlife tracking' },
         { status: 400 }
       );
     }
@@ -154,6 +161,18 @@ export async function POST(request: Request) {
     }
 
     // Create the post
+    console.log('Attempting to create post with data:', {
+      user_id: user.id,
+      community_id: communityId,
+      identification_id: identificationId,
+      title,
+      content,
+      media_url: mediaUrl || null,
+      location: location,
+      latitude: latitude || null,
+      longitude: longitude || null
+    });
+
     const { data: post, error: postError } = await supabaseAdmin
       .from('posts')
       .insert({
@@ -162,15 +181,19 @@ export async function POST(request: Request) {
         identification_id: identificationId,
         title,
         content,
-        media_url: mediaUrl || null
+        media_url: mediaUrl || null,
+        location: location,
+        latitude: latitude || null,
+        longitude: longitude || null
       })
       .select()
       .single();
 
     if (postError) {
       console.error('Error creating post:', postError);
+      console.error('Error details:', JSON.stringify(postError, null, 2));
       return NextResponse.json(
-        { error: postError.message || 'Failed to create post' },
+        { error: postError.message || 'Failed to create post', details: postError },
         { status: 500 }
       );
     }

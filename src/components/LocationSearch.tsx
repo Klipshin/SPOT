@@ -17,7 +17,7 @@ interface LocationSuggestion {
 
 interface LocationSearchProps {
   value: string;
-  onChange: (location: string) => void;
+  onChange: (location: string, lat?: number, lng?: number) => void;
 }
 
 // Helper component for the Geocoder
@@ -193,13 +193,13 @@ export default function LocationSearch({ value, onChange }: LocationSearchProps)
   };
 
   const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
-    onChange(suggestion.display_name);
+    onChange(suggestion.display_name, parseFloat(suggestion.lat), parseFloat(suggestion.lon));
     setShowSuggestions(false);
     setSuggestions([]);
   };
 
-  const handleMapSelect = (location: string) => {
-    onChange(location);
+  const handleMapSelect = (location: string, lat?: number, lng?: number) => {
+    onChange(location, lat, lng);
     setShowMap(false);
   };
 

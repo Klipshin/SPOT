@@ -3,6 +3,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/src/utils/supabase/client'; // Make sure this path matches your project
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
+  ssr: false
+});
 
 // Type definitions
 interface Prediction {
@@ -66,6 +72,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
   const [selectedFlairs, setSelectedFlairs] = useState<string[]>([]);
+  const [postLocation, setPostLocation] = useState('');
+  const [postCoordinates, setPostCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   
   // Success/Delete confirmation modals
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -349,6 +358,12 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       console.log('Posting to community:', selectedCommunityId);
       console.log('Post data:', { postTitle, postContent, image: selectedMessageToPost?.image, flairs: selectedFlairs });
       
+      if (!postLocation.trim()) {
+        alert('Please select a location for wildlife tracking');
+        setIsPostingToCommunity(false);
+        return;
+      }
+
       const response = await fetch(`/api/communities/${selectedCommunityId}/posts/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -358,6 +373,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
           content: postContent,
           mediaUrl: selectedMessageToPost?.image || null,
           flairNames: selectedFlairs.length > 0 ? selectedFlairs : undefined,
+          location: postLocation,
+          latitude: postCoordinates?.lat,
+          longitude: postCoordinates?.lng
         })
       });
 
@@ -379,6 +397,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       setPostTitle('');
       setPostContent('');
       setSelectedFlairs([]);
+      setPostLocation('');
+      setPostCoordinates(null);
+      setShowLocationPicker(false);
     } catch (error) {
       console.error('Error posting to community:', error);
       alert('Failed to post to community. Please try again.');
@@ -1377,6 +1398,54 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                         </div>
                       </div>
 
+                      {/* Location (Required) */}
+                      <div>
+                        <label className="block text-sm font-bold mb-2 opacity-70 flex items-center gap-2">
+                          📍 Location (Required for tracking)
+                        </label>
+                        {showLocationPicker ? (
+                          <div className="space-y-2">
+                            <LocationSearch 
+                              value={postLocation} 
+                              onChange={(loc, lat, lng) => {
+                                setPostLocation(loc);
+                                if (lat !== undefined && lng !== undefined) {
+                                  setPostCoordinates({ lat, lng });
+                                }
+                              }} 
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowLocationPicker(false)}
+                              className="px-4 py-2 bg-[#7D9B76] text-white rounded-lg hover:bg-[#5A7353] transition-colors text-sm font-medium"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => setShowLocationPicker(true)}
+                            className={`w-full text-base font-medium outline-none border-2 rounded-xl p-3 transition-colors cursor-pointer min-h-[48px] flex items-center gap-2 ${
+                              isDarkMode 
+                                ? "border-gray-600 bg-[#333] text-white hover:border-[#7D9B76]" 
+                                : postLocation 
+                                  ? "border-[#7D9B76] bg-[#E2DFC8] text-black" 
+                                  : "border-red-400 bg-[#FFE2E2] text-black hover:border-red-500"
+                            }`}
+                          >
+                            📍
+                            {postLocation ? (
+                              <span className="text-sm">{postLocation}</span>
+                            ) : (
+                              <span className="opacity-50">Click to select location...</span>
+                            )}
+                          </div>
+                        )}
+                        {!postLocation && !showLocationPicker && (
+                          <p className="text-xs text-red-500 mt-1">* Location is required for wildlife tracking</p>
+                        )}
+                      </div>
+
                       {/* Image preview */}
                       {selectedMessageToPost.image && (
                         <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
@@ -1392,7 +1461,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                       {/* Post button */}
                       <button
                         onClick={handlePostToCommunity}
-                        disabled={isPostingToCommunity || !postTitle.trim() || !postContent.trim()}
+                        disabled={isPostingToCommunity || !postTitle.trim() || !postContent.trim() || !postLocation.trim()}
                         className={`w-full py-4 rounded-full font-bold text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           isDarkMode
                             ? 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'

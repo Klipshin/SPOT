@@ -92,6 +92,9 @@ type Post = {
   upvotes: number;
   downvotes: number;
   comments: Comment[];
+  location?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 type Member = { id: number; name: string; role: 'moderator' | 'member'; online: boolean; };
@@ -202,6 +205,8 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{ name: string; lat: number; lng: number } | null>(null);
   
   const createPostBtnRef = useRef<HTMLButtonElement>(null);
   const membersBtnRef = useRef<HTMLButtonElement>(null);
@@ -231,7 +236,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   // ===== STATE: POSTS =====
   const [posts, setPosts] = useState<Post[]>([]);
   
-  // Map Supabase posts to component format
+  // Map Supabase posts to component format and fetch comments
   useEffect(() => {
     if (communityPosts.length > 0) {
       const mappedPosts: Post[] = communityPosts.map((p) => ({
@@ -247,11 +252,103 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
         vote: null,
         upvotes: p.upvotes || 0,
         downvotes: p.downvotes || 0,
-        comments: []
+        comments: [],
+        location: p.location,
+        latitude: p.latitude,
+        longitude: p.longitude
       }));
       setPosts(mappedPosts);
+      
+      // Fetch comments for each post
+      mappedPosts.forEach(async (post) => {
+        try {
+          const response = await fetch(`/api/posts/${post.id}/comments`);
+          if (response.ok) {
+            const { comments } = await response.json();
+            const mappedComments: Comment[] = comments.map((c: any) => ({
+              id: c.comment_id,
+              user: `@${c.user_profiles?.username || 'user'}`,
+              date: formatDate(c.created_at),
+              text: c.content,
+              image: c.media_url,
+              vote: null,
+              upvotes: 0,
+              downvotes: 0,
+              isReply: c.parent_comment_id !== null,
+            }));
+            
+            setPosts(prevPosts => prevPosts.map(p => 
+              p.id === post.id ? { ...p, comments: mappedComments } : p
+            ));
+          }
+        } catch (error) {
+          console.error(`Error fetching comments for post ${post.id}:`, error);
+        }
+      });
     }
   }, [communityPosts]);
+
+  // Initialize Leaflet map when location modal opens
+  useEffect(() => {
+    if (showLocationModal && selectedLocation && typeof window !== 'undefined') {
+      // Dynamically load Leaflet if not already loaded
+      if (!(window as any).L) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => initializeMap();
+        document.head.appendChild(script);
+      } else {
+        // Leaflet already loaded
+        initializeMap();
+      }
+    }
+
+    function initializeMap() {
+      const L = (window as any).L;
+      if (!L || !selectedLocation) return;
+
+      const mapContainer = document.getElementById('location-modal-map');
+      if (!mapContainer) return;
+
+      // Remove existing map instance if any
+      if ((mapContainer as any)._leaflet_id) {
+        const existingMap = (mapContainer as any)._leaflet_map;
+        if (existingMap) {
+          existingMap.remove();
+        }
+      }
+
+      // Create new map
+      const map = L.map('location-modal-map').setView([selectedLocation.lat, selectedLocation.lng], 13);
+      (mapContainer as any)._leaflet_map = map;
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      L.marker([selectedLocation.lat, selectedLocation.lng])
+        .addTo(map)
+        .bindPopup(selectedLocation.name)
+        .openPopup();
+
+      // Fix map rendering issue
+      setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    // Cleanup function
+    return () => {
+      const mapContainer = document.getElementById('location-modal-map');
+      if (mapContainer && (mapContainer as any)._leaflet_map) {
+        (mapContainer as any)._leaflet_map.remove();
+        delete (mapContainer as any)._leaflet_map;
+      }
+    };
+  }, [showLocationModal, selectedLocation]);
   
   // Format date helper
   const formatDate = (dateString: string) => {
@@ -412,7 +509,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   };
 
   // -- Create Post Handler --
-  const handleCreatePost = async (data: { title: string; content: string; mediaUrl?: string; flairNames?: string[] }) => {
+  const handleCreatePost = async (data: { title: string; content: string; mediaUrl?: string; flairNames?: string[]; location?: string; latitude?: number; longitude?: number }) => {
     try {
       const response = await fetch(`/api/communities/${communityId}/posts/create`, {
         method: 'POST',
@@ -422,12 +519,17 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
           title: data.title,
           content: data.content,
           mediaUrl: data.mediaUrl,
-          flairNames: data.flairNames // Send flair names array
+          flairNames: data.flairNames, // Send flair names array
+          location: data.location,
+          latitude: data.latitude,
+          longitude: data.longitude
         })
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create post');
+        const errorData = await response.json();
+        console.error('Server error:', errorData);
+        throw new Error(errorData.error || 'Failed to create post');
       }
 
       // Refresh posts
@@ -592,37 +694,216 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   
   const cancelEditLocation = () => setIsEditingLocation(false);
 
-  // -- Post interaction handlers (stubs for now) --
-  const handlePostVote = (postId: string, direction: 'up' | 'down') => {
-    setPosts(prev => prev.map(post => {
-      if (post.id !== postId) return post;
-      const isUpvote = direction === 'up';
-      const wasVoted = post.vote === direction;
-      return {
-        ...post,
-        vote: wasVoted ? null : direction,
-        upvotes: isUpvote ? (wasVoted ? post.upvotes - 1 : post.upvotes + 1) : post.upvotes,
-        downvotes: !isUpvote ? (wasVoted ? post.downvotes - 1 : post.downvotes + 1) : post.downvotes
+  // -- Post interaction handlers --
+  const handlePostVote = async (postId: string, direction: 'up' | 'down') => {
+    const currentPost = posts.find(p => p.id === postId);
+    if (!currentPost) return;
+
+    const isUpvote = direction === 'up';
+    const wasVoted = currentPost.vote === direction;
+    
+    let newVote: 'up' | 'down' | null = wasVoted ? null : direction;
+    let newUpvotes = currentPost.upvotes;
+    let newDownvotes = currentPost.downvotes;
+    let action: 'insert' | 'update' | 'delete';
+
+    if (wasVoted) {
+      // User is unvoting
+      if (isUpvote) newUpvotes--;
+      else newDownvotes--;
+      action = 'delete';
+    } else {
+      // User is changing vote or voting for the first time
+      if (currentPost.vote === 'up') newUpvotes--;
+      if (currentPost.vote === 'down') newDownvotes--;
+      
+      if (isUpvote) newUpvotes++;
+      else newDownvotes++;
+      
+      action = currentPost.vote ? 'update' : 'insert';
+    }
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vote_type: direction === 'up' ? 'upvote' : 'downvote',
+          action: action
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to update vote');
+        return;
+      }
+
+      // Update UI
+      setPosts(prev => prev.map(post => {
+        if (post.id !== postId) return post;
+        return {
+          ...post,
+          vote: newVote,
+          upvotes: newUpvotes,
+          downvotes: newDownvotes
+        };
+      }));
+    } catch (error) {
+      console.error('Error handling vote:', error);
+    }
+  };
+
+  const handleCommentVote = async (postId: string, commentId: number, direction: 'up' | 'down') => {
+    let currentComment: Comment | undefined;
+    const currentPost = posts.find(p => p.id === postId);
+    if (currentPost) {
+      currentComment = currentPost.comments.find(c => c.id === commentId);
+    }
+    if (!currentComment) return;
+
+    let newVote: 'up' | 'down' | null = currentComment.vote;
+    let newUpvotes = currentComment.upvotes;
+    let newDownvotes = currentComment.downvotes;
+    let action: 'insert' | 'update' | 'delete';
+
+    if (currentComment.vote === direction) {
+      // User is unvoting
+      newVote = null;
+      if (direction === 'up') newUpvotes--;
+      else newDownvotes--;
+      action = 'delete';
+    } else {
+      // User is changing vote or voting for the first time
+      if (currentComment.vote === 'up') newUpvotes--;
+      if (currentComment.vote === 'down') newDownvotes--;
+      
+      newVote = direction;
+      if (direction === 'up') newUpvotes++;
+      else newDownvotes++;
+      
+      action = currentComment.vote ? 'update' : 'insert';
+    }
+
+    try {
+      const response = await fetch(`/api/comments/${commentId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vote_type: direction === 'up' ? 'upvote' : 'downvote',
+          action: action
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to update comment vote');
+        return;
+      }
+
+      // Update UI
+      setPosts(prev => prev.map(post => {
+        if (post.id !== postId) return post;
+        
+        const updatedComments = post.comments.map(comment => {
+          if (comment.id !== commentId) return comment;
+          return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+        });
+        
+        return { ...post, comments: updatedComments };
+      }));
+    } catch (error) {
+      console.error('Error handling comment vote:', error);
+    }
+  };
+
+  const handlePostComment = async (postId: string) => {
+    if (!newCommentText.trim() && !attachedCommentImage) return;
+
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: newCommentText,
+          media_url: attachedCommentImage,
+          parent_comment_id: replyingToId
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to post comment');
+        return;
+      }
+
+      const { comment: insertedComment } = await response.json();
+
+      // Update local state with new comment
+      const newComment: Comment = {
+        id: insertedComment?.comment_id || Date.now(),
+        user: `@${insertedComment?.user_profiles?.username || 'user'}`,
+        date: 'Just now',
+        text: newCommentText,
+        image: attachedCommentImage,
+        vote: null,
+        upvotes: 0,
+        downvotes: 0,
+        isReply: replyingToId !== null,
       };
-    }));
-  };
 
-  const handleCommentVote = (postId: string, commentId: number, direction: 'up' | 'down') => {
-    // Stub implementation
-    console.log('Comment vote:', { postId, commentId, direction });
-  };
+      setPosts(prevPosts => prevPosts.map(post => {
+        if (post.id !== postId) return post;
+        
+        let updatedComments = [...post.comments];
+        
+        if (replyingToId !== null) {
+          const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
+          if (parentIndex !== -1) {
+            let insertIndex = parentIndex + 1;
+            while (insertIndex < updatedComments.length && updatedComments[insertIndex].isReply) {
+              insertIndex++;
+            }
+            updatedComments.splice(insertIndex, 0, newComment);
+          } else {
+            updatedComments.push(newComment);
+          }
+        } else {
+          updatedComments.push(newComment);
+        }
 
-  const handlePostComment = (postId: string) => {
-    // Stub implementation
-    console.log('Post comment:', { postId, text: newCommentText });
-    setNewCommentText('');
-    setAttachedCommentImage(null);
+        return { ...post, comments: updatedComments };
+      }));
+
+      setNewCommentText('');
+      setAttachedCommentImage(null);
+      cancelReply();
+      setActivePostId(null);
+    } catch (error) {
+      console.error('Error posting comment:', error);
+    }
   };
 
   const handleReplyClick = (postId: string, commentId: number, username: string) => {
+    setActivePostId(postId);
     setReplyingToId(commentId);
     setReplyingToUser(username);
-    setNewCommentText(`${username} `);
+    const mentionText = `@${username.replace('@', '')} `;
+    setNewCommentText(mentionText);
+
+    if (typeof window !== 'undefined') {
+      setTimeout(() => {
+        const input = document.getElementById(`comment-input-${postId}`) as HTMLTextAreaElement;
+        if (input) {
+          input.focus();
+          const len = input.value.length;
+          input.setSelectionRange(len, len);
+        }
+      }, 50);
+    }
   };
 
   const handleCommentKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>, postId: string) => {
@@ -915,7 +1196,8 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                 
                 <p className="text-base font-medium mb-4">{post.caption}</p>
 
-                <div className="flex items-center gap-2 mt-auto">
+                <div className="flex items-center gap-2 mt-auto justify-between">
+                  <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1 rounded-full px-2 py-1 bg-[#E0E0E0]/50 h-8 min-w-max">
                     <button onClick={() => handlePostVote(post.id, 'up')} className={`p-0.5 rounded-full transition-colors flex items-center justify-center ${post.vote === 'up' ? "bg-white/50" : "hover:bg-black/5"}`}><ArrowBigUp className={`w-5 h-5 ${post.vote === 'up' ? "text-[#00C92C] fill-[#00C92C]" : "text-[#00C92C]"}`} /></button>
                     <span className={`font-bold text-sm leading-none pt-0.5 px-1 text-center ${isDarkMode ? "text-white" : "text-black"}`}>{formatVoteCount(post.upvotes)}</span>
@@ -924,7 +1206,30 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                     <button onClick={() => handlePostVote(post.id, 'down')} className={`p-0.5 rounded-full transition-colors flex items-center justify-center ${post.vote === 'down' ? "bg-white/50" : "hover:bg-black/5"}`}><ArrowBigDown className={`w-5 h-5 ${post.vote === 'down' ? "text-[#FF4C4C] fill-[#FF4C4C]" : "text-[#FF4C4C]"}`} /></button>
                     <span className={`font-bold text-sm leading-none pt-0.5 px-1 text-center ${isDarkMode ? "text-white" : "text-black"}`}>{formatVoteCount(post.downvotes)}</span>
                   </div>
-                  <button onClick={() => { setActivePostId(post.id); setTimeout(() => document.getElementById(`comment-input-${post.id}`)?.focus(), 10); }} className="w-8 h-8 rounded-full flex items-center justify-center shadow-sm ml-2 bg-[#D9D9D9] hover:bg-blue-200 transition-colors"><MessageCircle className="w-5 h-5 text-[#0057FF] -scale-x-100 stroke-[2.5]" /></button>
+                  <button 
+                    onClick={() => { setActivePostId(post.id); setTimeout(() => document.getElementById(`comment-input-${post.id}`)?.focus(), 10); }} 
+                    className="flex items-center gap-1.5 rounded-full px-2 py-1 shadow-sm bg-[#D9D9D9] hover:bg-blue-200 transition-colors h-8"
+                  >
+                    <MessageCircle className="w-4 h-4 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
+                    <span className="font-bold text-xs text-gray-700">{post.comments.length}</span>
+                  </button>
+                  </div>
+                  {post.location && (
+                    <button 
+                      onClick={() => {
+                        setSelectedLocation({
+                          name: post.location!,
+                          lat: post.latitude || 0,
+                          lng: post.longitude || 0
+                        });
+                        setShowLocationModal(true);
+                      }} 
+                      className="flex items-center gap-1.5 rounded-full px-2 py-1 shadow-sm bg-[#7D9B76] hover:bg-[#5A7353] transition-colors h-8"
+                    >
+                      <MapPin className="w-4 h-4 text-white stroke-[2.5]" />
+                      <span className="font-bold text-xs text-white">Location</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1183,6 +1488,66 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                   className="flex-1 px-6 py-3 rounded-full font-bold bg-red-600 text-white hover:bg-red-700 transition-colors"
                 >
                   Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* LOCATION MODAL */}
+      {showLocationModal && selectedLocation && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              setShowLocationModal(false);
+              setSelectedLocation(null);
+            }}
+          />
+          <div className="relative w-full max-w-3xl">
+            <div 
+              className={`w-full rounded-[40px] border shadow-2xl p-8 flex flex-col animate-genie-in ${
+                isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"
+              }`}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    isDarkMode ? 'bg-[#7D9B76]' : 'bg-[#7D9B76]'
+                  }`}>
+                    <MapPin className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-extrabold text-2xl">Post Location</h2>
+                    <p className="text-sm opacity-70">{selectedLocation.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowLocationModal(false);
+                    setSelectedLocation(null);
+                  }}
+                  className="p-2 hover:bg-black/5 rounded-full transition-colors"
+                >
+                  <X className="w-8 h-8" />
+                </button>
+              </div>
+
+              {/* Map Container */}
+              <div className="w-full h-[400px] rounded-[20px] overflow-hidden border-2 border-black/10 mb-4">
+                <div id="location-modal-map" className="w-full h-full" />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowLocationModal(false);
+                    setSelectedLocation(null);
+                  }}
+                  className="flex-1 px-6 py-3 rounded-full font-bold bg-[#7D9B76] text-white hover:bg-[#5A7353] transition-colors"
+                >
+                  Close
                 </button>
               </div>
             </div>
