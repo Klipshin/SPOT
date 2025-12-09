@@ -1,6 +1,10 @@
+//FROM HANNAH: DO NOT MAKE THIS A CLIENT COMPONENT
+
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import './globals.css';
+import Image from 'next/image';
+import SupabaseProvider from '../components/providers/SupabaseProvider';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -23,10 +27,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={poppins.variable}>
       <body className={`${poppins.className} antialiased`}>
-        {/* Main Content */}
         {children}
-
-        {/* You can add a footer here if needed */}
       </body>
     </html>
   );
