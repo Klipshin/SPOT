@@ -73,12 +73,12 @@ export function useProfiles(userId: string) {
             setUserError(null);
             const profile = await profileService.getUserProfile(userId);
         
-            if (profile.username !== null) {
+            if (profile.username === null) {
                 router.push("/initial-setup");
                 return true;
             }
 
-            if (profile.is_expert === true) {
+            if (profile.username === null && profile.is_expert === true) {
 
                 const expert = await expertService.getExpert(userId);
 
