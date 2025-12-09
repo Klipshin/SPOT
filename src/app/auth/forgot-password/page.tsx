@@ -6,7 +6,7 @@ import React, { useState } from 'react'
 import { IoChevronBackCircle } from "react-icons/io5";
 
 export default function ForgotPasswordPage() {
-    const supabase = createClient();
+    const getSupabase = () => createClient();
     const [sent, setSent] = useState(false);
     const [loading, setLoading] = useState(false);
     const router = useRouter();
@@ -18,6 +18,7 @@ export default function ForgotPasswordPage() {
         const formData = new FormData(e.currentTarget as HTMLFormElement);
         const email = formData.get("email") as string;
 
+        const supabase = getSupabase();
         await supabase.auth.resetPasswordForEmail(email);
 
         setSent(true);
