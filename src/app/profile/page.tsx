@@ -5,7 +5,12 @@ import Link from 'next/link';
 import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
-import LocationSearch from '@/src/components/LocationSearch';
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
+  ssr: false
+});
 
 export default function ProfilePage() {
   const [isDarkMode, setIsDarkMode] = useState(false);

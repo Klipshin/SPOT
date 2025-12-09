@@ -3,7 +3,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/src/utils/supabase/client'; // Make sure this path matches your project
-import LocationSearch from '@/src/components/LocationSearch';
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
+  ssr: false
+});
 
 // Type definitions
 interface Prediction {

@@ -3,7 +3,12 @@
 
 import React, { useState, useRef } from 'react';
 import { X, Image as ImageIcon, FileText, MapPin } from 'lucide-react';
-import LocationSearch from './LocationSearch';
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const LocationSearch = dynamic(() => import('./LocationSearch'), {
+  ssr: false
+});
 
 interface CreatePostModalProps {
   isDarkMode: boolean;
