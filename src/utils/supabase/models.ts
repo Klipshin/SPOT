@@ -42,6 +42,9 @@ export interface Post {
     title: string;
     content: string;
     media_url: string | null;
+    location: string | null;
+    latitude: number | null;
+    longitude: number | null;
     created_at: string;
     updated_at: string;
     user_profiles?: Profile;

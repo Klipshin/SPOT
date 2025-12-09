@@ -2,14 +2,15 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { X, Image as ImageIcon, FileText } from 'lucide-react';
+import { X, Image as ImageIcon, FileText, MapPin } from 'lucide-react';
+import LocationSearch from './LocationSearch';
 
 interface CreatePostModalProps {
   isDarkMode: boolean;
   isOpen: boolean;
   isClosing: boolean;
   onClose: () => void;
-  onCreate: (data: { title: string; content: string; mediaUrl?: string; flairNames?: string[] }) => Promise<void>;
+  onCreate: (data: { title: string; content: string; mediaUrl?: string; flairNames?: string[]; location?: string; latitude?: number; longitude?: number }) => Promise<void>;
   modalOrigin: { x: number; y: number };
   communityId: string;
 }
@@ -44,8 +45,21 @@ export default function CreatePostModal({
   const [selectedFlairs, setSelectedFlairs] = useState<string[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [location, setLocation] = useState('');
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLocationChange = (locationName: string, lat?: number, lng?: number) => {
+    setLocation(locationName);
+    if (lat !== undefined && lng !== undefined) {
+      setCoordinates({ lat, lng });
+    } else {
+      // If no coordinates provided, try to geocode the location name
+      setCoordinates(null);
+    }
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,7 +81,15 @@ export default function CreatePostModal({
   };
 
   const handleCreate = async () => {
-    if (!title.trim() || !content.trim()) return;
+    if (!title.trim() || !content.trim()) {
+      alert('Please fill in title and content');
+      return;
+    }
+    
+    if (!location.trim()) {
+      alert('Please select a location for wildlife tracking');
+      return;
+    }
     
     setIsCreating(true);
     try {
@@ -75,7 +97,10 @@ export default function CreatePostModal({
         title: title.trim(),
         content: content.trim(),
         mediaUrl: mediaUrl || undefined,
-        flairNames: selectedFlairs.length > 0 ? selectedFlairs : undefined
+        flairNames: selectedFlairs.length > 0 ? selectedFlairs : undefined,
+        location: location.trim(),
+        latitude: coordinates?.lat,
+        longitude: coordinates?.lng
       });
       
       // Reset form
@@ -83,6 +108,9 @@ export default function CreatePostModal({
       setContent('');
       setMediaUrl(null);
       setSelectedFlairs([]);
+      setLocation('');
+      setCoordinates(null);
+      setShowLocationPicker(false);
     } catch (error) {
       console.error('Error creating post:', error);
     } finally {
@@ -241,6 +269,50 @@ export default function CreatePostModal({
                       </label>
                     ))}
                   </div>
+                )}
+              </div>
+
+              {/* Location Selection (Required) */}
+              <div>
+                <label className="block text-sm font-bold mb-2 opacity-70 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Location (Required for tracking)
+                </label>
+                {showLocationPicker ? (
+                  <div className="space-y-2">
+                    <LocationSearch 
+                      value={location} 
+                      onChange={handleLocationChange} 
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLocationPicker(false)}
+                      className="px-4 py-2 bg-[#7D9B76] text-white rounded-lg hover:bg-[#5A7353] transition-colors text-sm font-medium"
+                    >
+                      Done
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onClick={() => setShowLocationPicker(true)}
+                    className={`w-full text-base font-medium outline-none border-2 rounded-xl p-3 transition-colors cursor-pointer min-h-[48px] flex items-center gap-2 ${
+                      isDarkMode 
+                        ? "border-gray-600 bg-[#333] text-white hover:border-[#7D9B76]" 
+                        : location 
+                          ? "border-[#7D9B76] bg-[#E2DFC8] text-black" 
+                          : "border-red-400 bg-[#FFE2E2] text-black hover:border-red-500"
+                    }`}
+                  >
+                    <MapPin className="w-5 h-5" />
+                    {location ? (
+                      <span className="text-sm">{location}</span>
+                    ) : (
+                      <span className="opacity-50">Click to select location...</span>
+                    )}
+                  </div>
+                )}
+                {!location && !showLocationPicker && (
+                  <p className="text-xs text-red-500 mt-1">* Location is required for wildlife tracking</p>
                 )}
               </div>
 
