@@ -1,11 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useState, useRef, ChangeEvent, KeyboardEvent, useMemo, useContext, createContext } from 'react';
+import React, { useState, useRef, ChangeEvent, KeyboardEvent, useMemo, useContext, createContext, useEffect } from 'react';
 import {
   MapPin, Users, Crown, Plus, ChevronDown, ArrowBigUp, ArrowBigDown,
   MessageCircle, Image as ImageIcon, Send, X, Reply, UploadCloud, Check, Sun, Moon, User, Edit2, ShieldCheck, UserMinus
 } from "lucide-react";
+import CreatePostModal from '@/src/components/CreatePostModal';
 
 interface LinkProps {
   href: string;
@@ -78,7 +79,9 @@ type Comment = {
 };
 
 type Post = {
-  id: number;
+  id: string;
+  postId?: string; // Actual database post_id
+  userId?: string; // Post author's user_id
   timestamp: number;
   user: string;
   date: string;
@@ -95,16 +98,89 @@ type Member = { id: number; name: string; role: 'moderator' | 'member'; online: 
 type SortOptionType = 'default' | 'newest' | 'oldest' | 'popular' | 'least';
 
 // --- MAIN CONTENT COMPONENT ---
-function ModeratorPageContent() {
+function ModeratorPageContent({ communityId }: { communityId: string }) {
   const { isDarkMode } = useTheme();
+  
+  // Community data state
+  const [communityData, setCommunityData] = useState<any>(null);
+  const [loadingCommunity, setLoadingCommunity] = useState(true);
+  const [communityPosts, setCommunityPosts] = useState<any[]>([]);
+  const [communityMembers, setCommunityMembers] = useState<any[]>([]);
+  
+  // ===== STATE: MEMBERSHIP STATUS =====
+  const [isMember, setIsMember] = useState(false);
+  const [isModerator, setIsModerator] = useState(false);
+  const [loadingMembership, setLoadingMembership] = useState(true);
 
-  // ===== STATE: MODERATOR MODE =====
-  const isModerator = true; 
+  // Fetch community data
+  useEffect(() => {
+    async function fetchCommunity() {
+      try {
+        const [communityRes, postsRes, membersRes, membershipRes] = await Promise.all([
+          fetch(`/api/communities/${communityId}`),
+          fetch(`/api/communities/${communityId}/posts`),
+          fetch(`/api/communities/${communityId}/members`),
+          fetch(`/api/communities/${communityId}/membership`)
+        ]);
+        
+        if (communityRes.ok) {
+          const data = await communityRes.json();
+          console.log('Community data received:', data.community);
+          setCommunityData(data.community);
+        }
+        
+        if (postsRes.ok) {
+          const data = await postsRes.json();
+          setCommunityPosts(data.posts || []);
+        }
+        
+        if (membersRes.ok) {
+          const data = await membersRes.json();
+          setCommunityMembers(data.members || []);
+        }
+
+        // Check membership status
+        if (membershipRes.ok) {
+          const membershipData = await membershipRes.json();
+          console.log('Membership API response:', membershipData);
+          setIsMember(membershipData.isMember);
+          setIsModerator(membershipData.role === 'moderator');
+          console.log('Set states - isMember:', membershipData.isMember, 'isModerator:', membershipData.role === 'moderator');
+        } else {
+          const errorText = await membershipRes.text();
+          console.error('Membership check failed:', membershipRes.status, errorText);
+        }
+      } catch (error) {
+        console.error('Error fetching community:', error);
+      } finally {
+        setLoadingCommunity(false);
+        setLoadingMembership(false);
+      }
+    }
+    
+    if (communityId) {
+      fetchCommunity();
+    }
+  }, [communityId]); 
+
+  // Debug membership state
+  useEffect(() => {
+    console.log('Community page - Membership state updated:', { isMember, isModerator, loadingMembership });
+  }, [isMember, isModerator, loadingMembership]);
 
   // ===== STATE: COMMUNITY DATA =====
-  const [communityBanner, setCommunityBanner] = useState('/landd.svg');
-  const [communityProfile, setCommunityProfile] = useState('/binoculars.svg');
-  const [communityLocation, setCommunityLocation] = useState('Cebu City, Philippines');
+  const [communityBanner, setCommunityBanner] = useState(communityData?.banner_image || '/landd.svg');
+  const [communityProfile, setCommunityProfile] = useState(communityData?.profile_picture || '/binoculars.svg');
+  const [communityLocation, setCommunityLocation] = useState(communityData?.location || 'Cebu City, Philippines');
+  
+  // Update images when community data loads
+  useEffect(() => {
+    if (communityData) {
+      if (communityData.banner_image) setCommunityBanner(communityData.banner_image);
+      if (communityData.profile_picture) setCommunityProfile(communityData.profile_picture);
+      if (communityData.location) setCommunityLocation(communityData.location);
+    }
+  }, [communityData]);
 
   // ===== STATE: EDITING =====
   const [isEditingLocation, setIsEditingLocation] = useState(false);
@@ -122,6 +198,9 @@ function ModeratorPageContent() {
   const [isCreatePostOpen, setIsCreatePostOpen] = useState(false);
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [isClosingModal, setIsClosingModal] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
   
   const createPostBtnRef = useRef<HTMLButtonElement>(null);
@@ -134,28 +213,66 @@ function ModeratorPageContent() {
   const createPostFileInputRef = useRef<HTMLInputElement>(null);
 
   // ===== STATE: MEMBERS =====
-  const [membersList, setMembersList] = useState<Member[]>([
-    { id: 1, name: '@nature_explorer', role: 'moderator', online: true },
-    { id: 2, name: '@cebu_pet_advocate', role: 'member', online: true },
-    { id: 3, name: '@bio_student_cebu', role: 'member', online: false },
-    { id: 4, name: '@snake_hunter_ph', role: 'member', online: true },
-    { id: 5, name: '@newbie_hiker', role: 'member', online: false },
-    { id: 6, name: '@bird_watcher_99', role: 'member', online: true },
-    { id: 7, name: '@marine_life_fan', role: 'member', online: false },
-    { id: 8, name: '@cebu_trekker', role: 'member', online: true },
-    { id: 9, name: '@dog_lover_ph', role: 'member', online: false },
-    { id: 10, name: '@cat_lady_cebu', role: 'member', online: true },
-    { id: 11, name: '@wildlife_photog', role: 'member', online: false },
-    { id: 12, name: '@forest_ranger_wannabe', role: 'member', online: true },
-    { id: 13, name: '@mountain_goat', role: 'member', online: false },
-    { id: 14, name: '@ocean_blue', role: 'member', online: true },
-    { id: 15, name: '@green_earth', role: 'member', online: false },
-  ]);
+  const [membersList, setMembersList] = useState<Member[]>([]);
+  
+  // Map Supabase members to component format
+  useEffect(() => {
+    if (communityMembers.length > 0) {
+      const mappedMembers: Member[] = communityMembers.map((m, index) => ({
+        id: index + 1,
+        name: `@${m.user_profiles?.username || m.user_profiles?.name || 'user'}`,
+        role: m.community_role ? 'moderator' : 'member',
+        online: m.is_active || false
+      }));
+      setMembersList(mappedMembers);
+    }
+  }, [communityMembers]);
 
   // ===== STATE: POSTS =====
-  const [posts, setPosts] = useState<Post[]>([
+  const [posts, setPosts] = useState<Post[]>([]);
+  
+  // Map Supabase posts to component format
+  useEffect(() => {
+    if (communityPosts.length > 0) {
+      const mappedPosts: Post[] = communityPosts.map((p) => ({
+        id: p.post_id, // Use actual post_id from database
+        postId: p.post_id, // Keep reference to actual post ID
+        userId: p.user_id, // Track post author
+        timestamp: new Date(p.created_at).getTime(),
+        user: `@${p.user_profiles?.username || 'user'}`,
+        date: formatDate(p.created_at),
+        heading: p.title,
+        image: p.media_url,
+        caption: p.content,
+        vote: null,
+        upvotes: p.upvotes || 0,
+        downvotes: p.downvotes || 0,
+        comments: []
+      }));
+      setPosts(mappedPosts);
+    }
+  }, [communityPosts]);
+  
+  // Format date helper
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 60) return `${diffMins} mins ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  
+  // Placeholder posts for empty state
+  const [placeholderPosts] = useState<Post[]>([
     {
-      id: 5,
+      id: "5",
       timestamp: 1715425000000,
       user: '@nature_explorer',
       date: '2 hours ago',
@@ -171,7 +288,7 @@ function ModeratorPageContent() {
       ]
     },
     {
-      id: 4,
+      id: "4",
       timestamp: 1715420000000,
       user: '@cebu_pet_advocate',
       date: '4 hours ago',
@@ -184,7 +301,7 @@ function ModeratorPageContent() {
       comments: []
     },
     {
-      id: 3,
+      id: "3",
       timestamp: 1715415000000,
       user: '@snake_hunter_ph',
       date: '6 hours ago',
@@ -197,7 +314,7 @@ function ModeratorPageContent() {
       comments: []
     },
     {
-      id: 2,
+      id: "2",
       timestamp: 1715400000000,
       user: '@marine_bio_joy',
       date: '1 day ago',
@@ -210,7 +327,7 @@ function ModeratorPageContent() {
       comments: []
     },
     {
-      id: 1,
+      id: "1",
       timestamp: 1715300000000,
       user: '@newbie_hiker',
       date: '2 days ago',
@@ -229,7 +346,7 @@ function ModeratorPageContent() {
   const [attachedCommentImage, setAttachedCommentImage] = useState<string | null>(null);
   const [replyingToId, setReplyingToId] = useState<number | null>(null);
   const [replyingToUser, setReplyingToUser] = useState<string>('');
-  const [activePostId, setActivePostId] = useState<number | null>(null);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
   const commentFileInputRef = useRef<HTMLInputElement>(null);
 
   // ===== LOGIC: SORTING & FILTERING =====
@@ -244,7 +361,7 @@ function ModeratorPageContent() {
       case 'least': return sorted.sort((a, b) => a.upvotes - b.upvotes);
       case 'oldest': return sorted.sort((a, b) => a.timestamp - b.timestamp);
       case 'newest': return sorted.sort((a, b) => b.timestamp - a.timestamp);
-      case 'default': default: return sorted.sort((a, b) => b.id - a.id);
+      case 'default': default: return sorted.sort((a, b) => b.timestamp - a.timestamp);
     }
   }, [posts, sortOption]);
 
@@ -291,7 +408,160 @@ function ModeratorPageContent() {
       setNewPostHeading("");
       setNewPostCaption("");
       setNewPostImage(null);
-    }, 400);
+    }, 300);
+  };
+
+  // -- Create Post Handler --
+  const handleCreatePost = async (data: { title: string; content: string; mediaUrl?: string; flairNames?: string[] }) => {
+    try {
+      const response = await fetch(`/api/communities/${communityId}/posts/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          communityId,
+          title: data.title,
+          content: data.content,
+          mediaUrl: data.mediaUrl,
+          flairNames: data.flairNames // Send flair names array
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create post');
+      }
+
+      // Refresh posts
+      const postsRes = await fetch(`/api/communities/${communityId}/posts`);
+      if (postsRes.ok) {
+        const postsData = await postsRes.json();
+        setCommunityPosts(postsData.posts || []);
+      }
+
+      closeModal(setIsCreatePostOpen);
+    } catch (error) {
+      console.error('Error creating post:', error);
+      alert('Failed to create post. Please try again.');
+    }
+  };
+
+  // -- Join Community Action --
+  const handleJoinCommunity = async () => {
+    try {
+      const response = await fetch(`/api/communities/${communityId}/join`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Failed to join community');
+        return;
+      }
+
+      // Refresh membership status and community data
+      const [membershipRes, membersRes] = await Promise.all([
+        fetch(`/api/communities/${communityId}/membership`),
+        fetch(`/api/communities/${communityId}/members`)
+      ]);
+
+      if (membershipRes.ok) {
+        const membershipData = await membershipRes.json();
+        setIsMember(membershipData.isMember);
+        setIsModerator(membershipData.role === 'moderator');
+      }
+
+      if (membersRes.ok) {
+        const membersData = await membersRes.json();
+        setCommunityMembers(membersData.members || []);
+      }
+
+      // Show success modal
+      setSuccessMessage('Welcome! You have successfully joined the community.');
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Error joining community:', error);
+      alert('Failed to join community. Please try again.');
+    }
+  };
+
+  // -- Leave Community Action --
+  const handleLeaveCommunity = async () => {
+    setShowLeaveModal(false);
+    
+    try {
+      const response = await fetch(`/api/communities/${communityId}/leave`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Failed to leave community');
+        return;
+      }
+
+      // Refresh membership status
+      const membershipRes = await fetch(`/api/communities/${communityId}/membership`);
+      if (membershipRes.ok) {
+        const membershipData = await membershipRes.json();
+        setIsMember(membershipData.isMember);
+        setIsModerator(membershipData.role === 'moderator');
+      }
+
+      // Show success modal
+      setSuccessMessage('You have left the community.');
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Error leaving community:', error);
+      alert('Failed to leave community. Please try again.');
+    }
+  };
+
+  // State for delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = React.useState(false);
+  const [postToDelete, setPostToDelete] = React.useState<string | number | null>(null);
+
+  // -- Delete Post Action (for moderators) --
+  const handleDeletePost = async (postId: string | number) => {
+    setPostToDelete(postId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeletePost = async () => {
+    if (!postToDelete) return;
+
+    try {
+      const response = await fetch(`/api/posts/${postToDelete}/delete`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          reason: 'Deleted by moderator'
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        alert(error.error || 'Failed to delete post');
+        setShowDeleteModal(false);
+        setPostToDelete(null);
+        return;
+      }
+
+      // Refresh posts
+      const postsRes = await fetch(`/api/communities/${communityId}/posts`);
+      if (postsRes.ok) {
+        const postsData = await postsRes.json();
+        setCommunityPosts(postsData.posts || []);
+      }
+
+      setShowDeleteModal(false);
+      setPostToDelete(null);
+    } catch (error) {
+      console.error('Error deleting post:', error);
+      alert('Failed to delete post. Please try again.');
+      setShowDeleteModal(false);
+      setPostToDelete(null);
+    }
   };
 
   // -- Moderator Actions --
@@ -322,6 +592,51 @@ function ModeratorPageContent() {
   
   const cancelEditLocation = () => setIsEditingLocation(false);
 
+  // -- Post interaction handlers (stubs for now) --
+  const handlePostVote = (postId: string, direction: 'up' | 'down') => {
+    setPosts(prev => prev.map(post => {
+      if (post.id !== postId) return post;
+      const isUpvote = direction === 'up';
+      const wasVoted = post.vote === direction;
+      return {
+        ...post,
+        vote: wasVoted ? null : direction,
+        upvotes: isUpvote ? (wasVoted ? post.upvotes - 1 : post.upvotes + 1) : post.upvotes,
+        downvotes: !isUpvote ? (wasVoted ? post.downvotes - 1 : post.downvotes + 1) : post.downvotes
+      };
+    }));
+  };
+
+  const handleCommentVote = (postId: string, commentId: number, direction: 'up' | 'down') => {
+    // Stub implementation
+    console.log('Comment vote:', { postId, commentId, direction });
+  };
+
+  const handlePostComment = (postId: string) => {
+    // Stub implementation
+    console.log('Post comment:', { postId, text: newCommentText });
+    setNewCommentText('');
+    setAttachedCommentImage(null);
+  };
+
+  const handleReplyClick = (postId: string, commentId: number, username: string) => {
+    setReplyingToId(commentId);
+    setReplyingToUser(username);
+    setNewCommentText(`${username} `);
+  };
+
+  const handleCommentKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>, postId: string) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handlePostComment(postId);
+    }
+  };
+
+  const cancelReply = () => {
+    setReplyingToId(null);
+    setReplyingToUser('');
+    setNewCommentText('');
+  };
 
   const handleCreatePostFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -336,133 +651,6 @@ function ModeratorPageContent() {
     if (file) {
       const imageUrl = URL.createObjectURL(file);
       setAttachedCommentImage(imageUrl);
-    }
-  };
-
-  const handleCreatePost = () => {
-    if (!newPostHeading.trim() && !newPostCaption.trim() && !newPostImage) return;
-    const newPost: Post = {
-      id: Date.now(),
-      timestamp: Date.now(),
-      user: '@currentUser',
-      date: 'Just now',
-      heading: newPostHeading,
-      image: newPostImage,
-      caption: newPostCaption,
-      vote: null,
-      upvotes: 0,
-      downvotes: 0,
-      comments: []
-    };
-    setPosts([newPost, ...posts]);
-    closeModal(setIsCreatePostOpen);
-  };
-
-  const handlePostVote = (postId: number, type: 'up' | 'down') => {
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId) return post;
-      let newVote = post.vote;
-      let newUpvotes = post.upvotes;
-      let newDownvotes = post.downvotes;
-      if (post.vote === type) {
-        newVote = null;
-        if (type === 'up') newUpvotes--; else newDownvotes--;
-      } else {
-        if (post.vote === 'up') newUpvotes--;
-        if (post.vote === 'down') newDownvotes--;
-        newVote = type;
-        if (type === 'up') newUpvotes++; else newDownvotes++;
-      }
-      return { ...post, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
-    }));
-  };
-
-  const handleCommentVote = (postId: number, commentId: number, type: 'up' | 'down') => {
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId) return post;
-      const updatedComments = post.comments.map(comment => {
-        if (comment.id !== commentId) return comment;
-        let newVote = comment.vote;
-        let newUpvotes = comment.upvotes;
-        let newDownvotes = comment.downvotes;
-        if (comment.vote === type) {
-          newVote = null;
-          if (type === 'up') newUpvotes--; else newDownvotes--;
-        } else {
-          if (comment.vote === 'up') newUpvotes--;
-          if (comment.vote === 'down') newDownvotes--;
-          newVote = type;
-          if (type === 'up') newUpvotes++; else newDownvotes++;
-        }
-        return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
-      });
-      return { ...post, comments: updatedComments };
-    }));
-  };
-
-  const handleReplyClick = (postId: number, commentId: number, username: string) => {
-    setActivePostId(postId);
-    setReplyingToId(commentId);
-    setReplyingToUser(username);
-    const mentionText = `@${username.replace('@', '')} `;
-    setNewCommentText(mentionText);
-    setTimeout(() => {
-        const input = document.getElementById(`comment-input-${postId}`) as HTMLTextAreaElement;
-        if (input) {
-            input.focus();
-            const len = input.value.length;
-            input.setSelectionRange(len, len);
-        }
-    }, 50);
-  };
-
-  const cancelReply = () => {
-    setReplyingToId(null);
-    setReplyingToUser('');
-    setNewCommentText(''); 
-  };
-
-  const handlePostComment = (postId: number) => {
-    if (!newCommentText.trim() && !attachedCommentImage) return;
-    const newComment: Comment = {
-      id: Date.now(),
-      user: '@currentUser',
-      date: 'Just now',
-      text: newCommentText,
-      image: attachedCommentImage,
-      vote: null,
-      upvotes: 0,
-      downvotes: 0,
-      isReply: replyingToId !== null, 
-    };
-    setPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId) return post;
-      const updatedComments = [...post.comments];
-      if (replyingToId !== null) {
-        const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
-        if (parentIndex !== -1) {
-          let insertIndex = parentIndex + 1;
-          while (insertIndex < updatedComments.length && updatedComments[insertIndex].isReply) {
-            insertIndex++;
-          }
-          updatedComments.splice(insertIndex, 0, newComment);
-        } else {
-            updatedComments.push(newComment);
-        }
-      } else {
-        updatedComments.push(newComment);
-      }
-      return { ...post, comments: updatedComments };
-    }));
-    setNewCommentText('');
-    setAttachedCommentImage(null);
-    cancelReply();
-  };
-  
-  const handleCommentKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>, postId: number) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handlePostComment(postId);
     }
   };
 
@@ -504,9 +692,7 @@ function ModeratorPageContent() {
              {/* FIX: Size 230px, Hug bottom left (-mt-135, -ml-10), Thinner border, No opacity */}
             <div className="relative -mt-[135px] -ml-10 z-20 shrink-0 group">
               <div className={`w-[230px] h-[230px] rounded-full border-[4px] shadow-md overflow-hidden cursor-pointer hover:scale-105 transition-transform ${isDarkMode ? "bg-[#444] border-[#222222]" : "bg-[#D9D9D9] border-white"}`} onClick={() => openLightbox(communityProfile)}>
-                <div className="w-full h-full bg-[#D9D9D9] flex items-center justify-center">
-                    <img src={communityProfile} alt="Profile" className="w-full h-full object-contain p-6" />
-                </div>
+                <img src={communityProfile} alt="Profile" className="w-full h-full object-cover" />
               </div>
                 {/* MODERATOR: Edit Profile Button */}
                 {isModerator && (
@@ -521,14 +707,22 @@ function ModeratorPageContent() {
               <div className="flex flex-col flex-1">
                 <div className="flex items-center gap-3">
                   {/* FIX: Text size */}
-                  <h1 className={`text-4xl lg:text-5xl font-black tracking-tight leading-none whitespace-nowrap ${isDarkMode ? "text-white" : "text-black"}`}>Cebu Animal Identifier</h1>
+                  <h1 className={`text-4xl lg:text-5xl font-black tracking-tight leading-none whitespace-nowrap ${isDarkMode ? "text-white" : "text-black"}`}>
+                    {loadingCommunity ? 'Loading...' : communityData?.community_name || 'Community'}
+                  </h1>
                 </div>
 
                 <div>
                   {/* FIX: Font weight semibold, no italic, text-lg */}
                   <div className={`flex flex-wrap items-center gap-6 mt-6 font-semibold ${isDarkMode ? "text-gray-300" : "text-black"}`}>
-                    <div className="flex items-center gap-2 text-lg"><Users className="w-5 h-5 text-[#5E5CE6]" /><span>12.5k members</span></div>
-                    <div className="flex items-center gap-2 text-lg"><div className="w-3 h-3 bg-[#00C92C] rounded-full shadow-[0_0_8px_#00C92C]"></div><span>450 online</span></div>
+                    <div className="flex items-center gap-2 text-lg">
+                      <Users className="w-5 h-5 text-[#5E5CE6]" />
+                      <span>{loadingCommunity ? '...' : (communityData?.member_count ?? 0)} members</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-lg">
+                      <div className="w-3 h-3 bg-[#00C92C] rounded-full shadow-[0_0_8px_#00C92C]"></div>
+                      <span>{loadingCommunity ? '...' : (communityData?.active_members ?? 0)} online</span>
+                    </div>
                   </div>
                   
                   {/* ===== LOCATION SELECTOR (MODERATOR EDITABLE) ===== */}
@@ -572,49 +766,75 @@ function ModeratorPageContent() {
                 </div>
               </div>
 
-              {/* RIGHT SIDE ACTIONS (MODERATOR UI) */}
+              {/* RIGHT SIDE ACTIONS */}
               <div className="flex flex-col items-end gap-4 shrink-0 pb-4">
                   
-                 {/* MODERATOR BADGE */}
-                 <div className="flex items-center gap-3">
-                   {/* CUSTOM TOOLTIP FOR MODERATOR */}
-                   <div className="relative z-10 group/crown">
-                     {/* FIX: Reverted to larger w-12 h-12 size as requested */}
-                     <div className="w-12 h-12 bg-[#00A3FF] rounded-full flex items-center justify-center shadow-md [perspective:1000px] cursor-pointer">
-                         <div className="relative w-full h-full transition-all duration-500 [transform-style:preserve-3d] group-hover/crown:[transform:rotateY(180deg)]">
-                            {/* Front */}
-                            <div className="absolute inset-0 w-full h-full bg-[#00A3FF] rounded-full flex items-center justify-center [backface-visibility:hidden]">
-                               <Crown className="w-6 h-6 text-[#FFD700] fill-current" />
-                            </div>
-                            {/* Back */}
-                            <div className="absolute inset-0 w-full h-full bg-white rounded-full overflow-hidden border-2 border-[#00A3FF] [transform:rotateY(180deg)] [backface-visibility:hidden]">
-                               <img src="/binoculars.svg" alt="Mod" className="w-full h-full object-contain p-2" />
-                            </div>
+                 {/* SHOW MODERATOR BADGE IF MODERATOR */}
+                 {isModerator && (
+                   <div className="flex items-center gap-3">
+                     {/* CUSTOM TOOLTIP FOR MODERATOR */}
+                     <div className="relative z-10 group/crown">
+                       {/* FIX: Reverted to larger w-12 h-12 size as requested */}
+                       <div className="w-12 h-12 bg-[#00A3FF] rounded-full flex items-center justify-center shadow-md [perspective:1000px] cursor-pointer">
+                           <div className="relative w-full h-full transition-all duration-500 [transform-style:preserve-3d] group-hover/crown:[transform:rotateY(180deg)]">
+                              {/* Front */}
+                              <div className="absolute inset-0 w-full h-full bg-[#00A3FF] rounded-full flex items-center justify-center [backface-visibility:hidden]">
+                                 <Crown className="w-6 h-6 text-[#FFD700] fill-current" />
+                              </div>
+                              {/* Back */}
+                              <div className="absolute inset-0 w-full h-full bg-white rounded-full overflow-hidden border-2 border-[#00A3FF] [transform:rotateY(180deg)] [backface-visibility:hidden]">
+                                 <img src="/binoculars.svg" alt="Mod" className="w-full h-full object-contain p-2" />
+                              </div>
+                           </div>
+                       </div>
+                       {/* Tooltip Content */}
+                       <div className="absolute bottom-[130%] left-1/2 -translate-x-1/2 w-max opacity-0 group-hover/crown:opacity-100 transition-all duration-300 pointer-events-none z-50 group-hover/crown:-translate-y-2">
+                         <div className="px-3 py-1.5 rounded-lg flex flex-col items-center backdrop-blur-md border shadow-md"
+                           style={{ background: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.8)', borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)' }}>
+                             <span className={`text-xs font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>Current user is the moderator</span>
                          </div>
-                     </div>
-                     {/* Tooltip Content */}
-                     <div className="absolute bottom-[130%] left-1/2 -translate-x-1/2 w-max opacity-0 group-hover/crown:opacity-100 transition-all duration-300 pointer-events-none z-50 group-hover/crown:-translate-y-2">
-                       <div className="px-3 py-1.5 rounded-lg flex flex-col items-center backdrop-blur-md border shadow-md"
-                         style={{ background: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.8)', borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)' }}>
-                           <span className={`text-xs font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>Current user is the moderator</span>
                        </div>
                      </div>
-                   </div>
 
-                   {/* FIX: Kept text small as requested */}
-                   <span className={`font-bold text-xl ${isDarkMode ? "text-white" : "text-black"}`}>Moderator</span>
-                 </div>
+                     {/* FIX: Kept text small as requested */}
+                     <span className={`font-bold text-xl ${isDarkMode ? "text-white" : "text-black"}`}>Moderator</span>
+                   </div>
+                 )}
+
+                 {/* JOIN BUTTON - Show if user is not a member */}
+                 {!isMember && (
+                   <button 
+                     onClick={handleJoinCommunity}
+                     className={`px-8 py-2 rounded-full font-semibold text-lg flex items-center gap-2 transition-all shadow-sm 
+                     ${isDarkMode ? "bg-[#0057FF] text-white hover:bg-[#0046CC]" : "bg-[#0057FF] text-white hover:bg-[#0046CC]"}`}
+                   >
+                     Join
+                   </button>
+                 )}
+
+                 {/* LEAVE BUTTON - Show if user is a member but not moderator */}
+                 {isMember && !isModerator && (
+                   <button 
+                     onClick={() => setShowLeaveModal(true)}
+                     className={`px-6 py-1.5 rounded-full font-semibold text-sm flex items-center gap-2 transition-all shadow-sm 
+                     ${isDarkMode ? "bg-red-600 text-white hover:bg-red-700" : "bg-red-500 text-white hover:bg-red-600"}`}
+                   >
+                     Leave Community
+                   </button>
+                 )}
                 
-                {/* FIX: Create Post Font Semibold, Thinner padding */}
-                <button 
-                  ref={createPostBtnRef} 
-                  onClick={openCreatePostModal}
-                  className={`px-6 py-1.5 rounded-full font-semibold text-lg flex items-center gap-2 transition-all shadow-sm 
-                  ${isDarkMode ? "bg-[#D9D9D9] text-black hover:bg-gray-400" : "bg-[#D9D9D9] text-black hover:bg-gray-300"}`}
-                >
-                  <div className="bg-[#0057FF] p-0.5 rounded text-white"><Plus className="w-5 h-5" /></div>
-                  Create Post
-                </button>
+                {/* CREATE POST BUTTON - Always show if user is a member */}
+                {isMember && (
+                  <button 
+                    ref={createPostBtnRef} 
+                    onClick={openCreatePostModal}
+                    className={`px-6 py-1.5 rounded-full font-semibold text-lg flex items-center gap-2 transition-all shadow-sm 
+                    ${isDarkMode ? "bg-[#D9D9D9] text-black hover:bg-gray-400" : "bg-[#D9D9D9] text-black hover:bg-gray-300"}`}
+                  >
+                    <div className="bg-[#0057FF] p-0.5 rounded text-white"><Plus className="w-5 h-5" /></div>
+                    Create Post
+                  </button>
+                )}
               </div>
             </div>
 
@@ -665,7 +885,19 @@ function ModeratorPageContent() {
                     <div className="w-10 h-10 bg-[#A8A8A8] rounded-full border border-gray-400"></div>
                     <span className="font-semibold text-lg">{post.user}</span>
                   </div>
-                  <span className={`text-xs font-bold italic ${isDarkMode ? "text-gray-400" : "text-black/60"}`}>{post.date}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-bold italic ${isDarkMode ? "text-gray-400" : "text-black/60"}`}>{post.date}</span>
+                    {/* Show delete button if user is moderator (moderators can delete any post) */}
+                    {isModerator && (
+                      <button
+                        onClick={() => handleDeletePost(post.id)}
+                        className="p-1.5 rounded-full hover:bg-red-100 transition-colors"
+                        title="Delete post"
+                      >
+                        <X className="w-4 h-4 text-red-600" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <h2 className="font-extrabold text-2xl mb-3 leading-tight">{post.heading}</h2>
@@ -825,30 +1057,67 @@ function ModeratorPageContent() {
       )}
 
       {/* CREATE POST MODAL */}
-      {isCreatePostOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-          <div className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${isClosingModal ? 'opacity-0' : 'opacity-100'}`} onClick={() => closeModal(setIsCreatePostOpen)}/>
-          <div className="relative w-full max-w-3xl" style={{ transformOrigin: `${modalOrigin.x}px ${modalOrigin.y}px` }}>
-             <div className={`w-full rounded-[40px] border p-8 shadow-2xl ${isClosingModal ? 'animate-genie-out' : 'animate-genie-in'} ${isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"}`}>
-              <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center gap-4"><div className="w-14 h-14 bg-[#A8A8A8] rounded-full border border-gray-400"></div><h2 className="font-extrabold text-3xl italic">Create Post</h2></div>
-                <button onClick={() => closeModal(setIsCreatePostOpen)} className="p-2 hover:bg-black/5 rounded-full transition-colors"><X className="w-8 h-8" /></button>
-              </div>
-              <div className="flex flex-col gap-6">
-                <div><input type="text" placeholder="Heading" value={newPostHeading} onChange={(e) => setNewPostHeading(e.target.value)} className={`w-full text-3xl font-extrabold bg-transparent outline-none placeholder:italic ${isDarkMode ? "placeholder:text-gray-500" : "placeholder:text-gray-400"}`}/><div className="h-[2px] w-full bg-black/10 mt-2"></div></div>
-                <div onClick={() => createPostFileInputRef.current?.click()} className={`w-full h-[300px] rounded-[30px] border-2 border-dashed flex flex-col items-center justify-center cursor-pointer hover:bg-black/5 transition-colors relative overflow-hidden ${isDarkMode ? "border-gray-600 bg-[#333]" : "border-gray-300 bg-[#EFEFEF]"}`}>{newPostImage ? <img src={newPostImage} alt="Upload preview" className="absolute inset-0 w-full h-full object-cover" /> : <><UploadCloud className="w-16 h-16 text-gray-400 mb-2" /><span className="font-bold text-gray-400">Click to upload image</span></>}<input type="file" accept="image/*" ref={createPostFileInputRef} onChange={handleCreatePostFileSelect} className="hidden" /></div>
-                <textarea placeholder="Write a caption..." rows={3} value={newPostCaption} onChange={(e) => setNewPostCaption(e.target.value)} className={`w-full text-lg font-bold bg-transparent outline-none resize-none placeholder:italic ${isDarkMode ? "placeholder:text-gray-500" : "placeholder:text-gray-400"}`}/>
-                <div className="flex justify-end gap-4 mt-2"><button onClick={() => closeModal(setIsCreatePostOpen)} className="px-8 py-3 rounded-full font-bold text-gray-500 hover:bg-black/5 transition-colors">Cancel</button><button onClick={handleCreatePost} disabled={!newPostHeading.trim() && !newPostCaption.trim() && !newPostImage} className={`px-12 py-3 rounded-full font-extrabold text-xl shadow-lg transition-all ${(!newPostHeading.trim() && !newPostCaption.trim() && !newPostImage) ? "bg-gray-400 cursor-not-allowed" : "bg-[#00C92C] text-white hover:bg-green-600 hover:scale-105"}`}>Post</button></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <CreatePostModal
+        isDarkMode={isDarkMode}
+        isOpen={isCreatePostOpen}
+        isClosing={isClosingModal}
+        onClose={() => closeModal(setIsCreatePostOpen)}
+        onCreate={handleCreatePost}
+        modalOrigin={modalOrigin}
+        communityId={communityId}
+      />
 
       {lightboxImage && (
         <div className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={closeLightbox}>
           <button className="absolute top-6 right-6 p-3 text-white/80 hover:text-white hover:bg-white/10 rounded-full transition-colors"><X className="w-10 h-10" /></button>
           <div className="relative w-full h-full max-w-7xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}><img src={lightboxImage} alt="Full view" className="absolute inset-0 w-full h-full object-contain drop-shadow-2xl" /></div>
+        </div>
+      )}
+
+      {/* LEAVE COMMUNITY CONFIRMATION MODAL */}
+      {showLeaveModal && (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
+          <div className={`rounded-2xl p-6 max-w-md w-full shadow-2xl ${isDarkMode ? 'bg-[#333333]' : 'bg-white'}`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>Leave Community?</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Are you sure you want to leave <span className="font-semibold">{communityData?.community_name}</span>? You can always rejoin later.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowLeaveModal(false)}
+                className={`flex-1 py-2.5 rounded-full font-semibold transition-all ${isDarkMode ? 'bg-gray-600 text-white hover:bg-gray-700' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLeaveCommunity}
+                className="flex-1 py-2.5 rounded-full font-semibold bg-red-600 text-white hover:bg-red-700 transition-all"
+              >
+                Leave
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SUCCESS MODAL */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 z-[200] flex items-center justify-center p-4">
+          <div className={`rounded-2xl p-8 max-w-md w-full shadow-2xl text-center ${isDarkMode ? 'bg-[#333333]' : 'bg-white'}`}>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-black'}`}>Success!</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              {successMessage}
+            </p>
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full py-2.5 rounded-full font-semibold bg-[#0057FF] text-white hover:bg-[#0046CC] transition-all"
+            >
+              OK
+            </button>
+          </div>
         </div>
       )}
 
@@ -872,19 +1141,81 @@ function ModeratorPageContent() {
         </defs>
       </svg>
 
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              setShowDeleteModal(false);
+              setPostToDelete(null);
+            }}
+          />
+          <div className="relative w-full max-w-md">
+            <div 
+              className={`w-full rounded-[40px] border shadow-2xl p-8 flex flex-col items-center animate-genie-in ${
+                isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"
+              }`}
+            >
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                isDarkMode ? 'bg-red-600' : 'bg-red-500'
+              }`}>
+                <span className="text-5xl text-white">⚠</span>
+              </div>
+              <h2 className="font-extrabold text-2xl mb-2 text-center">Delete Post?</h2>
+              <p className="text-center mb-6 opacity-80">Are you sure you want to delete this post? This action cannot be undone.</p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setPostToDelete(null);
+                  }}
+                  className={`flex-1 px-6 py-3 rounded-full font-bold transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#333] border-2 border-gray-600 text-white hover:bg-[#444]'
+                      : 'bg-white border-2 border-gray-300 text-black hover:bg-gray-100'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeletePost}
+                  className="flex-1 px-6 py-3 rounded-full font-bold bg-red-600 text-white hover:bg-red-700 transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
 
-// --- ROOT COMPONENT ---
-export default function ModeratorPage() {
+// --- WRAPPER FOR ASYNC PARAMS ---
+function CommunityPageWrapper({ communityId }: { communityId: string }) {
   const [isDarkMode, setIsDarkMode] = useState(false); 
   const toggleTheme = () => setIsDarkMode(prev => !prev);
 
   return (
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>
       <Header />
-      <ModeratorPageContent />
+      <ModeratorPageContent communityId={communityId} />
     </ThemeContext.Provider>
   );
+}
+
+// --- ROOT COMPONENT ---
+export default function ModeratorPage({ params }: { params: Promise<{ id: string }> }) {
+  const [communityId, setCommunityId] = React.useState<string | null>(null);
+  
+  React.useEffect(() => {
+    params.then(({ id }) => setCommunityId(id));
+  }, [params]);
+  
+  if (!communityId) return null;
+  
+  return <CommunityPageWrapper communityId={communityId} />;
 }
