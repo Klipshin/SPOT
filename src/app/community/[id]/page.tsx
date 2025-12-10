@@ -7,6 +7,14 @@ import {
   MessageCircle, Image as ImageIcon, Send, X, Reply, UploadCloud, Check, Sun, Moon, User, Edit2, ShieldCheck, UserMinus
 } from "lucide-react";
 import CreatePostModal from '@/src/components/CreatePostModal';
+import { createClient } from '@/src/utils/supabase/client';
+import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
+  ssr: false,
+});
+
 
 interface LinkProps {
   href: string;
@@ -36,32 +44,179 @@ const philippineLocations = [
 
 // --- HEADER COMPONENT ---
 function Header() {
-  const { isDarkMode, toggleTheme } = useTheme(); 
+  const { isDarkMode, toggleTheme } = useTheme();
+  const router = useRouter();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [username, setUsername] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const supabase = createClient();
+  
+  // Fetch user profile data
+  useEffect(() => {
+    async function fetchUserProfile() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Set email
+        setEmail(user.email || null);
+
+        // Fetch user profile for username and profile picture
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('username, profile_picture')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profile) {
+          setUsername(profile.username);
+          setProfilePicture(profile.profile_picture);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    }
+    fetchUserProfile();
+  }, [supabase]);
   
   return (
-    <header 
-      className={`fixed top-0 left-0 w-full h-[50px] border-b z-[100] flex items-center justify-between px-4 font-poppins shadow-sm transition-all duration-300 backdrop-blur-xl
-      ${isDarkMode 
-        ? 'bg-[#333333]/95 border-white/10' 
-        : 'bg-[#E2DFC8]/95 border-black/5'}`}
-    >
-      <Link href="/" className="flex items-center gap-2">
-        <img src="/spot icon.svg" alt="SPOT Icon" width={44} height={44} className={`object-contain ${isDarkMode ? "drop-shadow-[0_0_4px_white] brightness-110" : ""}`} />
-        <span className={`text-4xl font-extrabold tracking-tighter drop-shadow-sm leading-none mt-1 ${isDarkMode ? 'text-[#4CA954]' : 'text-[#36683d]'}`}>SPOT</span>
-      </Link>
-      <div className="flex items-center gap-3">
-        <div className="relative flex items-center cursor-pointer h-9 mr-2" onClick={toggleTheme}>
-          <div className={`w-[60px] h-9 rounded-full shadow-inner transition-colors duration-300 ${isDarkMode ? 'bg-[#3F3C56]' : 'bg-[#4B4A2C]'}`}></div>
-          <div className={`absolute top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-md border-[2px] transition-all duration-300 ${isDarkMode ? 'left-[22px] bg-white border-[#333]' : '-left-1 bg-[#FFD500] border-[#E2DFC8]'}`}>
-             {isDarkMode ? (<Moon className="w-6 h-6 text-[#3F3C56] fill-[#3F3C56]" />) : (<Sun className="w-6 h-6 text-[#F59E0B] fill-[#F59E0B]" />)}
-          </div>
-        </div>
-        <ChevronDown className={`w-6 h-6 cursor-pointer stroke-[3] ${isDarkMode ? 'text-white' : 'text-black'}`} />
-        <div className={`w-11 h-11 rounded-full flex items-center justify-center overflow-hidden border-[2px] shadow-sm cursor-pointer ${isDarkMode ? 'bg-[#9CA3AF] border-[#767D85]' : 'bg-[#B6BEC7] border-[#767D85]'}`}>
-           <User className={`w-7 h-7 ${isDarkMode ? 'text-[#D1D5DB] fill-current' : 'text-[#7E868E] fill-current'}`} />
-        </div>
+    <div className="fixed top-0 left-0 right-0 w-full z-50">
+      <div className={`w-full h-11 justify-center ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`} />
+      
+      {/* SPOT Logo Text */}
+      <div className="absolute -top-0.5 left-[70px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
+        SPOT
       </div>
-    </header>
+
+      {/* Logo Icon */}
+      <img className="absolute top-0 left-[15px] w-[50px] h-[40px] aspect-[1.48] object-cover" alt="Spoticon" src="/eyecon.svg" />
+      
+      {/* Right Side Icons */}
+      <button 
+        className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+        onClick={toggleTheme}
+      >
+        {isDarkMode ? (
+          <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
+        ) : (
+          <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
+        )}
+      </button>
+
+      {/* User Profile Button */}
+      <div className="absolute top-[5px] left-[1440px]">
+        <button 
+          className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+          onClick={() => setIsProfileOpen(!isProfileOpen)}
+          onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
+        >
+          <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/downn.svg" />
+          <div className="w-[35px] h-[35px] bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+            {profilePicture ? (
+              <img 
+                src={profilePicture} 
+                alt={username || 'User'} 
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                }}
+              />
+            ) : (
+              <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+            )}
+          </div>
+        </button>
+
+        {/* Profile Dropdown */}
+        {isProfileOpen && (
+          <div 
+            className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50"
+            style={{ border: '2px solid #899A3C' }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {/* User Info Section */}
+            <div className="px-4 py-3 border-b border-gray-300 flex items-center gap-3">
+              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                {profilePicture ? (
+                  <img 
+                    src={profilePicture} 
+                    alt={username || 'User'} 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-gray-900">@{username || 'user'}</h3>
+                <p className="text-xs text-gray-600 mt-0.5">{email || 'loading...'}</p>
+              </div>
+            </div>
+            
+            {/* Menu Items */}
+            <div className="py-1">
+              <button 
+                className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  router.push('/profile');
+                }}
+              >
+                <Edit2 className="w-4 h-4 text-gray-700" />
+                <span className="text-sm font-medium text-gray-900">Edit Profile</span>
+              </button>
+              
+              <button 
+                className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                onClick={() => {
+                  setIsProfileOpen(false);
+                  router.push('/settings');
+                }}
+              >
+                <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-sm font-medium text-gray-900">Account Settings</span>
+              </button>
+              
+              <button 
+                className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                onClick={() => {/* Help Center logic here */}}
+              >
+                <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-medium text-gray-900">Help Center</span>
+              </button>
+            </div>
+            
+            {/* Log Out Section */}
+            <div className="border-t border-gray-400">
+              <button 
+                className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase.auth.signOut();
+                    if (error) console.error('Error signing out:', error.message);
+                    router.push('/');
+                  } catch (err) {
+                    console.error('Sign out failed:', err);
+                  }
+                }}
+              >
+                <svg className="w-4 h-4 text-gray-700 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -69,6 +224,7 @@ function Header() {
 type Comment = {
   id: number;
   user: string;
+  userProfilePicture?: string | null;
   date: string;
   text: string;
   image?: string | null;
@@ -84,6 +240,7 @@ type Post = {
   userId?: string; // Post author's user_id
   timestamp: number;
   user: string;
+  userProfilePicture?: string | null;
   date: string;
   heading: string;
   image?: string | null;
@@ -114,6 +271,33 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   const [isMember, setIsMember] = useState(false);
   const [isModerator, setIsModerator] = useState(false);
   const [loadingMembership, setLoadingMembership] = useState(true);
+
+  // ===== STATE: CURRENT USER =====
+  const [currentUserProfilePicture, setCurrentUserProfilePicture] = useState<string | null>(null);
+
+  // Fetch current user profile picture
+  useEffect(() => {
+    async function fetchCurrentUserProfile() {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from('user_profiles')
+          .select('profile_picture')
+          .eq('user_id', user.id)
+          .single();
+
+        if (profile) {
+          setCurrentUserProfilePicture(profile.profile_picture);
+        }
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+      }
+    }
+    fetchCurrentUserProfile();
+  }, []);
 
   // Fetch community data
   useEffect(() => {
@@ -202,6 +386,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const [isClosingModal, setIsClosingModal] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showDeleteCommunityModal, setShowDeleteCommunityModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
@@ -245,6 +430,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
         userId: p.user_id, // Track post author
         timestamp: new Date(p.created_at).getTime(),
         user: `@${p.user_profiles?.username || 'user'}`,
+        userProfilePicture: p.user_profiles?.profile_picture || null,
         date: formatDate(p.created_at),
         heading: p.title,
         image: p.media_url,
@@ -268,12 +454,13 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
             const mappedComments: Comment[] = comments.map((c: any) => ({
               id: c.comment_id,
               user: `@${c.user_profiles?.username || 'user'}`,
+              userProfilePicture: c.user_profiles?.profile_picture || null,
               date: formatDate(c.created_at),
               text: c.content,
               image: c.media_url,
-              vote: null,
-              upvotes: 0,
-              downvotes: 0,
+              vote: c.userVote || null,
+              upvotes: c.upvotes || 0,
+              downvotes: c.downvotes || 0,
               isReply: c.parent_comment_id !== null,
             }));
             
@@ -546,6 +733,86 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
     }
   };
 
+  // -- Post Comment Handler --
+  const handlePostComment = async (postId: string) => {
+    const trimmedContent = newCommentText.trim();
+    if (!trimmedContent && !attachedCommentImage) return;
+    
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Call API to post comment
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: trimmedContent,
+          media_url: attachedCommentImage,
+          parent_comment_id: replyingToId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to post comment:', response.status, errorData);
+        alert(`Failed to post comment: ${errorData.error || 'Unknown error'}`);
+        return;
+      }
+
+      const { comment: insertedComment } = await response.json();
+
+      // CLIENT-SIDE STATE UPDATE using data from API
+      const newComment: Comment = {
+        id: insertedComment?.comment_id || Date.now(),
+        user: `@${insertedComment?.user_profiles?.username || 'user'}`,
+        userProfilePicture: insertedComment?.user_profiles?.profile_picture || null,
+        date: formatDate(new Date().toISOString()),
+        text: insertedComment?.content || trimmedContent,
+        image: insertedComment?.media_url || attachedCommentImage,
+        vote: null,
+        upvotes: 0,
+        downvotes: 0,
+        isReply: replyingToId !== null,
+      };
+
+      setPosts(prevPosts => prevPosts.map(post => {
+        if (post.id !== postId) return post;
+        
+        let updatedComments = [...post.comments];
+        
+        if (replyingToId !== null) {
+          const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
+          if (parentIndex !== -1) {
+            let insertIndex = parentIndex + 1;
+            while (insertIndex < updatedComments.length && updatedComments[insertIndex].isReply) {
+              insertIndex++;
+            }
+            updatedComments.splice(insertIndex, 0, newComment);
+          } else {
+            updatedComments.push(newComment);
+          }
+        } else {
+          updatedComments.push(newComment);
+        }
+        
+        return { ...post, comments: updatedComments };
+      }));
+
+      setNewCommentText('');
+      setAttachedCommentImage(null);
+      setReplyingToId(null);
+      setReplyingToUser('');
+      setActivePostId(null);
+    } catch (error) {
+      console.error('Error posting comment:', error);
+      alert('An error occurred while posting your comment. Please try again.');
+    }
+  };
+
   // -- Join Community Action --
   const handleJoinCommunity = async () => {
     try {
@@ -694,6 +961,32 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   
   const cancelEditLocation = () => setIsEditingLocation(false);
 
+  const handleDeleteCommunity = async () => {
+    try {
+      const response = await fetch(`/api/communities/${communityId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to delete community');
+      }
+
+      // Close modal and show success message
+      setShowDeleteCommunityModal(false);
+      setSuccessMessage('Community deleted successfully');
+      setShowSuccessModal(true);
+      
+      // Redirect to dashboard after short delay
+      setTimeout(() => {
+        window.location.href = '/dashboard';
+      }, 1500);
+    } catch (error: any) {
+      console.error('Error deleting community:', error);
+      alert(`Error: ${error.message || 'Failed to delete community'}`);
+    }
+  };
+
   // -- Post interaction handlers --
   const handlePostVote = async (postId: string, direction: 'up' | 'down') => {
     const currentPost = posts.find(p => p.id === postId);
@@ -816,74 +1109,6 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
       }));
     } catch (error) {
       console.error('Error handling comment vote:', error);
-    }
-  };
-
-  const handlePostComment = async (postId: string) => {
-    if (!newCommentText.trim() && !attachedCommentImage) return;
-
-    try {
-      const response = await fetch(`/api/posts/${postId}/comments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: newCommentText,
-          media_url: attachedCommentImage,
-          parent_comment_id: replyingToId
-        }),
-      });
-
-      if (!response.ok) {
-        console.error('Failed to post comment');
-        return;
-      }
-
-      const { comment: insertedComment } = await response.json();
-
-      // Update local state with new comment
-      const newComment: Comment = {
-        id: insertedComment?.comment_id || Date.now(),
-        user: `@${insertedComment?.user_profiles?.username || 'user'}`,
-        date: 'Just now',
-        text: newCommentText,
-        image: attachedCommentImage,
-        vote: null,
-        upvotes: 0,
-        downvotes: 0,
-        isReply: replyingToId !== null,
-      };
-
-      setPosts(prevPosts => prevPosts.map(post => {
-        if (post.id !== postId) return post;
-        
-        let updatedComments = [...post.comments];
-        
-        if (replyingToId !== null) {
-          const parentIndex = updatedComments.findIndex(c => c.id === replyingToId);
-          if (parentIndex !== -1) {
-            let insertIndex = parentIndex + 1;
-            while (insertIndex < updatedComments.length && updatedComments[insertIndex].isReply) {
-              insertIndex++;
-            }
-            updatedComments.splice(insertIndex, 0, newComment);
-          } else {
-            updatedComments.push(newComment);
-          }
-        } else {
-          updatedComments.push(newComment);
-        }
-
-        return { ...post, comments: updatedComments };
-      }));
-
-      setNewCommentText('');
-      setAttachedCommentImage(null);
-      cancelReply();
-      setActivePostId(null);
-    } catch (error) {
-      console.error('Error posting comment:', error);
     }
   };
 
@@ -1011,29 +1236,13 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                     <MapPin className="w-5 h-5 text-[#FFD700] shrink-0" />
                     
                     {isEditingLocation ? (
-                        <div className="relative">
-                            <div className="flex items-center gap-2 animate-in fade-in">
-                                <input 
-                                    ref={locationInputRef}
-                                    type="text" 
-                                    value={tempLocationText}
-                                    onChange={(e) => setTempLocationText(e.target.value)}
-                                    onFocus={(e) => e.target.select()}
-                                    onKeyDown={(e) => { if(e.key === 'Enter') saveLocation(); if(e.key === 'Escape') cancelEditLocation(); }}
-                                    className={`bg-transparent outline-none border-b-2 italic px-1 pr-4 ${isDarkMode ? "border-white text-white" : "border-black text-black"}`}
-                                    placeholder="Search city..."
-                                />
-                                <button onClick={saveLocation} className="p-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"><Check className="w-4 h-4" /></button>
-                                <button onClick={cancelEditLocation} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"><X className="w-4 h-4" /></button>
-                            </div>
-                            {/* DROPDOWN */}
-                            <div className={`absolute top-full left-0 mt-2 w-72 max-h-60 overflow-y-auto rounded-xl border p-2 shadow-xl backdrop-blur-xl z-50 custom-scrollbar ${isDarkMode ? "bg-[#222222]/95 border-white/10" : "bg-white/95 border-black/5"}`}>
-                                {filteredLocations.length > 0 ? (
-                                    filteredLocations.map((loc) => (
-                                        <button key={loc} onClick={() => setTempLocationText(loc)} className={`w-full text-left px-4 py-2 rounded-lg text-sm transition-colors ${isDarkMode ? "hover:bg-white/10 text-gray-200" : "hover:bg-black/5 text-gray-800"}`}>{loc}</button>
-                                    ))
-                                ) : (<div className="p-4 text-center text-sm opacity-50">No results found</div>)}
-                            </div>
+                        <div className="relative flex items-center gap-2 animate-in fade-in">
+                            <LocationSearch
+                              value={tempLocationText}
+                              onChange={setTempLocationText}
+                            />
+                            <button onClick={saveLocation} className="p-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"><Check className="w-4 h-4" /></button>
+                            <button onClick={cancelEditLocation} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"><X className="w-4 h-4" /></button>
                         </div>
                     ) : (
                         <>
@@ -1103,6 +1312,16 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                      Leave Community
                    </button>
                  )}
+
+                 {/* DELETE BUTTON - Show only for moderators */}
+                 {isModerator && (
+                   <button 
+                     onClick={() => setShowDeleteCommunityModal(true)}
+                     className="px-6 py-1.5 rounded-full font-semibold text-sm flex items-center gap-2 transition-all shadow-sm bg-red-700 text-white hover:bg-red-800"
+                   >
+                     Delete Community
+                   </button>
+                 )}
                 
                 {/* CREATE POST BUTTON - Always show if user is a member */}
                 {isMember && (
@@ -1163,7 +1382,22 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                 {/* User Row */}
                 <div className="flex justify-between items-center mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#A8A8A8] rounded-full border border-gray-400"></div>
+                    <div className="w-10 h-10 bg-[#A8A8A8] rounded-full border border-gray-400 flex items-center justify-center overflow-hidden">
+                      {post.userProfilePicture ? (
+                        <img 
+                          src={post.userProfilePicture} 
+                          alt={post.user} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) parent.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                          }}
+                        />
+                      ) : (
+                        <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                      )}
+                    </div>
                     <span className="font-semibold text-lg">{post.user}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1250,7 +1484,22 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                         <div key={comment.id} className={`relative flex gap-3 ${comment.isReply ? "pl-[36px]" : ""}`}>
                           {!comment.isReply && isNextReply && <div className="absolute left-[18px] top-[40px] bottom-0 w-[2px] bg-[#A8A8A8]"></div>}
                           {comment.isReply && (<><div className="absolute left-[18px] -top-4 h-[35px] w-[18px] border-l-[2px] border-b-[2px] rounded-bl-lg border-[#A8A8A8]"></div>{isNextReply && <div className="absolute left-[18px] top-[20px] h-[calc(100%+20px)] w-[2px] bg-[#A8A8A8]"></div>}</>)}
-                          <div className="w-9 h-9 bg-[#A8A8A8] rounded-full border border-gray-400 shrink-0 relative z-10"></div>
+                          <div className="w-9 h-9 bg-[#A8A8A8] rounded-full border border-gray-400 shrink-0 relative z-10 flex items-center justify-center overflow-hidden">
+                            {comment.userProfilePicture ? (
+                              <img 
+                                src={comment.userProfilePicture} 
+                                alt={comment.user} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  const parent = e.currentTarget.parentElement;
+                                  if (parent) parent.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                                }}
+                              />
+                            ) : (
+                              <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                            )}
+                          </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-center mb-0.5">
                               <span className="font-normal text-sm">{comment.user}</span>
@@ -1303,7 +1552,22 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                   )}
 
                   <div className={`flex items-center gap-3 border-[2px] rounded-[15px] px-3 py-2 shadow-sm min-h-[50px] relative transition-colors ${isDarkMode ? "bg-[#595A4A] border-[#95AB33]" : "bg-white border-[#95AB33]"}`}>
-                    <div className="w-8 h-8 bg-[#A8A8A8] rounded-full border border-gray-300 shrink-0"></div>
+                    <div className="w-8 h-8 bg-[#A8A8A8] rounded-full border border-gray-300 shrink-0 flex items-center justify-center overflow-hidden">
+                      {currentUserProfilePicture ? (
+                        <img 
+                          src={currentUserProfilePicture} 
+                          alt="You" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            const parent = e.currentTarget.parentElement;
+                            if (parent) parent.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                          }}
+                        />
+                      ) : (
+                        <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                      )}
+                    </div>
                     
                     <textarea
                       id={`comment-input-${post.id}`}
@@ -1495,6 +1759,51 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
         </div>
       )}
 
+      {/* DELETE COMMUNITY CONFIRMATION MODAL */}
+      {showDeleteCommunityModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowDeleteCommunityModal(false)}
+          />
+          <div className="relative w-full max-w-md">
+            <div 
+              className={`w-full rounded-[40px] border shadow-2xl p-8 flex flex-col items-center animate-genie-in ${
+                isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"
+              }`}
+            >
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                isDarkMode ? 'bg-red-600' : 'bg-red-500'
+              }`}>
+                <span className="text-5xl text-white">⚠</span>
+              </div>
+              <h2 className="font-extrabold text-2xl mb-2 text-center">Delete Community?</h2>
+              <p className="text-center mb-6 opacity-80">
+                Are you sure you want to delete this entire community? This will permanently delete all posts, comments, and members. This action cannot be undone.
+              </p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowDeleteCommunityModal(false)}
+                  className={`flex-1 px-6 py-3 rounded-full font-bold transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#333] border-2 border-gray-600 text-white hover:bg-[#444]'
+                      : 'bg-white border-2 border-gray-300 text-black hover:bg-gray-100'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteCommunity}
+                  className="flex-1 px-6 py-3 rounded-full font-bold bg-red-600 text-white hover:bg-red-700 transition-colors"
+                >
+                  Delete Community
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* LOCATION MODAL */}
       {showLocationModal && selectedLocation && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
@@ -1561,8 +1870,21 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
 
 // --- WRAPPER FOR ASYNC PARAMS ---
 function CommunityPageWrapper({ communityId }: { communityId: string }) {
-  const [isDarkMode, setIsDarkMode] = useState(false); 
-  const toggleTheme = () => setIsDarkMode(prev => !prev);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    }
+    return false;
+  }); 
+  const toggleTheme = () => setIsDarkMode(prev => {
+    const newValue = !prev;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', newValue.toString());
+    }
+    return newValue;
+  });
 
   return (
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme }}>

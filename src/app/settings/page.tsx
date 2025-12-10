@@ -1,14 +1,33 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
+import { User, Settings, HelpCircle, LogOut, Edit } from 'lucide-react';
 
 type ActiveSection = 'change-password' | 'privacy-settings' | 'notifications';
 
 export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<ActiveSection>('change-password');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const [currentUsername, setCurrentUsername] = useState('');
+  const [currentEmail, setCurrentEmail] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    }
+    return false;
+  });
+  
+  // Save dark mode preference to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', isDarkMode.toString());
+    }
+  }, [isDarkMode]);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -53,6 +72,8 @@ export default function SettingsPage() {
             location: profile.location || '',
             occupation: profile.occupation || '',
           });
+          setCurrentUsername(profile.username || '');
+          setCurrentEmail(user.email || '');
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -63,6 +84,18 @@ export default function SettingsPage() {
 
     loadUserProfile();
   }, [supabase, router]);
+
+  // Handle clicks outside dropdown
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -273,10 +306,10 @@ export default function SettingsPage() {
 </button>
 
     {/* Profile & Chevron Combined Dropdown */}
-<div className="relative">
+<div className="relative" ref={profileDropdownRef}>
   <button 
     className="flex items-center gap-1 px-2 h-14 hover:bg-gray-200 rounded-full transition-colors"
-    onClick={() => {/* Toggle dropdown */}}
+    onClick={() => setIsProfileOpen(!isProfileOpen)}
   >
     <svg className="w-9 h-9 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -285,10 +318,75 @@ export default function SettingsPage() {
   </button>
   
   {/* Dropdown Menu */}
-  {/* Add your dropdown content here */}
-  <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 hidden">
-    {/* Dropdown content */}
-  </div>
+  {isProfileOpen && (
+    <div 
+      className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border-2 z-50"
+      style={{ border: '2px solid #899A3C' }}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      {/* User Info Section */}
+      <div className="px-4 py-3 border-b border-gray-300 flex items-center gap-3">
+        <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+          <User className="w-6 h-6 text-gray-500" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900">@{currentUsername}</h3>
+          <p className="text-xs text-gray-600 mt-0.5">{currentEmail}</p>
+        </div>
+      </div>
+
+      {/* Menu Items - WITHOUT "View Profile" since we're already on settings/profile page */}
+      <div className="py-1">
+        <button 
+          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          onClick={() => {
+            setIsProfileOpen(false);
+            router.push('/profile');
+          }}
+        >
+          <Edit className="w-4 h-4 text-gray-700" />
+          <span className="text-sm font-medium text-gray-900">Edit Profile</span>
+        </button>
+        
+        <button 
+          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          onClick={() => {
+            setIsProfileOpen(false);
+            // Already on settings page, just close dropdown
+          }}
+        >
+          <Settings className="w-4 h-4 text-gray-700" />
+          <span className="text-sm font-medium text-gray-900">Account Settings</span>
+        </button>
+        
+        <button 
+          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          onClick={() => {/* Help Center logic here */}}
+        >
+          <HelpCircle className="w-4 h-4 text-gray-700" />
+          <span className="text-sm font-medium text-gray-900">Help Center</span>
+        </button>
+      </div>
+
+      {/* Log Out Section */}
+      <div className="border-t border-gray-400">
+        <button 
+          className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
+          onClick={async () => {
+            try {
+              await supabase.auth.signOut();
+              router.push('/auth/login');
+            } catch (error) {
+              console.error('Error signing out:', error);
+            }
+          }}
+        >
+          <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
+          <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+        </button>
+      </div>
+    </div>
+  )}
 </div>
 
     {/* Exit Icon */}

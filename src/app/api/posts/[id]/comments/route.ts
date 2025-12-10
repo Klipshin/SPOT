@@ -19,21 +19,29 @@ export async function POST(
     const body = await request.json();
     const { content, media_url, parent_comment_id } = body;
 
-    if (!content || !content.trim()) {
-      return NextResponse.json({ error: 'Comment content is required' }, { status: 400 });
+    console.log('Creating comment with:', { postId, content, media_url, parent_comment_id, userId: user.id });
+
+    // Require either content or media_url
+    if ((!content || !content.trim()) && !media_url) {
+      return NextResponse.json({ error: 'Comment content or image is required' }, { status: 400 });
     }
 
     // Use admin client to insert comment
     const adminSupabase = createAdminClient();
+    
+    const commentData = {
+      post_id: postId,
+      user_id: user.id,
+      content: content?.trim() || '[Image]', // Use placeholder text if only image
+      media_url: media_url || null,
+      parent_comment_id: parent_comment_id || null,
+    };
+    
+    console.log('Inserting comment data:', commentData);
+    
     const { data: comment, error: insertError } = await adminSupabase
       .from('comments')
-      .insert({
-        post_id: postId,
-        user_id: user.id,
-        content: content.trim(),
-        media_url: media_url || null,
-        parent_comment_id: parent_comment_id || null,
-      })
+      .insert(commentData)
       .select(`
         *,
         user_profiles (
@@ -46,7 +54,7 @@ export async function POST(
 
     if (insertError) {
       console.error('Error inserting comment:', insertError);
-      return NextResponse.json({ error: 'Failed to post comment' }, { status: 500 });
+      return NextResponse.json({ error: insertError.message || 'Failed to post comment', details: insertError }, { status: 500 });
     }
 
     return NextResponse.json({ comment }, { status: 201 });
@@ -63,6 +71,10 @@ export async function GET(
   try {
     const { id: postId } = await context.params;
     const adminSupabase = createAdminClient();
+    const supabase = await createServerClient();
+    
+    // Get current user (optional, for checking their votes)
+    const { data: { user } } = await supabase.auth.getUser();
 
     const { data: comments, error } = await adminSupabase
       .from('comments')
@@ -82,7 +94,37 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch comments' }, { status: 500 });
     }
 
-    return NextResponse.json({ comments: comments || [] }, { status: 200 });
+    // Get vote counts and user's votes for each comment
+    const commentsWithVotes = await Promise.all(
+      (comments || []).map(async (comment) => {
+        // Get vote counts
+        const { data: votes } = await adminSupabase
+          .from('votes')
+          .select('vote_type, user_id')
+          .eq('comment_id', comment.comment_id);
+
+        const upvotes = votes?.filter(v => v.vote_type === 'upvote').length || 0;
+        const downvotes = votes?.filter(v => v.vote_type === 'downvote').length || 0;
+        
+        // Check if current user voted
+        let userVote = null;
+        if (user) {
+          const userVoteData = votes?.find(v => v.user_id === user.id);
+          if (userVoteData) {
+            userVote = userVoteData.vote_type === 'upvote' ? 'up' : 'down';
+          }
+        }
+
+        return {
+          ...comment,
+          upvotes,
+          downvotes,
+          userVote
+        };
+      })
+    );
+
+    return NextResponse.json({ comments: commentsWithVotes || [] }, { status: 200 });
   } catch (error) {
     console.error('Error in GET /api/posts/[id]/comments:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
