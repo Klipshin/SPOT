@@ -369,8 +369,8 @@ export default function ExpertProfilePage() {
             {/* Profile Picture Area */}
 <div className="flex flex-col items-center">
   <div className="relative w-64 h-64">
-    {/* Profile Picture Circle */}
-    <div className="w-64 h-64 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 border-4 border-gray-400 flex items-center justify-center overflow-hidden">
+    {/* Profile Picture Circle with Aurora Background */}
+    <div className="w-64 h-64 rounded-full bg-[linear-gradient(135deg,#1e3a8a_0%,#059669_25%,#10b981_50%,#06b6d4_75%,#3b82f6_100%)] border-4 border-yellow-500 flex items-center justify-center overflow-hidden shadow-2xl" style={{backgroundImage: 'url(/exp.svg)', backgroundSize: 'cover', backgroundPosition: 'center'}}>
       {/* Placeholder for profile image */}
       {profileImage ? (
         <img 

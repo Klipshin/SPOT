@@ -19,7 +19,7 @@ export async function GET(request: Request) {
     // Use admin client to bypass RLS
     const supabaseAdmin = createAdminClient();
     
-    // Get posts from communities the user is a member of
+    // Get communities the user is a member of for Join/Joined status
     const { data: memberData, error: memberError } = await supabaseAdmin
       .from('community_members')
       .select('community_id')
@@ -33,13 +33,8 @@ export async function GET(request: Request) {
       );
     }
 
-    const communityIds = memberData?.map(m => m.community_id) || [];
-
-    if (communityIds.length === 0) {
-      return NextResponse.json({ posts: [] });
-    }
-
-    // Fetch posts from these communities with community info
+    // Fetch ALL posts from all communities with community info
+    // OPTIMIZED: Limit to 20 posts to reduce bandwidth
     const { data: posts, error: postsError } = await supabaseAdmin
       .from('posts')
       .select(`
@@ -52,27 +47,21 @@ export async function GET(request: Request) {
         location,
         latitude,
         longitude,
+        identification_id,
         user_profiles!posts_user_id_fkey (
           username,
-          profile_picture
+          profile_picture,
+          is_expert
         ),
         communities!posts_community_id_fkey (
           community_id,
           community_name,
           profile_picture
-        ),
-        identifications (
-          image_url,
-          confidence_score,
-          species (
-            scientific_name,
-            common_name
-          )
         )
       `)
-      .in('community_id', communityIds)
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(0, 19)
+      .limit(20);
 
     if (postsError) {
       console.error('Error fetching posts:', postsError);
@@ -82,24 +71,56 @@ export async function GET(request: Request) {
       );
     }
 
-    // Count votes for each post
-    const postsWithVotes = await Promise.all(
+    // Fetch identification and species data separately for each post
+    const postsWithIdentifications = await Promise.all(
       (posts || []).map(async (post) => {
+        let identificationData = null;
+        
+        if (post.identification_id) {
+          const { data: identification } = await supabaseAdmin
+            .from('identifications')
+            .select(`
+              identification_id,
+              image_url,
+              confidence_score,
+              species_id,
+              species (
+                species_id,
+                scientific_name,
+                common_name
+              )
+            `)
+            .eq('identification_id', post.identification_id)
+            .single();
+          
+          identificationData = identification;
+        }
+
+        return {
+          ...post,
+          identifications: identificationData
+        };
+      })
+    );
+
+    // Count votes for each post - OPTIMIZED: using head: true to avoid fetching data
+    const postsWithVotes = await Promise.all(
+      (postsWithIdentifications || []).map(async (post) => {
         const { count: upvotes } = await supabaseAdmin
           .from('votes')
-          .select('*', { count: 'exact', head: true })
+          .select('vote_id', { count: 'exact', head: true })
           .eq('post_id', post.post_id)
           .eq('vote_type', 'upvote');
 
         const { count: downvotes } = await supabaseAdmin
           .from('votes')
-          .select('*', { count: 'exact', head: true })
+          .select('vote_id', { count: 'exact', head: true })
           .eq('post_id', post.post_id)
           .eq('vote_type', 'downvote');
 
         const { count: commentCount } = await supabaseAdmin
           .from('comments')
-          .select('*', { count: 'exact', head: true })
+          .select('comment_id', { count: 'exact', head: true })
           .eq('post_id', post.post_id);
 
         // Fetch flairs for this post via junction table

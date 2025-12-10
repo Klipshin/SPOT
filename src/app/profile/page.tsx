@@ -451,8 +451,9 @@ export default function ProfilePage() {
                 {editableFields.location ? (
                   <div>
                     <LocationSearch 
-                      value={formData.location} 
-                      onChange={(location) => handleInputChange('location', location)} 
+                      value={formData.location}
+                      onChange={(location) => handleInputChange('location', location)}
+                      isDarkMode={isDarkMode}
                     />
                     <button
                       type="button"

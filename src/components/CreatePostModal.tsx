@@ -287,7 +287,8 @@ export default function CreatePostModal({
                   <div className="space-y-2">
                     <LocationSearch 
                       value={location} 
-                      onChange={handleLocationChange} 
+                      onChange={handleLocationChange}
+                      isDarkMode={isDarkMode}
                     />
                     <button
                       type="button"

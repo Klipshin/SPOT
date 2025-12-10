@@ -58,7 +58,7 @@ export default function SettingsPage() {
 
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('*')
+          .select('id, name, username, bio, location, occupation')
           .eq('id', user.id)
           .single();
 

@@ -83,7 +83,8 @@ export async function GET(
         user_profiles (
           username,
           name,
-          profile_picture
+          profile_picture,
+          is_expert
         )
       `)
       .eq('post_id', postId)

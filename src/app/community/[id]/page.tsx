@@ -1240,6 +1240,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                             <LocationSearch
                               value={tempLocationText}
                               onChange={setTempLocationText}
+                              isDarkMode={isDarkMode}
                             />
                             <button onClick={saveLocation} className="p-1 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors"><Check className="w-4 h-4" /></button>
                             <button onClick={cancelEditLocation} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"><X className="w-4 h-4" /></button>

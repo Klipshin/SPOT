@@ -148,12 +148,13 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         setUserCommunities([]);
       }
 
-      // Fetch chat history
+      // Fetch chat history - OPTIMIZED: limit to 50 recent messages, select only needed columns
       const { data, error } = await supabase
         .from('chat_history')
-        .select('*')
+        .select('id, user_id, role, content, image_url, predictions, created_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (data && data.length > 0) {
         const historyMessages: Message[] = data.map((item: any) => ({
