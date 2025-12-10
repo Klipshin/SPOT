@@ -13,7 +13,21 @@ const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), 
 });
 
 export default function ProfilePage() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    }
+    return false;
+  });
+  
+  // Save dark mode preference to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', isDarkMode.toString());
+    }
+  }, [isDarkMode]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -238,22 +252,13 @@ export default function ProfilePage() {
         <p className="text-xs text-gray-600 mt-0.5">{formData.email || 'email@example.com'}</p>
       </div>
 
-      {/* Menu Items */}
+      {/* Menu Items - WITHOUT "View Profile" since we're already on the profile edit page */}
       <div className="py-1">
         <button 
           className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
           onClick={() => {
-            // Add your View Profile logic here
-          }}
-        >
-          <User className="w-4 h-4 text-gray-700" />
-          <span className="text-sm font-medium text-gray-900">View Profile</span>
-        </button>
-        
-        <button 
-          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
-          onClick={() => {
-            // Add your Account Settings logic here
+            setIsProfileOpen(false);
+            router.push('/settings');
           }}
         >
           <Settings className="w-4 h-4 text-gray-700" />
@@ -263,7 +268,8 @@ export default function ProfilePage() {
         <button 
           className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
           onClick={() => {
-            // Add your Help Center logic here
+            setIsProfileOpen(false);
+            // Help Center logic here
           }}
         >
           <HelpCircle className="w-4 h-4 text-gray-700" />
@@ -275,8 +281,13 @@ export default function ProfilePage() {
       <div className="border-t border-gray-400">
         <button 
           className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
-          onClick={() => {
-            // Add your Log Out logic here
+          onClick={async () => {
+            try {
+              await supabase.auth.signOut();
+              router.push('/auth/login');
+            } catch (error) {
+              console.error('Error signing out:', error);
+            }
           }}
         >
           <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
@@ -472,17 +483,6 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 )}
-              </div>
-
-              {/* Save Button */}
-              <div className="pt-6">
-                <button
-                  onClick={handleSaveProfile}
-                  disabled={isSaving}
-                  className="w-full bg-[#306137] hover:bg-[#246440] text-white font-semibold py-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? 'Saving...' : 'Save Changes'}
-                </button>
               </div>
             </div>
 

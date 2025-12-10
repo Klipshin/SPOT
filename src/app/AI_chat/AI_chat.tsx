@@ -55,10 +55,25 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [deleteConfirmMsg, setDeleteConfirmMsg] = useState<Message | null>(null);
   
   // Dark Mode State
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    }
+    return false;
+  });
+  
+  // Save dark mode preference to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', isDarkMode.toString());
+    }
+  }, [isDarkMode]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   // Post to Community State
@@ -104,15 +119,16 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       // Set email
       setEmail(user.email || null);
 
-      // Fetch user profile for username
+      // Fetch user profile for username and profile picture
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username')
+        .select('username, profile_picture')
         .eq('user_id', user.id)
         .single();
 
       if (profile) {
         setUsername(profile.username);
+        setProfilePicture(profile.profile_picture);
       }
 
       // Fetch user's communities using API route (bypasses RLS)
@@ -572,71 +588,137 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
         {/* Header Bar */}
         <div className="fixed top-0 left-0 right-0 w-full z-50">
-          <div className={`w-full h-11 justify-center transition-colors duration-300 ${isDarkMode ? 'bg-[#353b35]' : 'bg-[#dad2b9]'}`} />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1440px] max-w-full h-11">
-            <div className="absolute -top-0.5 left-[46px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
+          <div className={`w-full h-11 justify-center transition-colors duration-300 ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`} />
+          
+          {/* SPOT Logo Text */}
+          <div className="absolute -top-0.5 left-[70px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
               SPOT
-            </div>
-            
-            {/* Header Deco Lines */}
-            <div className="absolute top-5 left-[-15px] w-[46px] h-[7px] bg-[#f1eee5]" />
-            <div className="absolute top-[15px] left-[-12px] w-10 h-[5px] bg-[#f1eee5]" />
-            <div className="absolute top-[27px] left-[-12px] w-10 h-[3px] bg-[#f1eee5]" />
-            <div className="top-[26px] absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
-            <div className="top-2.5 absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
-            
-            <img className="absolute top-0 left-[-32px] w-[75px] h-[47px] aspect-[1.48] object-cover" alt="Spoticon" src="/spicon0.svg" />
+          </div>
+
+          {/* Logo Icon */}
+          <img className="absolute top-0 left-[15px] w-[50px] h-[40px] aspect-[1.48] object-cover" alt="Spoticon" src="/eyecon.svg" />
 
             {/* DARK MODE TOGGLE */}
-            <img 
-              className="absolute top-1.5 left-[1340px] w-[47px] h-[31px] aspect-[1.51] cursor-pointer hover:opacity-80 transition-opacity" 
-              alt="Element" 
+            <button 
+              className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
               onClick={() => setIsDarkMode(!isDarkMode)}
-              src={isDarkMode ? "/dark-mode 1.svg" : "/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"} 
-            />
+            >
+              {isDarkMode ? (
+                  <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
+              ) : (
+                  <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
+              )}
+            </button>
 
             {/* Profile button */}
-            <div className="absolute top-[5px] left-[1406px]">
+            <div className="absolute top-[5px] left-[1440px]">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
                 className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
               >
-                <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/down-chevron 1.svg" />
-                <img className="w-[35px] h-[35px] aspect-[1] object-cover rounded-full" alt="User" src="/user (2) 9.svg" />
+                <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/downn.svg" />
+                <div className="w-[35px] h-[35px] bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                  {profilePicture ? (
+                    <img 
+                      src={profilePicture} 
+                      alt={username || 'User'} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement!.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                      }}
+                    />
+                  ) : (
+                    <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                  )}
+                </div>
               </button>
 
               {isProfileOpen && (
                 <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50" style={{ border: '2px solid #899A3C' }} onMouseDown={(e) => e.preventDefault()}>
-                  <div className="px-4 py-3 border-b border-gray-300">
-                    <h3 className="text-base font-bold text-gray-900">@{username || 'user'}</h3>
-                    <p className="text-xs text-gray-600 mt-0.5">{email || 'loading...'}</p>
+                  {/* User Info Section */}
+                  <div className="px-4 py-3 border-b border-gray-300 flex items-center gap-3">
+                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                      {profilePicture ? (
+                        <img 
+                          src={profilePicture} 
+                          alt={username || 'User'} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-bold text-gray-900">@{username || 'user'}</h3>
+                      <p className="text-xs text-gray-600 mt-0.5">{email || 'loading...'}</p>
+                    </div>
                   </div>
+                  
+                  {/* Menu Items */}
                   <div className="py-1">
-                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { }}>
-                      <span className="text-sm font-medium text-gray-900">View Profile</span>
+                    <button 
+                      className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push('/profile');
+                      }}
+                    >
+                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">Edit Profile</span>
                     </button>
-                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { }}>
+                    
+                    <button 
+                      className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push('/settings');
+                      }}
+                    >
+                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
                       <span className="text-sm font-medium text-gray-900">Account Settings</span>
                     </button>
+                    
+                    <button 
+                      className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                      onClick={() => {/* Help Center logic here */}}
+                    >
+                      <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900">Help Center</span>
+                    </button>
                   </div>
+                  
+                  {/* Log Out Section */}
                   <div className="border-t border-gray-400">
-                    <button className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group" onClick={async () => {
-                      try {
-                        const { error } = await supabase.auth.signOut();
-                        if (error) console.error('Error signing out:', error.message);
-                      } catch (err) {
-                        console.error('Sign out failed:', err);
-                      }
-                      try { router.push('/'); } finally { window.location.href = '/'; }
-                    }}>
+                    <button 
+                      className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
+                      onClick={async () => {
+                        try {
+                          const { error } = await supabase.auth.signOut();
+                          if (error) console.error('Error signing out:', error.message);
+                          router.push('/');
+                        } catch (err) {
+                          console.error('Sign out failed:', err);
+                        }
+                      }}
+                    >
+                      <svg className="w-4 h-4 text-gray-700 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
                       <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
                     </button>
                   </div>
                 </div>
               )}
             </div>
-          </div>
         </div>
 
         {/* Center Content Area Background */}
@@ -1048,7 +1130,21 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         )}
 
         {/* User Icons & Footer Info */}
-        <img className="top-[640px] left-[-10px] w-[30px] h-[30px] absolute aspect-[1] object-cover" alt="User" src="/user (2) 6.svg" />
+        <div className="top-[640px] left-[-10px] w-[30px] h-[30px] absolute aspect-[1] bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+          {profilePicture ? (
+            <img 
+              src={profilePicture} 
+              alt={username || 'User'} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+              }}
+            />
+          ) : (
+            <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+          )}
+        </div>
         <div className={`absolute top-[643px] left-[35px] w-[156px] font-black text-base tracking-[0.80px] leading-[normal] ${isDarkMode ? 'text-[#a0c563]' : 'text-[#072d0d]'}`}>
           @{username || 'user'}
         </div>

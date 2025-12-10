@@ -1,11 +1,25 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft } from 'lucide-react';
 
 export default function ExpertProfilePage() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    }
+    return false;
+  });
+  
+  // Save dark mode preference to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', isDarkMode.toString());
+    }
+  }, [isDarkMode]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
