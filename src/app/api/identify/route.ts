@@ -123,29 +123,42 @@ export async function POST(req: Request) {
     const base64Image = buffer.toString("base64");
     const mimeType = file.type || "image/jpeg";
 
-    // UPDATED PROMPT WITH STRICT FILTERS
+    // UPDATED PROMPT TO IDENTIFY ALL LIVING BEINGS
     const prompt = `
-You are an expert in Philippine wildlife identification.
+You are an expert in identifying all living beings, with a focus on Philippine biodiversity.
 
-**STRICT FILTERING RULES:**
-1. First, analyze the image to determine if it contains a **REAL, BIOLOGICAL ANIMAL**.
-2. **IMMEDIATELY RETURN AN EMPTY ARRAY "[]"** if the image contains:
-   - Humans (people, faces, body parts)
-   - Cartoons, anime, drawings, sketches, or digital art
-   - Inanimate objects (cars, furniture, toys, statues, figurines)
-   - Plants, flowers, or scenery with no visible animal
-   - Food or cooked dishes
-3. Only proceed if the image contains a real living creature (Mammal, Bird, Reptile, Insect, Amphibian, Fish, Arachnid, etc.).
+**IDENTIFICATION RULES:**
+1. First, analyze the image to determine if it contains a **REAL, LIVING BEING**.
+2. **IMMEDIATELY RETURN AN EMPTY ARRAY "[]"** if the image contains ONLY:
+   - Non-living objects (cars, furniture, toys, statues, figurines, buildings, etc.)
+   - Cartoons, anime, drawings, sketches, or digital art (unless they depict real species for educational purposes)
+   - Food or cooked dishes (unless showing the original living organism)
+   - Pure scenery/landscapes with no visible living organism
+3. **PROCEED WITH IDENTIFICATION** if the image contains any living being:
+   - Animals: Mammals, Birds, Reptiles, Amphibians, Fish, Insects, Arachnids, Crustaceans, Mollusks, etc.
+   - Plants: Trees, Flowers, Ferns, Mosses, Algae, etc.
+   - Fungi: Mushrooms, Molds, Lichens, etc.
+   - Humans: People, faces, body parts (provide unique identification)
 
-If it is a valid animal, provide the **Top 3 most likely species** found in the Philippines.
+**SPECIAL HANDLING FOR HUMANS:**
+If the image contains a human, return a single prediction with:
+- common_name: "Human" or "Homo sapiens"
+- scientific_name: "Homo sapiens"
+- confidence: 95-100
+- danger_level: "harmless" (or "dangerous" if context suggests threat, but default to harmless)
+- status: "native" (humans are native to the Philippines)
+- conservation_status: "least concern"
+
+**FOR OTHER LIVING BEINGS:**
+Provide the **Top 3 most likely species** found in the Philippines (or globally if not Philippine-specific).
 
 For each prediction, return:
 - common_name
 - scientific_name
 - confidence (0–100, based on how certain you are)
-- danger_level (venomous / harmless / dangerous / mildly venomous)
-- status (native / endemic / invasive)
-- conservation_status (endangered / vulnerable / least concern)
+- danger_level (venomous / harmless / dangerous / mildly venomous / N/A for plants and fungi)
+- status (native / endemic / invasive / introduced)
+- conservation_status (endangered / vulnerable / least concern / data deficient)
 
 If confidence for the top species is 98 or higher AND it is not venomous or dangerous, include only that one prediction.
 

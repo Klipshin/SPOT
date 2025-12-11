@@ -958,12 +958,19 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                       }
                     });
                     
+                    // Sort chatHistory chronologically for proper matching
+                    const sortedHistory = [...chatHistory].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+                    
                     return Array.from(sessionMap.values()).reverse().map((msg) => {
-                      // Find the assistant response right after this user message
-                      const msgIndex = chatHistory.findIndex(m => m.id === msg.id);
-                      const assistantResponse = chatHistory
-                        .slice(msgIndex + 1)
-                        .find(m => m.type === 'assistant' && m.predictions && m.predictions.length > 0);
+                      // Find the assistant response right after this user message chronologically
+                      const msgTimestamp = msg.timestamp.getTime();
+                      const assistantResponse = sortedHistory.find(m => 
+                        m.type === 'assistant' && 
+                        m.predictions && 
+                        m.predictions.length > 0 &&
+                        m.timestamp.getTime() > msgTimestamp &&
+                        Math.abs(m.timestamp.getTime() - msgTimestamp) < 5 * 60 * 1000 // Within 5 minutes
+                      );
                       const firstSpecies = assistantResponse?.predictions?.[0]?.common_name;
                       // Prioritize species name, then fall back to 'Image identification'
                       const displayTitle = firstSpecies || 'Image identification';
@@ -978,7 +985,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                             const sessionMsgs = chatHistory.filter(m => {
                               const diff = Math.abs(m.timestamp.getTime() - msgTime);
                               return diff < 5 * 60 * 1000; // 5 minutes window
-                            });
+                            }).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()); // Sort chronologically
                             setMessages(sessionMsgs);
                             setCurrentSessionId(sessId);
                           }}
