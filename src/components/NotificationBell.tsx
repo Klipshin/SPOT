@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useSupabase } from '@/src/components/providers/SupabaseProvider';
 
 type Notification = {
@@ -23,7 +24,22 @@ export default function NotificationBell({ isDarkMode = false }: { isDarkMode?: 
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { supabase, session } = useSupabase();
+  
+  // Store dismissed notifications in localStorage
+  const getDismissedNotifications = (): Set<string> => {
+    if (typeof window === 'undefined') return new Set();
+    const stored = localStorage.getItem('dismissedNotifications');
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  };
+  
+  const addDismissedNotification = (notificationId: string) => {
+    if (typeof window === 'undefined') return;
+    const dismissed = getDismissedNotifications();
+    dismissed.add(notificationId);
+    localStorage.setItem('dismissedNotifications', JSON.stringify(Array.from(dismissed)));
+  };
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -182,8 +198,14 @@ export default function NotificationBell({ isDarkMode = false }: { isDarkMode?: 
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
-      setNotifications(allNotifications.slice(0, 50));
-      setUnreadCount(allNotifications.filter(n => !n.isRead).length);
+      // Filter out dismissed notifications
+      const dismissed = getDismissedNotifications();
+      const filteredNotifications = allNotifications
+        .slice(0, 50)
+        .filter(n => !dismissed.has(n.id));
+
+      setNotifications(filteredNotifications);
+      setUnreadCount(filteredNotifications.filter(n => !n.isRead).length);
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
@@ -232,16 +254,61 @@ export default function NotificationBell({ isDarkMode = false }: { isDarkMode?: 
     return date.toLocaleDateString();
   };
 
-  const handleNotificationClick = (notification: Notification) => {
-    // Mark as read (TODO: Implement in database)
-    setNotifications(prev => 
-      prev.map(n => n.id === notification.id ? { ...n, isRead: true } : n)
-    );
-    setUnreadCount(prev => Math.max(0, prev - 1));
+  const handleNotificationClick = async (notification: Notification) => {
+    // Mark notification as dismissed in localStorage
+    addDismissedNotification(notification.id);
     
-    // Navigate to post
-    window.location.href = `/dashboard#post-${notification.postId}`;
+    // Remove notification from list immediately
+    setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    setUnreadCount(prev => Math.max(0, prev - 1));
     setIsOpen(false);
+    
+    // Navigate to dashboard with hash
+    router.push(`/dashboard#post-${notification.postId}`);
+    
+    // Wait for navigation and DOM to be ready, then scroll to post/comment
+    const scrollToElement = () => {
+      const postElement = document.getElementById(`post-${notification.postId}`);
+      if (postElement) {
+        // Scroll to post
+        postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        postElement.classList.add('ring-4', 'ring-blue-500', 'ring-opacity-50', 'transition-all', 'duration-300');
+        
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+          postElement.classList.remove('ring-4', 'ring-blue-500', 'ring-opacity-50');
+        }, 3000);
+        
+        // If it's a reply or comment notification, try to open comments and scroll to comment
+        if ((notification.type === 'reply' || notification.type === 'comment') && notification.commentId) {
+          // Try to find and click the comment button to open the modal
+          setTimeout(() => {
+            const commentButton = postElement.querySelector('[data-comment-button]') as HTMLButtonElement;
+            if (commentButton) {
+              commentButton.click();
+              
+              // Wait for modal to open, then scroll to comment
+              setTimeout(() => {
+                const commentElement = document.getElementById(`comment-${notification.commentId}`);
+                if (commentElement) {
+                  commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  commentElement.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50', 'transition-all', 'duration-300');
+                  setTimeout(() => {
+                    commentElement.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+                  }, 3000);
+                }
+              }, 500);
+            }
+          }, 500);
+        }
+      } else {
+        // If element not found, try again after a short delay (page might still be loading)
+        setTimeout(scrollToElement, 200);
+      }
+    };
+    
+    // Start scrolling after navigation
+    setTimeout(scrollToElement, 300);
   };
 
   if (!session?.user?.id) return null;

@@ -70,31 +70,25 @@ export default function ReportModal({
       const result = await response.json();
 
       if (!response.ok) {
-        const error = result.error || 'Failed to submit report';
-        console.error('Error submitting report:', error);
-        alert(`Failed to submit report: ${error}`);
+        const errorMessage = result.error || 'Failed to submit report';
+        console.error('Error submitting report:', errorMessage);
+        console.error('Error details:', result.details || result);
+        alert(`Failed to submit report: ${errorMessage}`);
         return;
       }
 
-      const data = result.report;
-
-      if (error) {
-        console.error('Error submitting report:', error);
-        console.error('Error details:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code,
-        });
-        alert(`Failed to submit report: ${error.message || 'Please try again.'}`);
-      } else {
-        console.log('Report submitted successfully:', data);
+      // Success case
+      if (result.report) {
+        console.log('Report submitted successfully:', result.report);
         setSubmitSuccess(true);
         setTimeout(() => {
           setSubmitSuccess(false);
           setSelectedViolation(null);
           onClose();
         }, 1500);
+      } else {
+        console.error('Unexpected response format:', result);
+        alert('Failed to submit report: Unexpected response format');
       }
     } catch (error: any) {
       console.error('Error submitting report:', error);

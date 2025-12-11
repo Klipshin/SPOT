@@ -271,7 +271,20 @@ useEffect(() => {
   
   // User profile modal state
   const [showUserProfileModal, setShowUserProfileModal] = useState(false);
-  const [selectedUserProfile, setSelectedUserProfile] = useState<{ username: string; profilePicture: string | null; userId: string; isExpert?: boolean } | null>(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState<{ 
+    username: string; 
+    profilePicture: string | null; 
+    userId: string; 
+    isExpert?: boolean;
+    email?: string;
+    location?: string;
+    bio?: string;
+    privacySettings?: {
+      profileVisibility: string;
+      showEmail: boolean;
+      showLocation: boolean;
+    };
+  } | null>(null);
   const [userProfileData, setUserProfileData] = useState<any>(null);
   const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(false);
   
@@ -1573,7 +1586,8 @@ useEffect(() => {
                   {/* Post Cards */}
                   {!postsLoading && displayedPosts.length > 0 ? displayedPosts.map((post) => (
                       <article 
-                          key={post.id} 
+                          key={post.id}
+                          id={`post-${post.id}`}
                           className="rounded-3xl shadow-lg p-6 mb-6" 
                           style={{
                               borderRadius: '25px',
@@ -1631,12 +1645,45 @@ useEffect(() => {
                                       </div>
                                       <div className="flex items-center gap-2">
                                           <button 
-                                              onClick={() => {
+                                              onClick={async () => {
+                                                  const userId = post.userId || '';
+                                                  // Fetch user privacy settings
+                                                  let privacySettings = null;
+                                                  try {
+                                                      const { data: profile } = await supabase
+                                                          .from('user_profiles')
+                                                          .select('profile_visibility, show_email, show_location, bio, location')
+                                                          .eq('user_id', userId)
+                                                          .single();
+                                                      
+                                                      if (profile) {
+                                                          privacySettings = {
+                                                              profileVisibility: profile.profile_visibility || 'public',
+                                                              showEmail: profile.show_email !== false,
+                                                              showLocation: profile.show_location !== false,
+                                                          };
+                                                      }
+                                                  } catch (error) {
+                                                      console.error('Error fetching privacy settings:', error);
+                                                  }
+                                                  
+                                                  // Note: Email fetching requires server-side API, skipping for now
+                                                  // Email can be added via API route if needed
+                                                  let email = undefined;
+                                                  
                                                   setSelectedUserProfile({
                                                       username: post.authorUsername || post.user.replace('@', ''),
                                                       profilePicture: post.userProfilePicture || null,
-                                                      userId: post.userId || '',
-                                                      isExpert: post.isExpert
+                                                      userId: userId,
+                                                      isExpert: post.isExpert,
+                                                      email: email,
+                                                      location: privacySettings?.showLocation ? post.location || undefined : undefined,
+                                                      bio: undefined, // Could fetch if needed
+                                                      privacySettings: privacySettings || {
+                                                          profileVisibility: 'public',
+                                                          showEmail: true,
+                                                          showLocation: true,
+                                                      }
                                                   });
                                                   setShowUserProfileModal(true);
                                               }}
@@ -1659,12 +1706,45 @@ useEffect(() => {
                                           </button>
                                           <div className="flex items-center gap-1">
                                             <button 
-                                                onClick={() => {
+                                                onClick={async () => {
+                                                    const userId = post.userId || '';
+                                                    // Fetch user privacy settings
+                                                    let privacySettings = null;
+                                                    try {
+                                                        const { data: profile } = await supabase
+                                                            .from('user_profiles')
+                                                            .select('profile_visibility, show_email, show_location, bio, location')
+                                                            .eq('user_id', userId)
+                                                            .single();
+                                                        
+                                                        if (profile) {
+                                                            privacySettings = {
+                                                                profileVisibility: profile.profile_visibility || 'public',
+                                                                showEmail: profile.show_email !== false,
+                                                                showLocation: profile.show_location !== false,
+                                                            };
+                                                        }
+                                                    } catch (error) {
+                                                        console.error('Error fetching privacy settings:', error);
+                                                    }
+                                                    
+                                                    // Note: Email fetching requires server-side API, skipping for now
+                                                    // Email can be added via API route if needed
+                                                    let email = undefined;
+                                                    
                                                     setSelectedUserProfile({
                                                         username: post.authorUsername || post.user.replace('@', ''),
                                                         profilePicture: post.userProfilePicture || null,
-                                                        userId: post.userId || '',
-                                                        isExpert: post.isExpert
+                                                        userId: userId,
+                                                        isExpert: post.isExpert,
+                                                        email: email,
+                                                        location: privacySettings?.showLocation ? post.location || undefined : undefined,
+                                                        bio: undefined,
+                                                        privacySettings: privacySettings || {
+                                                            profileVisibility: 'public',
+                                                            showEmail: true,
+                                                            showLocation: true,
+                                                        }
                                                     });
                                                     setShowUserProfileModal(true);
                                                 }}
@@ -1863,6 +1943,7 @@ useEffect(() => {
                               {/* Comment Button with Count */}
                               <button 
                                   onClick={() => openCommentModal(post)} 
+                                  data-comment-button
                                   className="flex items-center gap-2 rounded-full px-3 py-2 shadow-sm bg-[#D9D9D9] hover:bg-blue-200 transition-colors"
                               >
                                   <MessageCircle className="w-6 h-6 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
@@ -2037,7 +2118,8 @@ useEffect(() => {
                 ) : (
                   selectedPostForComment.comments.map((comment) => (
                     <div 
-                      key={comment.id} 
+                      key={comment.id}
+                      id={`comment-${comment.id}`}
                       className={`flex gap-3 ${comment.isReply ? `ml-8 border-l pl-4 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}` : ''}`}
                     >
                       <div className={`w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden mt-1 ${
@@ -2412,6 +2494,28 @@ useEffect(() => {
                   {selectedUserProfile.isExpert ? 'Verified Expert' : 'Wildlife Enthusiast'}
                 </span>
               </div>
+
+              {/* Email - Only show if privacy allows */}
+              {selectedUserProfile.privacySettings?.showEmail && selectedUserProfile.email && (
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className={`w-4 h-4 ${selectedUserProfile.isExpert ? 'text-gray-200' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className={`text-sm ${selectedUserProfile.isExpert ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-700')}`}>
+                    {selectedUserProfile.email}
+                  </span>
+                </div>
+              )}
+
+              {/* Location - Only show if privacy allows */}
+              {selectedUserProfile.privacySettings?.showLocation && selectedUserProfile.location && (
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className={`w-4 h-4 ${selectedUserProfile.isExpert ? 'text-gray-200' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
+                  <span className={`text-sm ${selectedUserProfile.isExpert ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-700')}`}>
+                    {selectedUserProfile.location}
+                  </span>
+                </div>
+              )}
 
               {/* Close Button */}
               <button

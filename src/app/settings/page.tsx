@@ -5,10 +5,9 @@ import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import { User, Settings, HelpCircle, LogOut, Edit } from 'lucide-react';
 
-type ActiveSection = 'change-password' | 'privacy-settings' | 'notifications';
+// Settings now only has Change Password - no sections needed
 
 export default function SettingsPage() {
-  const [activeSection, setActiveSection] = useState<ActiveSection>('change-password');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const [currentUsername, setCurrentUsername] = useState('');
@@ -33,6 +32,7 @@ export default function SettingsPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPasswordSuccessModal, setShowPasswordSuccessModal] = useState(false);
   const router = useRouter();
   const supabase = createClient();
   
@@ -58,7 +58,7 @@ export default function SettingsPage() {
 
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('id, name, username, bio, location, occupation')
+          .select('id, name, username, bio, location, occupation, profile_visibility, show_email, show_location')
           .eq('id', user.id)
           .single();
 
@@ -74,6 +74,7 @@ export default function SettingsPage() {
           });
           setCurrentUsername(profile.username || '');
           setCurrentEmail(user.email || '');
+          
         }
       } catch (error) {
         console.error('Error loading profile:', error);
@@ -103,19 +104,6 @@ export default function SettingsPage() {
     confirmPassword: '',
   });
 
-  const [privacyData, setPrivacyData] = useState({
-    profileVisibility: 'public',
-    showEmail: true,
-    showLocation: true,
-    allowMessages: true,
-  });
-
-  const [notificationData, setNotificationData] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    smsNotifications: false,
-    weeklyDigest: true,
-  });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target; 
@@ -204,7 +192,8 @@ export default function SettingsPage() {
         confirmPassword: '',
       });
       
-      alert('Password updated successfully!');
+      // Show success modal
+      setShowPasswordSuccessModal(true);
     } catch (error: any) {
       console.error('Error updating password:', error);
       alert(error.message || 'Failed to update password. Please try again.');
@@ -213,17 +202,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handlePrivacySubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle privacy settings update
-    console.log('Privacy settings updated:', privacyData);
-  };
-
-  const handleNotificationSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle notification settings update
-    console.log('Notification settings updated:', notificationData);
-  };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -233,21 +211,6 @@ export default function SettingsPage() {
     }));
   };
 
-  const handlePrivacyChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target;
-    setPrivacyData((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }));
-  };
-
-  const handleNotificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = e.target;
-    setNotificationData((prev) => ({
-      ...prev,
-      [name]: checked,
-    }));
-  };
 
   return (
 <div 
@@ -397,73 +360,25 @@ export default function SettingsPage() {
 </div>
       </header>
 
-      {/* Main Content */}
-      <div className="flex gap-6 p-6 max-w-7xl mx-auto pt-2">
-        {/* Left Sidebar */}
-        <aside className="w-75 bg-white rounded-lg shadow-lg p-6 flex flex-col">
-          <div className="mb-4">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span className="font-medium">Back to Dashboard</span>
-            </button>
-          </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-6">Account Settings</h2><br />
-
-          {/* Navigation Links */}
-          <nav className="flex flex-col gap-2 flex-grow mb-4">
-            <button 
-              onClick={() => setActiveSection('change-password')}
-              className={`text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                activeSection === 'change-password'
-                  ? 'bg-[#4a7c59] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Change Password
-            </button>
-            <button 
-              onClick={() => setActiveSection('privacy-settings')}
-              className={`text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                activeSection === 'privacy-settings'
-                  ? 'bg-[#4a7c59] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Privacy Settings
-            </button>
-            <button 
-              onClick={() => setActiveSection('notifications')}
-              className={`text-left px-4 py-3 rounded-lg font-medium transition-colors ${
-                activeSection === 'notifications'
-                  ? 'bg-[#4a7c59] text-white'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              Notifications
-            </button><br /><br />
-          </nav>
-
-          {/* Log Out Button */}
-          <button className="mt-auto px-4 py-3 rounded-lg bg-[#f44336] text-white font-medium flex items-center justify-center gap-2 hover:bg-[#d32f2f] transition-colors">
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="2" x2="12" y2="8" strokeLinecap="round" />
+      {/* Main Content - Centered */}
+      <div className="flex flex-col items-center justify-start pt-8 p-6">
+        {/* Back Button */}
+        <div className="w-full max-w-2xl mb-6">
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Log Out
+            <span className="font-medium">Back to Dashboard</span>
           </button>
-        </aside>
+        </div>
 
         {/* Main Content Area */}
-        <main className="flex-1 bg-white rounded-lg shadow-lg p-8">
-          {activeSection === 'change-password' && (
-            <>
-              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Change Password</h1><br />
-              <form onSubmit={handlePasswordSubmit} className="max-w-2xl mx-auto">
+        <main className="w-full max-w-2xl bg-white rounded-lg shadow-lg p-8">
+          <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Change Password</h1>
+          <form onSubmit={handlePasswordSubmit} className="w-full">
                 <div className="mb-6">
                   <label htmlFor="currentPassword" className="block text-gray-700 font-medium mb-2">
                     Current Password
@@ -571,113 +486,41 @@ export default function SettingsPage() {
                   {isSaving ? 'Updating...' : 'Update Password'}
                 </button>
               </form>
-            </>
-          )}
-
-          {activeSection === 'privacy-settings' && (
-            <>
-              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Privacy Settings</h1><br /><br />
-              <form onSubmit={handlePrivacySubmit} className="max-w-2xl mx-auto">
-                <div className="mb-6">
-                  <label htmlFor="profileVisibility" className="block text-gray-700 font-medium mb-2">
-                    Profile Visibility
-                  </label>
-                  <select
-                    id="profileVisibility"
-                    name="profileVisibility"
-                    value={privacyData.profileVisibility}
-                    onChange={handlePrivacyChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4a7c59] focus:border-transparent"
-                  >
-                    <option value="public">Public</option>
-                    <option value="private">Private</option>
-                  </select>
-                </div>
-                <div className="mb-6">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="showEmail"
-                      checked={privacyData.showEmail}
-                      onChange={handlePrivacyChange}
-                      className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
-                    />
-                    <span className="text-gray-700 font-medium">Show Email Address</span>
-                  </label>
-                </div>
-                <div className="mb-6">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="showLocation"
-                      checked={privacyData.showLocation}
-                      onChange={handlePrivacyChange}
-                      className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
-                    />
-                    <span className="text-gray-700 font-medium">Show Location</span>
-                  </label><br /><br />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-[#4a7c59] text-white font-medium py-3 rounded-lg hover:bg-[#3d6a4a] transition-colors"
-                >
-                  Save Privacy Settings
-                </button>
-              </form>
-            </>
-          )}
-
-          {activeSection === 'notifications' && (
-            <>
-              <h1 className="text-3xl font-bold text-gray-800 text-center mb-8">Notifications</h1><br /><br />
-              <form onSubmit={handleNotificationSubmit} className="max-w-2xl mx-auto">
-                <div className="mb-6">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-gray-700 font-medium">Email Notifications</span>
-                    <input
-                      type="checkbox"
-                      name="emailNotifications"
-                      checked={notificationData.emailNotifications}
-                      onChange={handleNotificationChange}
-                      className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
-                    />
-                  </label>
-                </div>
-                <div className="mb-6">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-gray-700 font-medium">Push Notifications</span>
-                    <input
-                      type="checkbox"
-                      name="pushNotifications"
-                      checked={notificationData.pushNotifications}
-                      onChange={handleNotificationChange}
-                      className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
-                    />
-                  </label>
-                </div>
-                <div className="mb-8">
-                  <label className="flex items-center justify-between cursor-pointer">
-                    <span className="text-gray-700 font-medium">Weekly Digest</span>
-                    <input
-                      type="checkbox"
-                      name="weeklyDigest"
-                      checked={notificationData.weeklyDigest}
-                      onChange={handleNotificationChange}
-                      className="w-5 h-5 text-[#4a7c59] border-gray-300 rounded focus:ring-[#4a7c59]"
-                    />
-                  </label><br /><br />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-[#4a7c59] text-white font-medium py-3 rounded-lg hover:bg-[#3d6a4a] transition-colors"
-                >
-                  Save Notification Settings
-                </button>
-              </form>
-            </>
-          )}
         </main>
       </div>
+
+      {/* Password Success Modal */}
+      {showPasswordSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200]" onClick={() => setShowPasswordSuccessModal(false)}>
+          <div
+            className={`rounded-xl shadow-2xl w-[400px] max-w-[90vw] overflow-hidden ${
+              isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'
+            }`}
+            style={{ border: '2px solid #899A3C' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={`px-6 py-6 text-center ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Password Updated Successfully!
+              </h3>
+              <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Your password has been changed successfully. Please use your new password the next time you log in.
+              </p>
+              <button
+                onClick={() => setShowPasswordSuccessModal(false)}
+                className="w-full bg-[#4a7c59] text-white font-medium py-3 rounded-lg hover:bg-[#3d6a4a] transition-colors"
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
