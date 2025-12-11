@@ -250,6 +250,7 @@ type Comment = {
   upvotes: number;
   downvotes: number;
   isReply: boolean;
+  isExpert?: boolean; // Is the comment author an expert
 };
 
 type Post = {
@@ -267,6 +268,7 @@ type Post = {
   upvotes: number;
   downvotes: number;
   comments: Comment[];
+  isExpert?: boolean; // Is the post author an expert
   location?: string;
   latitude?: number;
   longitude?: number;
@@ -527,7 +529,8 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
         comments: [],
         location: p.location,
         latitude: p.latitude,
-        longitude: p.longitude
+        longitude: p.longitude,
+        isExpert: p.user_profiles?.is_expert || false
       }));
       setPosts(mappedPosts);
       
@@ -550,6 +553,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
               upvotes: c.upvotes || 0,
               downvotes: c.downvotes || 0,
               isReply: c.parent_comment_id !== null,
+              isExpert: c.user_profiles?.is_expert || false
             }));
             
             setPosts(prevPosts => prevPosts.map(p => 
@@ -1516,7 +1520,14 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                         <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
                       )}
                     </div>
-                    <span className="font-semibold text-lg">{post.user}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-lg">{post.user}</span>
+                      {post.isExpert && (
+                        <div title="Verified Expert">
+                          <Crown className="w-4 h-4 text-yellow-500" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-bold italic ${isDarkMode ? "text-gray-400" : "text-black/60"}`}>{post.date}</span>
@@ -1680,7 +1691,14 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-center mb-0.5">
-                              <span className="font-normal text-sm">{comment.user}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-normal text-sm">{comment.user}</span>
+                                {comment.isExpert && (
+                                  <div title="Verified Expert">
+                                    <Crown className="w-4 h-4 text-yellow-500" />
+                                  </div>
+                                )}
+                              </div>
                               <span className="text-[10px] font-bold text-gray-400">{comment.date}</span>
                             </div>
                             
