@@ -10,6 +10,7 @@ import CreatePostModal from '@/src/components/CreatePostModal';
 import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import ProtectedRoute from '@/src/components/ProtectedRoute';
 import { 
   getProfilePictureUrl, 
   getCommunityProfilePictureUrl, 
@@ -363,22 +364,38 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   }, [isMember, isModerator, loadingMembership]);
 
   // ===== STATE: COMMUNITY DATA =====
-  const [communityBanner, setCommunityBanner] = useState(communityData?.banner_image || '/landd.svg');
-  const [communityProfile, setCommunityProfile] = useState(communityData?.profile_picture || '/binoculars.svg');
-  const [communityLocation, setCommunityLocation] = useState(communityData?.location || 'Cebu City, Philippines');
+  const [communityBanner, setCommunityBanner] = useState('/landd.svg');
+  const [communityProfile, setCommunityProfile] = useState('/binoculars.svg');
+  const [communityLocation, setCommunityLocation] = useState('Cebu City, Philippines');
   
   // Update images when community data loads
   useEffect(() => {
     if (communityData) {
+      console.log('Community data loaded:', {
+        banner_image: communityData.banner_image,
+        profile_picture: communityData.profile_picture,
+        location: communityData.location
+      });
+      
       if (communityData.banner_image) {
         const bannerUrl = getCommunityBannerUrl(communityData.banner_image);
+        console.log('Banner URL conversion:', { original: communityData.banner_image, converted: bannerUrl });
         setCommunityBanner(bannerUrl || '/landd.svg');
+      } else {
+        setCommunityBanner('/landd.svg');
       }
+      
       if (communityData.profile_picture) {
         const profileUrl = getCommunityProfilePictureUrl(communityData.profile_picture);
+        console.log('Profile picture URL conversion:', { original: communityData.profile_picture, converted: profileUrl });
         setCommunityProfile(profileUrl || '/binoculars.svg');
+      } else {
+        setCommunityProfile('/binoculars.svg');
       }
-      if (communityData.location) setCommunityLocation(communityData.location);
+      
+      if (communityData.location) {
+        setCommunityLocation(communityData.location);
+      }
     }
   }, [communityData]);
 
@@ -1934,5 +1951,9 @@ export default function ModeratorPage({ params }: { params: Promise<{ id: string
   
   if (!communityId) return null;
   
-  return <CommunityPageWrapper communityId={communityId} />;
+  return (
+    <ProtectedRoute>
+      <CommunityPageWrapper communityId={communityId} />
+    </ProtectedRoute>
+  );
 }

@@ -37,7 +37,8 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const publicPaths = ['/', '/auth', '/error']
+  // Public paths that don't require authentication
+  const publicPaths = ['/', '/landing', '/auth', '/upload', '/error']
   const isPublicPath = publicPaths.some(path => 
     request.nextUrl.pathname === path || 
     request.nextUrl.pathname.startsWith(`${path}/`)
@@ -47,6 +48,8 @@ export async function updateSession(request: NextRequest) {
     // no user, redirect to the login page
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
+    // Preserve the original path as a query parameter so we can redirect back after login
+    url.searchParams.set('redirectedFrom', request.nextUrl.pathname)
     return NextResponse.redirect(url)
   }
 

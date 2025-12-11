@@ -3,6 +3,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft } from 'lucide-react';
+import { getProfilePictureUrl } from '@/src/utils/imageUrl';
+import ProtectedRoute from '@/src/components/ProtectedRoute';
 
 export default function ExpertProfilePage() {
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -80,6 +82,7 @@ export default function ExpertProfilePage() {
 };
 
   return (
+    <ProtectedRoute>
     <div 
       className="h-screen flex flex-col bg-gradient-to-b from-green-50 to-amber-50 overflow-hidden" 
       style={{ 
@@ -384,9 +387,13 @@ export default function ExpertProfilePage() {
       {/* Placeholder for profile image */}
       {profileImage ? (
         <img 
-          src={profileImage} 
+          src={getProfilePictureUrl(profileImage) || profileImage} 
           alt="Profile" 
           className="w-full h-full object-cover"
+          onError={(e) => {
+            console.error('Failed to load profile image:', profileImage);
+            e.currentTarget.style.display = 'none';
+          }}
         />
       ) : (
         <div className="w-full h-full bg-[#FFFFFF] flex items-center justify-center">
@@ -479,5 +486,6 @@ export default function ExpertProfilePage() {
         </aside>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
