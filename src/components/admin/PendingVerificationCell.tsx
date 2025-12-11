@@ -1,8 +1,9 @@
 "use client";
 
 import useAdmin from "@/src/lib/hooks/useAdmin";
+import { profileService, expertService } from "@/src/lib/services";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { FaLink, FaLocationDot } from "react-icons/fa6";
 import { PiEyeBold } from "react-icons/pi";
 
@@ -36,6 +37,11 @@ export default function PendingVerificationCell({
   const [fileType, setFileType] = useState<"pdf" | "image">("image");
 
   const { approveExpert, rejectExpert, reload } = useAdmin();
+
+  // Get profile picture URL from Supabase bucket
+  const profilePictureUrl = useMemo(() => {
+    return profileService.getProfilePictureUrl(profile) || "/avatar-capybara.png";
+  }, [profile]);
 
   const prepareFileUrl = (file: string): { url: string; type: "pdf" | "image" } => {
     if (modalUrl.startsWith("blob:")) {
@@ -71,13 +77,11 @@ export default function PendingVerificationCell({
       }
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const bucketName = "documents"; 
-    
-    if (supabaseUrl) {
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${file}`;
+    // Use expertService to get file URL from expert-files bucket
+    const fileUrl = expertService.getFileUrl(file);
+    if (fileUrl) {
       const isPdf = file.toLowerCase().endsWith(".pdf");
-      return { url: publicUrl, type: isPdf ? "pdf" : "image" };
+      return { url: fileUrl, type: isPdf ? "pdf" : "image" };
     }
 
     return { url: file, type: "image" };
@@ -123,7 +127,7 @@ export default function PendingVerificationCell({
 
       <div className="flex flex-row justify-start items-center space-x-2">
         <Image
-          src={profile || "/avatar-capybara.png"}
+          src={profilePictureUrl}
           alt={name}
           width={75}
           height={75}

@@ -379,10 +379,12 @@ export const voteService = {
             .single();
 
         if (error) throw error;
+    }
 }
 
 export const adminService = {
     async getTotalUsers() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .select("*")
@@ -392,6 +394,7 @@ export const adminService = {
     },
 
     async getActiveUsers() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .select("*")
@@ -402,6 +405,7 @@ export const adminService = {
     },
 
     async getSuspendedUsers() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .select("*")
@@ -412,6 +416,7 @@ export const adminService = {
     },
 
     async getVerifiedExperts() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("experts")
             .select("*")
@@ -422,6 +427,7 @@ export const adminService = {
     },
 
     async getPendingExperts() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("experts")
             .select("*")
@@ -432,6 +438,7 @@ export const adminService = {
     },
 
     async approveExpert(expert_id: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("experts")
             .update({ is_verified: "true", verified_at: new Date().toISOString() })
@@ -442,6 +449,7 @@ export const adminService = {
     },
 
     async rejectExpert(expert_id: string) {
+        const supabase = getSupabase();
         const { data: expertData, error: fetchError } = await supabase
             .from("experts")
             .select("user_id")
@@ -469,6 +477,7 @@ export const adminService = {
     },
 
     async activateUser(user_id: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .update({ is_suspended: false })
@@ -479,6 +488,7 @@ export const adminService = {
     },
 
     async suspendUser(user_id: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .update({ is_suspended: true })
@@ -489,6 +499,7 @@ export const adminService = {
     },
 
     async getTotalReports() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("reports")
             .select("*")
@@ -498,6 +509,7 @@ export const adminService = {
     },
 
     async getUndismissedReports() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("reports")
             .select("*")
@@ -508,6 +520,7 @@ export const adminService = {
     },
 
     async getPost(postId: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("posts")
             .select("*")
@@ -522,6 +535,7 @@ export const adminService = {
     },
 
     async getComment(commentId: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("comments")
             .select("*")
@@ -545,6 +559,7 @@ export const adminService = {
         if (error) throw error;
     },
     async dismissReport(reportId: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("reports")
             .update({ is_dismissed: true })
@@ -552,6 +567,39 @@ export const adminService = {
 
         if (error) throw new Error(error.message);
         return data;
+    },
+
+    async getAnalytics() {
+        const supabase = getSupabase();
+        
+        // Get all counts
+        const [users, experts, posts, comments, votes, reports, communities] = await Promise.all([
+            supabase.from("user_profiles").select("user_id, created_at, is_suspended, is_expert"),
+            supabase.from("experts").select("expert_id, created_at, is_verified, verified_at"),
+            supabase.from("posts").select("post_id, created_at"),
+            supabase.from("comments").select("comment_id, created_at"),
+            supabase.from("votes").select("vote_id, created_at, vote_type"),
+            supabase.from("reports").select("id, reported_at, is_dismissed, type"),
+            supabase.from("communities").select("community_id, created_at, member_count"),
+        ]);
+
+        if (users.error) throw new Error(users.error.message);
+        if (experts.error) throw new Error(experts.error.message);
+        if (posts.error) throw new Error(posts.error.message);
+        if (comments.error) throw new Error(comments.error.message);
+        if (votes.error) throw new Error(votes.error.message);
+        if (reports.error) throw new Error(reports.error.message);
+        if (communities.error) throw new Error(communities.error.message);
+
+        return {
+            users: users.data || [],
+            experts: experts.data || [],
+            posts: posts.data || [],
+            comments: comments.data || [],
+            votes: votes.data || [],
+            reports: reports.data || [],
+            communities: communities.data || [],
+        };
     },
 
 }

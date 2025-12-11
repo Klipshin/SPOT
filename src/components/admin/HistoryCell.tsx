@@ -1,5 +1,6 @@
 import Image from 'next/image'
-import React from 'react'
+import React, { useMemo } from 'react'
+import { profileService } from '@/src/lib/services'
 
 function formatDate(dbDate: string) {
   if (!dbDate) return '';
@@ -29,11 +30,20 @@ export default function HistoryCell({
     reportedUsername,
     date
 }: HistoryProps ) {
+  // Get profile picture URLs from Supabase bucket
+  const reporterProfileUrl = useMemo(() => {
+    return profileService.getProfilePictureUrl(reporterProfile) || "/avatar-capybara.png";
+  }, [reporterProfile]);
+
+  const reportedProfileUrl = useMemo(() => {
+    return profileService.getProfilePictureUrl(reportedProfile) || "/avatar-capybara.png";
+  }, [reportedProfile]);
+
   return (
     <div className="py-2 px-25 bg-[#4A654D] font-poppins-medium text-white text-lg rounded-xl grid grid-cols-[2fr_2fr_minmax(150px,250px)] items-center justify-center">
         <div className="flex flex-row justify-start items-center space-x-3">
             <Image 
-                src={reporterProfile}
+                src={reporterProfileUrl}
                 alt={reporterUsername}
                 width={50}
                 height={50}
@@ -47,7 +57,7 @@ export default function HistoryCell({
 
         <div className="flex flex-row justify-start items-center space-x-3">
             <Image 
-                src={reportedProfile}
+                src={reportedProfileUrl}
                 alt={reportedUsername}
                 width={50}
                 height={50}
