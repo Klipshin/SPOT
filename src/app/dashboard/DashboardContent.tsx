@@ -11,6 +11,13 @@ import CreateCommunityModal from '@/src/components/CreateCommunityModal';
 import VerifySpeciesModal from '@/src/components/VerifySpeciesModal';
 import VerificationDetailsModal from '@/src/components/VerificationDetailsModal';
 import { communityService } from '@/src/lib/services';
+import { 
+  getProfilePictureUrl, 
+  getCommunityProfilePictureUrl, 
+  getPostMediaUrl,
+  getIdentificationImageUrl,
+  getCommentMediaUrl
+} from '@/src/utils/imageUrl';
 
 // IMPORTANT: Import the useSupabase hook (Assuming its location)
 import { useSupabase } from '@/src/components/providers/SupabaseProvider'; 
@@ -181,7 +188,7 @@ useEffect(() => {
             name: data.name || 'Full Name',
             location: data.location || 'Location not set',
             occupation: data.is_expert ? 'Verified Expert' : 'Wildlife Enthusiast', // Set based on expert status
-            profile_picture: data.profile_picture
+            profile_picture: getProfilePictureUrl(data.profile_picture) || null
           });
         }
 
@@ -362,11 +369,11 @@ useEffect(() => {
                   id: p.post_id,
                   timestamp: new Date(p.created_at).getTime(),
                   user: `@${p.user_profiles?.username || 'unknown'}`,
-                  userProfilePicture: p.user_profiles?.profile_picture || null,
+                  userProfilePicture: getProfilePictureUrl(p.user_profiles?.profile_picture) || null,
                   date: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                   heading: p.title,
                   caption: p.content,
-                  image: p.media_url || identification?.image_url || null, 
+                  image: getPostMediaUrl(p.media_url) || getIdentificationImageUrl(identification?.image_url) || null, 
                   scientificName: scientificName,
                   vote: null,
                   upvotes: p.upvotes || 0, 
@@ -374,7 +381,7 @@ useEffect(() => {
                   comments: [],
                   communityId: p.communities?.community_id,
                   communityName: p.communities?.community_name,
-                  communityProfilePicture: p.communities?.profile_picture,
+                  communityProfilePicture: getCommunityProfilePictureUrl(p.communities?.profile_picture) || null,
                   flairNames: p.flairNames || [],
                   userId: p.user_id,
                   authorUsername: p.user_profiles?.username,
@@ -396,10 +403,10 @@ useEffect(() => {
                 const mappedComments: Comment[] = comments.map((c: any) => ({
                   id: c.comment_id,
                   user: `@${c.user_profiles?.username || 'user'}`,
-                  userProfilePicture: c.user_profiles?.profile_picture || null,
+                  userProfilePicture: getProfilePictureUrl(c.user_profiles?.profile_picture) || null,
                   date: formatTimeAgo(c.created_at),
                   text: c.content,
-                  image: c.media_url,
+                  image: getCommentMediaUrl(c.media_url) || null,
                   vote: c.userVote || null,
                   upvotes: c.upvotes || 0,
                   downvotes: c.downvotes || 0,
@@ -1108,7 +1115,7 @@ useEffect(() => {
                                                 className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors flex items-center gap-3"
                                               >
                                                 {comm.profile_picture ? (
-                                                  <img src={comm.profile_picture} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                                  <img src={getCommunityProfilePictureUrl(comm.profile_picture) || ''} alt="" className="w-8 h-8 rounded-full object-cover" />
                                                 ) : (
                                                   <div className="w-8 h-8 rounded-full bg-[#7D9B76] flex items-center justify-center text-white font-bold text-xs">
                                                     {comm.community_name[0]}
@@ -1134,7 +1141,7 @@ useEffect(() => {
                                                 className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors flex items-center gap-3"
                                               >
                                                 {person.profile_picture ? (
-                                                  <img src={person.profile_picture} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                                  <img src={getProfilePictureUrl(person.profile_picture) || ''} alt="" className="w-8 h-8 rounded-full object-cover" />
                                                 ) : (
                                                   <User className="w-8 h-8 text-gray-400" />
                                                 )}
@@ -1415,7 +1422,19 @@ useEffect(() => {
                               >
                                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center overflow-hidden">
                                       {comm.profile_picture ? (
-                                          <img src={comm.profile_picture} alt={comm.community_name} className="w-full h-full object-cover" />
+                                          <img 
+                                              src={getCommunityProfilePictureUrl(comm.profile_picture) || ''} 
+                                              alt={comm.community_name} 
+                                              className="w-full h-full object-cover"
+                                              onError={(e) => {
+                                                console.error('Failed to load community profile picture from userCommunities:', comm.profile_picture, 'Converted URL:', getCommunityProfilePictureUrl(comm.profile_picture));
+                                                e.currentTarget.style.display = 'none';
+                                                const parent = e.currentTarget.parentElement;
+                                                if (parent) {
+                                                  parent.innerHTML = '<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>';
+                                                }
+                                              }}
+                                          />
                                       ) : (
                                           <Users className="w-6 h-6 text-green-600" />
                                       )}
@@ -1557,6 +1576,14 @@ useEffect(() => {
                                               src={post.communityProfilePicture} 
                                               alt={post.communityName || 'Community'}
                                               className="w-full h-full object-cover"
+                                              onError={(e) => {
+                                                console.error('Failed to load community profile picture:', post.communityProfilePicture);
+                                                e.currentTarget.style.display = 'none';
+                                                const parent = e.currentTarget.parentElement;
+                                                if (parent) {
+                                                  parent.innerHTML = '<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>';
+                                                }
+                                              }}
                                           />
                                       ) : (
                                           <Users className="w-6 h-6 text-gray-400" />

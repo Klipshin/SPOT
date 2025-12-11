@@ -40,9 +40,10 @@ export async function POST(
 
       // Update post vote counts
       const { error: updateError } = await adminSupabase.rpc(
-        vote_type === 'upvote' ? 'decrement_post_upvotes' : 'decrement_post_downvotes',
-        { post_id: postId }
+        vote_type === 'upvote' ? 'increment_post_upvotes' : 'increment_post_downvotes',
+        { p_post_id: postId }
       );
+
 
       if (updateError) {
         console.error('Error updating post counts:', updateError);
@@ -69,8 +70,9 @@ export async function POST(
       // Update post vote counts
       const { error: updateError } = await adminSupabase.rpc(
         vote_type === 'upvote' ? 'increment_post_upvotes' : 'increment_post_downvotes',
-        { post_id: postId }
+        { p_post_id: postId }
       );
+
 
       if (updateError) {
         console.error('Error updating post counts:', updateError);
@@ -96,12 +98,14 @@ export async function POST(
       const oldVoteType = vote_type === 'upvote' ? 'downvote' : 'upvote';
       await adminSupabase.rpc(
         oldVoteType === 'upvote' ? 'decrement_post_upvotes' : 'decrement_post_downvotes',
-        { post_id: postId }
+        { p_post_id: postId }
       );
+
       await adminSupabase.rpc(
         vote_type === 'upvote' ? 'increment_post_upvotes' : 'increment_post_downvotes',
-        { post_id: postId }
+        { p_post_id: postId }
       );
+
 
       return NextResponse.json({ success: true }, { status: 200 });
     }

@@ -260,19 +260,7 @@ export const postService = {
         const supabase = getSupabase();
         const { data, error } = await supabase
             .from("posts")
-            .select(`
-                *,
-                user_profiles!posts_user_id_fkey (
-                    user_id,
-                    username,
-                    name,
-                    profile_picture
-                ),
-                communities!posts_community_id_fkey (
-                    community_id,
-                    community_name
-                )
-            `)
+            .select("*")
             .order("created_at", { ascending: false })
             .limit(limit);
 

@@ -10,6 +10,13 @@ import CreatePostModal from '@/src/components/CreatePostModal';
 import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { 
+  getProfilePictureUrl, 
+  getCommunityProfilePictureUrl, 
+  getCommunityBannerUrl,
+  getPostMediaUrl,
+  getCommentMediaUrl
+} from '@/src/utils/imageUrl';
 
 const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
   ssr: false,
@@ -71,7 +78,7 @@ function Header() {
 
         if (profile) {
           setUsername(profile.username);
-          setProfilePicture(profile.profile_picture);
+          setProfilePicture(getProfilePictureUrl(profile.profile_picture) || null);
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -290,7 +297,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
           .single();
 
         if (profile) {
-          setCurrentUserProfilePicture(profile.profile_picture);
+          setCurrentUserProfilePicture(getProfilePictureUrl(profile.profile_picture) || null);
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -363,8 +370,14 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   // Update images when community data loads
   useEffect(() => {
     if (communityData) {
-      if (communityData.banner_image) setCommunityBanner(communityData.banner_image);
-      if (communityData.profile_picture) setCommunityProfile(communityData.profile_picture);
+      if (communityData.banner_image) {
+        const bannerUrl = getCommunityBannerUrl(communityData.banner_image);
+        setCommunityBanner(bannerUrl || '/landd.svg');
+      }
+      if (communityData.profile_picture) {
+        const profileUrl = getCommunityProfilePictureUrl(communityData.profile_picture);
+        setCommunityProfile(profileUrl || '/binoculars.svg');
+      }
       if (communityData.location) setCommunityLocation(communityData.location);
     }
   }, [communityData]);
@@ -430,10 +443,10 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
         userId: p.user_id, // Track post author
         timestamp: new Date(p.created_at).getTime(),
         user: `@${p.user_profiles?.username || 'user'}`,
-        userProfilePicture: p.user_profiles?.profile_picture || null,
+        userProfilePicture: getProfilePictureUrl(p.user_profiles?.profile_picture) || null,
         date: formatDate(p.created_at),
         heading: p.title,
-        image: p.media_url,
+        image: getPostMediaUrl(p.media_url) || null,
         caption: p.content,
         vote: null,
         upvotes: p.upvotes || 0,
@@ -454,10 +467,10 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
             const mappedComments: Comment[] = comments.map((c: any) => ({
               id: c.comment_id,
               user: `@${c.user_profiles?.username || 'user'}`,
-              userProfilePicture: c.user_profiles?.profile_picture || null,
+              userProfilePicture: getProfilePictureUrl(c.user_profiles?.profile_picture) || null,
               date: formatDate(c.created_at),
               text: c.content,
-              image: c.media_url,
+              image: getCommentMediaUrl(c.media_url) || null,
               vote: c.userVote || null,
               upvotes: c.upvotes || 0,
               downvotes: c.downvotes || 0,
@@ -769,10 +782,10 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
       const newComment: Comment = {
         id: insertedComment?.comment_id || Date.now(),
         user: `@${insertedComment?.user_profiles?.username || 'user'}`,
-        userProfilePicture: insertedComment?.user_profiles?.profile_picture || null,
+        userProfilePicture: getProfilePictureUrl(insertedComment?.user_profiles?.profile_picture) || null,
         date: formatDate(new Date().toISOString()),
         text: insertedComment?.content || trimmedContent,
-        image: insertedComment?.media_url || attachedCommentImage,
+        image: getCommentMediaUrl(insertedComment?.media_url) || attachedCommentImage,
         vote: null,
         upvotes: 0,
         downvotes: 0,
@@ -1183,7 +1196,15 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
           {/* FIX: Width [95%] and mx-auto */}
           <div className="relative w-[95%] mx-auto h-[180px] shrink-0 group mt-3 rounded-[35px] overflow-hidden">
             <div className="w-full h-full cursor-pointer hover:opacity-95 transition-opacity" onClick={() => openLightbox(communityBanner)}>
-              <img src={communityBanner} alt="Banner" className="absolute inset-0 w-full h-full object-cover opacity-80" />
+              <img 
+                src={communityBanner} 
+                alt="Banner" 
+                className="absolute inset-0 w-full h-full object-cover opacity-80"
+                onError={(e) => {
+                  console.error('Failed to load community banner:', communityBanner);
+                  e.currentTarget.src = '/landd.svg';
+                }}
+              />
             </div>
              {/* MODERATOR: Edit Banner Button */}
              {isModerator && (
@@ -1198,7 +1219,15 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
              {/* FIX: Size 230px, Hug bottom left (-mt-135, -ml-10), Thinner border, No opacity */}
             <div className="relative -mt-[135px] -ml-10 z-20 shrink-0 group">
               <div className={`w-[230px] h-[230px] rounded-full border-[4px] shadow-md overflow-hidden cursor-pointer hover:scale-105 transition-transform ${isDarkMode ? "bg-[#444] border-[#222222]" : "bg-[#D9D9D9] border-white"}`} onClick={() => openLightbox(communityProfile)}>
-                <img src={communityProfile} alt="Profile" className="w-full h-full object-cover" />
+                <img 
+                  src={communityProfile} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error('Failed to load community profile picture:', communityProfile);
+                    e.currentTarget.src = '/binoculars.svg';
+                  }}
+                />
               </div>
                 {/* MODERATOR: Edit Profile Button */}
                 {isModerator && (
