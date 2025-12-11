@@ -1,30 +1,53 @@
+"use client";
+
 import { contentViolations } from '@/src/lib/data/contentViolations'
+import useAdmin from '@/src/lib/hooks/useAdmin';
+import { Comment, Post } from '@/src/utils/supabase/models';
 import Image from 'next/image'
-import React from 'react'
+
+function formatDate(dbDate: string) {
+  if (!dbDate) return '';
+  const date = new Date(dbDate);
+  return date.toLocaleString('en-US', {
+    month: 'short',   
+    day: 'numeric',   
+    year: 'numeric',  
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
 
 type FeedProps = {
+    reportId: string,
     reporterProfile: string,
     reporterUsername: string,
     reportedProfile: string,
     reportedUsername: string,
+    reportedId: string,
     reportedAt: string,
-    reportedContent: string,
-    contentPostedAt: string
-    contentViolation: string
+    type: "post" | "comment";
+    postContent?: Post | null;
+    commentContent?: Comment | null;
+    contentViolation: string,
 }
 
 export default function FeedCell({
+    reportId,
     reporterProfile,
     reporterUsername,
     reportedProfile,
     reportedUsername,
+    reportedId,
     reportedAt,
-    reportedContent,
-    contentPostedAt,
-    contentViolation
+    type,
+    postContent,
+    commentContent,
+    contentViolation,
 }: FeedProps ) {
-
     const violation = contentViolations.find(v => v.id === contentViolation);
+
+    const {suspendUsers, dismissReport, reload, loading} = useAdmin();
 
   return (
     <div className="relative flex flex-row py-5 px-10 bg-[#4A654D] font-poppins-medium text-white text-lg rounded-xl">
@@ -51,7 +74,7 @@ export default function FeedCell({
 
                     <div className="flex flex-col text-white">
                         <div className="font-poppins-bold text-2xl">{reporterUsername}</div>
-                        <div className="font-poppins text-base">{reportedAt}</div>
+                        <div className="font-poppins text-base">{formatDate(reportedAt)}</div>
                     </div>
                 </div>
 
@@ -74,26 +97,55 @@ export default function FeedCell({
                 </div>
             </div>
 
-            <div className="flex flex-col bg-white p-3 rounded-lg justify-start items-start space-y-3">
-                <div className="flex flex-row justify-start items-center space-x-3">
-                    <Image 
-                        src={reportedProfile}
-                        alt={reportedUsername}
-                        width={40}
-                        height={40}
-                        className="rounded-full"
-                    />
-        
-                    <div className="flex flex-col text-black">
-                        <div className="font-poppins-bold text-lg">{reportedUsername}</div>
-                        <div className="font-poppins text-xs">{contentPostedAt}</div>
+            {type === "post" && (
+                <div className="flex flex-col bg-white p-3 rounded-lg justify-start items-start space-y-3">
+                    <div className="flex flex-row justify-start items-center space-x-3">
+                        <Image 
+                            src={reportedProfile}
+                            alt={reportedUsername}
+                            width={40}
+                            height={40}
+                            className="rounded-full"
+                        />
+            
+                        <div className="flex flex-col text-black">
+                            <div className="font-poppins-bold text-lg text-black">{reportedUsername}</div>
+                            <div className="font-poppins text-xs text-black">{formatDate(postContent?.created_at || '')}</div>
+                        </div>
                     </div>
+                    <div className="font-poppins text-base text-black">{postContent?.content}</div>
+                    {postContent?.media_url && (
+                        <Image
+                            src={postContent.media_url}
+                            alt="Post image"
+                            width={400}
+                            height={300}
+                            className="rounded-lg object-cover"
+                        />
+                    )}
                 </div>
-        
-                <div className="text-black text-center text-sm px-3">
-                    {reportedContent}
+            )}
+
+            {type === "comment" && (
+                <div className="flex flex-col bg-white p-3 rounded-lg justify-start items-start space-y-3">
+                    <div className="flex flex-row justify-start items-center space-x-3">
+                        <Image 
+                            src={reportedProfile}
+                            alt={reportedUsername}
+                            width={40}
+                            height={40}
+                            className="rounded-full"
+                        />
+            
+                        <div className="flex flex-col text-black">
+                            <div className="font-poppins-bold text-lg text-black">{reportedUsername}</div>
+                            <div className="font-poppins text-xs text-black">{formatDate(commentContent?.created_at || '')}</div>
+                        </div>
+                    </div>
+
+                    <div className="font-poppins text-base text-black">{commentContent?.content}</div>
                 </div>
-            </div>
+            )}
 
             <div className="flex flex-col rounded-lg justify-start items-center space-y-2">
                 <div className="text-white font-poppins-bold">
@@ -107,17 +159,28 @@ export default function FeedCell({
 
             <div className="flex flex-col space-y-1">
                 <button
+                    onClick={async () => {
+                        await suspendUsers(reportedId);
+                        await dismissReport(reportId);
+                        await reload();
+                    }}
+                    disabled={loading}
                     className="rounded-lg px-10 py-1 bg-[#FFC8C9] text-[#BF0003] border-2 border-[#BF0003] hover:bg-[#BF0003] hover:text-[#FFC8C9] hover:scale-105
                     cursor-pointer transition-all duration-200 ease-in-out"
                 >
-                    Suspend
+                    {loading? "Suspending" : "Suspend"}
                 </button>
 
                 <button
+                    onClick={async () => {
+                        await dismissReport(reportId);
+                        await reload();
+                    }}
+                    disabled={loading}
                     className="rounded-lg px-10 py-1 bg-[#E2E2E2] text-[#646464] border-2 border-[#646464] hover:bg-[#E2E2E2] hover:text-[#646464] hover:scale-105
                     cursor-pointer transition-all duration-200 ease-in-out"
                 >
-                    Dismiss
+                    {loading? "Dismissing" : "Dismiss"}
                 </button>
             </div>
         </div>
