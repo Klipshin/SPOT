@@ -65,8 +65,7 @@ export default function LoginPage() {
             if (res?.userId) {
                 const redirected = await checkUserProfile(res.userId);
                 if (!redirected) {
-                // fallback: navigate to dashboard
-                router.push("/dashboard");
+                    router.push("/dashboard");
                 }
                 return;
             }

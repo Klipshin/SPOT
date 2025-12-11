@@ -5,10 +5,10 @@ interface FileUploadProps {
   label: string;
   id: string;
   acceptedFiles?: string;
-  onFileLoad?: (dataUrl: string) => void;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export default function FileUpload({ label, id, acceptedFiles, onFileLoad }: FileUploadProps) {
+export default function FileUpload({ label, id, acceptedFiles, onFileChange }: FileUploadProps) {
   const [fileName, setFileName] = useState<string>("");
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -16,26 +16,10 @@ export default function FileUpload({ label, id, acceptedFiles, onFileLoad }: Fil
     inputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files && e.target.files.length > 0 ? e.target.files[0] : null;
-
-    if (!file) {
-      setFileName("");
-      onFileLoad?.("");
-      return;
-    }
-
-    setFileName(file.name);
-
-    if (onFileLoad) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          onFileLoad(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setFileName(file.name);
+    onFileChange(e);
   };
 
   const fileUploaded = fileName 
@@ -66,7 +50,7 @@ export default function FileUpload({ label, id, acceptedFiles, onFileLoad }: Fil
         id={id}
         type="file"
         accept={acceptedFiles}
-        onChange={handleFileChange}
+        onChange={handleChange}
         className="hidden"
       />
     </div>
