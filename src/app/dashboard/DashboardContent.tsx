@@ -10,6 +10,8 @@ import { useCommunities } from '@/src/lib/hooks/useCommunities';
 import CreateCommunityModal from '@/src/components/CreateCommunityModal';
 import VerifySpeciesModal from '@/src/components/VerifySpeciesModal';
 import VerificationDetailsModal from '@/src/components/VerificationDetailsModal';
+import NotificationBell from '@/src/components/NotificationBell';
+import ReportModal from '@/src/components/ReportModal';
 import { communityService } from '@/src/lib/services';
 import { 
   getProfilePictureUrl, 
@@ -24,7 +26,7 @@ import { useSupabase } from '@/src/components/providers/SupabaseProvider';
 
 // --- START: Types ---
 type Comment = {
-  id: number;
+  id: string | number; // Can be UUID string or number
   user: string;
   userProfilePicture?: string | null;
   date: string;
@@ -35,6 +37,7 @@ type Comment = {
   downvotes: number;
   isReply: boolean;
   isExpert?: boolean;
+  userId?: string; // Add userId for reporting
 };
 
 // Updated Post type to use string/UUID for id
@@ -245,7 +248,10 @@ useEffect(() => {
     }
   }, [isDarkMode]);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
-  const [showRepostModal, setShowRepostModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportContentType, setReportContentType] = useState<'post' | 'comment'>('post');
+  const [reportContentId, setReportContentId] = useState<string>('');
+  const [reportUserId, setReportUserId] = useState<string>('');
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [selectedPostForComment, setSelectedPostForComment] = useState<ClientPost | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
@@ -401,7 +407,7 @@ useEffect(() => {
               if (response.ok) {
                 const { comments } = await response.json();
                 const mappedComments: Comment[] = comments.map((c: any) => ({
-                  id: c.comment_id,
+                  id: c.comment_id, // This is a UUID string from the database
                   user: `@${c.user_profiles?.username || 'user'}`,
                   userProfilePicture: getProfilePictureUrl(c.user_profiles?.profile_picture) || null,
                   date: formatTimeAgo(c.created_at),
@@ -412,6 +418,7 @@ useEffect(() => {
                   downvotes: c.downvotes || 0,
                   isReply: c.parent_comment_id !== null,
                   isExpert: c.user_profiles?.is_expert || false,
+                  userId: c.user_id || '', // Add userId for reporting - ensure it's a string
                 }));
                 
                 setClientPosts(prevPosts => prevPosts.map(p => 
@@ -1037,10 +1044,10 @@ useEffect(() => {
     >
       {/* Top Fixed Header */}
       <div className="fixed top-0 left-0 right-0 w-full z-50">
-          <div className={`w-full h-11 flex items-center justify-between px-4 ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`}>
+          <div className={`relative w-full h-11 ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`}>
           
           {/* Left Side - Logo */}
-          <div className="flex items-center gap-3">
+          <div className="absolute top-0 left-[15px] flex items-center gap-3">
               <img className="w-[50px] h-[40px] aspect-[1.48] object-cover" alt="Spoticon" src="/eyecon.svg" />
               <div className="[-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
                   SPOT
@@ -1048,7 +1055,7 @@ useEffect(() => {
           </div>
 
               {/* === CENTER - SEARCH BAR === */}
-              <div className="flex-1 max-w-2xl mx-auto">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4">
                   <div className="relative w-full">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       
@@ -1217,19 +1224,25 @@ useEffect(() => {
               {/* === END SEARCH BAR === */}
               
               {/* Right Side - Dark Mode & Profile */}
-              <div className="flex items-center gap-4">
-                  <button 
-                      className="hover:scale-110 transition-transform duration-200 cursor-pointer"
-                      onClick={() => setIsDarkMode(!isDarkMode)}
-                  >
-                      {isDarkMode ? (
-                          <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
-                      ) : (
-                          <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
-                      )}
-                  </button>
+              {/* Dark Mode Toggle */}
+              <button 
+                  className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+              >
+                  {isDarkMode ? (
+                      <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
+                  ) : (
+                      <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
+                  )}
+              </button>
 
-                  {/* User Profile Button */}
+              {/* Notification Bell */}
+              <div className="absolute top-[5px] left-[1395px]">
+                  <NotificationBell isDarkMode={isDarkMode} />
+              </div>
+
+              {/* User Profile Button */}
+              <div className="absolute top-[5px] left-[1425px]">
                   <div className="relative">
                       <button 
                           className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
@@ -1333,7 +1346,7 @@ useEffect(() => {
                           </div>
                       </div>
                   )}
-              </div>
+                  </div>
               </div>
           </div>
       </div>
@@ -1689,15 +1702,18 @@ useEffect(() => {
                                           <div className="py-1">
                                               <button 
                                                   className="w-full px-4 py-2 text-left hover:bg-[#D4DEC3] transition-colors flex items-center gap-2.5"
-                                                  onClick={() => { setIsPostMenuOpen(false); setShowRepostModal(true); }}
-                                              >
-                                                  <Share2 className="w-4 h-4 text-gray-700" />
-                                                  <span className="text-sm font-medium text-gray-900">Repost to...</span>
-                                              </button>
-                                              
-                                              <button 
-                                                  className="w-full px-4 py-2 text-left hover:bg-[#D4DEC3] transition-colors flex items-center gap-2.5"
-                                                  onClick={() => {/* Report logic here */}}
+                                                  onClick={() => {
+                                                    if (!post.userId) {
+                                                      console.error('Post userId is missing:', post);
+                                                      alert('Unable to report: User information is missing.');
+                                                      return;
+                                                    }
+                                                    setIsPostMenuOpen(false);
+                                                    setReportContentType('post');
+                                                    setReportContentId(String(post.id));
+                                                    setReportUserId(post.userId);
+                                                    setShowReportModal(true);
+                                                  }}
                                               >
                                                   <Flag className="w-4 h-4 text-gray-700" />
                                                   <span className="text-sm font-medium text-gray-900">Report Post</span>
@@ -1727,37 +1743,6 @@ useEffect(() => {
                                       </div>
                                   )}
 
-                                  {/* Repost Modal */}
-                                  {showRepostModal && (
-                                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-                                          <div 
-                                              className="bg-white rounded-2xl shadow-2xl w-96 overflow-hidden"
-                                              style={{ border: '2px solid #899A3C' }}
-                                          >
-                                              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                                                  <h3 className="text-lg font-bold text-gray-900">Repost to Community</h3>
-                                                  <button 
-                                                      onClick={() => setShowRepostModal(false)}
-                                                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                                                  >
-                                                      <X className="w-5 h-5" />
-                                                  </button>
-                                              </div>
-                                              <div className="max-h-80 overflow-y-auto py-2">
-                                                  {userCommunities.map((community) => (
-                                                      <button
-                                                          key={community.community_id}
-                                                          className="w-full px-6 py-3 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-3"
-                                                          onClick={() => { console.log(`Reposting to ${community.community_name}`); setShowRepostModal(false); }}
-                                                      >
-                                                          <Users className="w-5 h-5 text-gray-600" />
-                                                          <span className="text-sm font-medium text-gray-900">{community.community_name}</span>
-                                                      </button>
-                                                  ))}
-                                              </div>
-                                          </div>
-                                      </div>
-                                  )}
                               </div>
                           </div>
 
@@ -2131,6 +2116,29 @@ useEffect(() => {
                           >
                             Reply
                           </button>
+
+                          <span className="text-gray-400">|</span>
+                          
+                          {/* Report Comment Action */}
+                          <button 
+                            onClick={() => {
+                              if (!comment.userId) {
+                                console.error('Comment userId is missing:', comment);
+                                alert('Unable to report: User information is missing.');
+                                return;
+                              }
+                              setReportContentType('comment');
+                              // Ensure contentId is a string (UUID)
+                              setReportContentId(String(comment.id));
+                              setReportUserId(comment.userId);
+                              setShowReportModal(true);
+                            }}
+                            className="hover:text-red-600 transition-colors flex items-center gap-1"
+                            title="Report comment"
+                          >
+                            <Flag className="w-3 h-3" />
+                            <span>Report</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -2330,6 +2338,20 @@ useEffect(() => {
           isDarkMode={isDarkMode}
         />
       )}
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => {
+          setShowReportModal(false);
+          setReportContentId('');
+          setReportUserId('');
+        }}
+        contentType={reportContentType}
+        contentId={reportContentId}
+        reportedUserId={reportUserId}
+        isDarkMode={isDarkMode}
+      />
 
       {/* User Profile Modal */}
       {showUserProfileModal && selectedUserProfile && (

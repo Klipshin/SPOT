@@ -11,6 +11,7 @@ import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import ProtectedRoute from '@/src/components/ProtectedRoute';
+import NotificationBell from '@/src/components/NotificationBell';
 import { 
   getProfilePictureUrl, 
   getCommunityProfilePictureUrl, 
@@ -102,7 +103,7 @@ function Header() {
       
       {/* Right Side Icons */}
       <button 
-        className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+        className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
         onClick={toggleTheme}
       >
         {isDarkMode ? (
@@ -112,8 +113,13 @@ function Header() {
         )}
       </button>
 
+      {/* Notification Bell */}
+      <div className="absolute top-[5px] left-[1395px]">
+        <NotificationBell isDarkMode={isDarkMode} />
+      </div>
+
       {/* User Profile Button */}
-      <div className="absolute top-[5px] left-[1440px]">
+      <div className="absolute top-[5px] left-[1425px]">
         <button 
           className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
           onClick={() => setIsProfileOpen(!isProfileOpen)}

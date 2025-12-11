@@ -9,6 +9,7 @@ import {
   getCommunityProfilePictureUrl,
   getPostMediaUrl
 } from '@/src/utils/imageUrl';
+import NotificationBell from '@/src/components/NotificationBell';
 
 // Dynamic import to avoid SSR issues with Leaflet
 const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
@@ -606,7 +607,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
             {/* DARK MODE TOGGLE */}
             <button 
-              className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+              className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
               onClick={() => setIsDarkMode(!isDarkMode)}
             >
               {isDarkMode ? (
@@ -616,8 +617,13 @@ export const AiChatLoggedIn = (): React.ReactElement => {
               )}
             </button>
 
+            {/* Notification Bell */}
+            <div className="absolute top-[5px] left-[1395px]">
+              <NotificationBell isDarkMode={isDarkMode} />
+            </div>
+
             {/* Profile button */}
-            <div className="absolute top-[5px] left-[1440px]">
+            <div className="absolute top-[5px] left-[1425px]">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
