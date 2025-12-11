@@ -17,7 +17,8 @@ interface LocationSuggestion {
 
 interface LocationSearchProps {
   value: string;
-  onChange: (location: string) => void;
+  onChange: (location: string, lat?: number, lng?: number) => void;
+  isDarkMode?: boolean;
 }
 
 // Helper component for the Geocoder
@@ -138,7 +139,7 @@ function MapModal({ onClose, onSelectLocation }: { onClose: () => void; onSelect
   );
 }
 
-export default function LocationSearch({ value, onChange }: LocationSearchProps) {
+export default function LocationSearch({ value, onChange, isDarkMode = false }: LocationSearchProps) {
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -193,13 +194,13 @@ export default function LocationSearch({ value, onChange }: LocationSearchProps)
   };
 
   const handleSelectSuggestion = (suggestion: LocationSuggestion) => {
-    onChange(suggestion.display_name);
+    onChange(suggestion.display_name, parseFloat(suggestion.lat), parseFloat(suggestion.lon));
     setShowSuggestions(false);
     setSuggestions([]);
   };
 
-  const handleMapSelect = (location: string) => {
-    onChange(location);
+  const handleMapSelect = (location: string, lat?: number, lng?: number) => {
+    onChange(location, lat, lng);
     setShowMap(false);
   };
 
@@ -216,7 +217,11 @@ export default function LocationSearch({ value, onChange }: LocationSearchProps)
             value={value}
             onChange={handleInputChange}
             placeholder="Search for a location"
-            className="w-full pl-12 pr-12 p-2 border border-gray-500 rounded-xl text-xl bg-white"
+            className={`w-full pl-12 pr-12 p-2 border border-gray-500 rounded-xl text-xl ${
+              isDarkMode 
+                ? 'bg-gray-800 text-white placeholder-gray-400' 
+                : 'bg-white text-gray-900 placeholder-gray-500'
+            }`}
             autoComplete="off"
           />
           <button
@@ -234,16 +239,24 @@ export default function LocationSearch({ value, onChange }: LocationSearchProps)
 
         {/* Suggestions Dropdown */}
         {showSuggestions && suggestions.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <div className={`absolute z-50 w-full mt-1 border rounded-lg shadow-lg max-h-60 overflow-y-auto ${
+            isDarkMode 
+              ? 'bg-gray-800 border-gray-600' 
+              : 'bg-white border-gray-300'
+          }`}>
             {loading && (
-              <div className="p-3 text-gray-500 text-center">Searching...</div>
+              <div className={`p-3 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Searching...</div>
             )}
             {suggestions.map((suggestion, index) => (
               <button
                 key={index}
                 type="button"
                 onClick={() => handleSelectSuggestion(suggestion)}
-                className="w-full text-left p-3 hover:bg-gray-100 border-b border-gray-200 last:border-b-0 transition-colors"
+                className={`w-full text-left p-3 border-b last:border-b-0 transition-colors ${
+                  isDarkMode 
+                    ? 'hover:bg-gray-700 border-gray-700 text-white' 
+                    : 'hover:bg-gray-100 border-gray-200 text-gray-900'
+                }`}
               >
                 <div className="text-sm">{suggestion.display_name}</div>
               </button>

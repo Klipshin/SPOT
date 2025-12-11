@@ -4,7 +4,12 @@ import React, { useRef, useState } from "react";
 import DefaultAvatars from "./DefaultAvatars";
 import { useProfiles } from "@/src/lib/hooks/useProfiles";
 import { useRouter } from "next/navigation";
-import LocationSearch from "../LocationSearch";
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const LocationSearch = dynamic(() => import('../LocationSearch'), {
+  ssr: false
+});
 
 interface SetupProfileProps {
   userId: string;

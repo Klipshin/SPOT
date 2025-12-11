@@ -16,10 +16,14 @@ export async function GET(
       .from('posts')
       .select(`
         post_id,
+        user_id,
         title,
         content,
         media_url,
         created_at,
+        location,
+        latitude,
+        longitude,
         user_profiles (
           username,
           profile_picture

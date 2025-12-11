@@ -3,7 +3,12 @@
 
 import React, { useState, useRef } from 'react';
 import { X, MapPin, Users, UploadCloud } from 'lucide-react';
-import LocationSearch from './LocationSearch';
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const LocationSearch = dynamic(() => import('./LocationSearch'), {
+  ssr: false
+});
 
 interface CreateCommunityModalProps {
   isDarkMode: boolean;
@@ -143,6 +148,7 @@ export default function CreateCommunityModal({
                 <LocationSearch
                   value={location}
                   onChange={setLocation}
+                  isDarkMode={isDarkMode}
                 />
               </div>
             </div>

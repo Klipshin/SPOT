@@ -1,11 +1,25 @@
 'use client';
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft } from 'lucide-react';
 
 export default function ExpertProfilePage() {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    }
+    return false;
+  });
+  
+  // Save dark mode preference to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', isDarkMode.toString());
+    }
+  }, [isDarkMode]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
@@ -123,59 +137,59 @@ export default function ExpertProfilePage() {
   {/* Profile Dropdown */}
   {isProfileOpen && (
     <div 
-     className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50"
+     className={`absolute right-0 mt-1 w-64 rounded-xl shadow-xl overflow-hidden z-50 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}
       style={{ border: '2px solid #899A3C' }}
       onMouseDown={(e) => e.preventDefault()}
     >
       {/* User Info Section */}
-      <div className="px-4 py-3 border-b border-gray-300">
-        <h3 className="text-base font-bold text-gray-900">@username</h3>
-        <p className="text-xs text-gray-600 mt-0.5">username@gmail.com</p>
+      <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+        <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>@username</h3>
+        <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>username@gmail.com</p>
       </div>
 
       {/* Menu Items */}
       <div className="py-1">
         <button 
-          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
           onClick={() => {
             // Add your View Profile logic here
           }}
         >
-          <User className="w-4 h-4 text-gray-700" />
-          <span className="text-sm font-medium text-gray-900">View Profile</span>
+          <User className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>View Profile</span>
         </button>
         
         <button 
-          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
           onClick={() => {
             // Add your Account Settings logic here
           }}
         >
-          <Settings className="w-4 h-4 text-gray-700" />
-          <span className="text-sm font-medium text-gray-900">Account Settings</span>
+          <Settings className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Account Settings</span>
         </button>
         
         <button 
-          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
           onClick={() => {
             // Add your Help Center logic here
           }}
         >
-          <HelpCircle className="w-4 h-4 text-gray-700" />
-          <span className="text-sm font-medium text-gray-900">Help Center</span>
+          <HelpCircle className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Help Center</span>
         </button>
       </div>
 
       {/* Log Out Section */}
-      <div className="border-t border-gray-400">
+      <div className={`border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-400'}`}>
         <button 
           className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
           onClick={() => {
             // Add your Log Out logic here
           }}
         >
-          <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
-          <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+          <LogOut className={`w-4 h-4 group-hover:text-white ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+          <span className={`text-sm font-medium group-hover:text-white ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Log Out</span>
         </button>
       </div>
     </div>
@@ -192,13 +206,13 @@ export default function ExpertProfilePage() {
       {/* Main Content */}
       <div className="relative z-10 flex gap-10 px-12 py-20 max-w-[1800px] mx-auto">
         {/* Left Panel - Profile Editing Form */}
-        <div className="flex-1 bg-white rounded-[40px] p-15 shadow-2xl w-250">
+        <div className={`flex-1 rounded-[40px] p-15 shadow-2xl w-250 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}>
           <div className="flex gap-8">
             {/* Form Fields */}
             <div className="flex-1 space-y-6">
               {/* Username */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Username</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Username</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -208,16 +222,18 @@ export default function ExpertProfilePage() {
                     onBlur={() => disableFieldEditing('username')}
                     readOnly={!editableFields.username}
                     placeholder="Username"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.username
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('username')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -229,7 +245,7 @@ export default function ExpertProfilePage() {
 
               {/* Name */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Name</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Name</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -239,16 +255,18 @@ export default function ExpertProfilePage() {
                     onBlur={() => disableFieldEditing('name')}
                     readOnly={!editableFields.name}
                     placeholder="Name"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.name
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('name')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -260,7 +278,7 @@ export default function ExpertProfilePage() {
 
               {/* Job/Occupation */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Job/Occupation</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Job/Occupation</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -270,16 +288,18 @@ export default function ExpertProfilePage() {
                     onBlur={() => disableFieldEditing('job')}
                     readOnly={!editableFields.job}
                     placeholder="Job/Occupation"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.job
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('job')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -291,7 +311,7 @@ export default function ExpertProfilePage() {
 
               {/* Email */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Email</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Email</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="email"
@@ -301,16 +321,18 @@ export default function ExpertProfilePage() {
                     onBlur={() => disableFieldEditing('email')}
                     readOnly={!editableFields.email}
                     placeholder="Email"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.email
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('email')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -322,7 +344,7 @@ export default function ExpertProfilePage() {
 
               {/* Location */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Location</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Location</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -332,16 +354,18 @@ export default function ExpertProfilePage() {
                     onBlur={() => disableFieldEditing('location')}
                     readOnly={!editableFields.location}
                     placeholder="Location"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.location
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('location')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -355,8 +379,8 @@ export default function ExpertProfilePage() {
             {/* Profile Picture Area */}
 <div className="flex flex-col items-center">
   <div className="relative w-64 h-64">
-    {/* Profile Picture Circle */}
-    <div className="w-64 h-64 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 border-4 border-gray-400 flex items-center justify-center overflow-hidden">
+    {/* Profile Picture Circle with Aurora Background */}
+    <div className="w-64 h-64 rounded-full bg-[linear-gradient(135deg,#1e3a8a_0%,#059669_25%,#10b981_50%,#06b6d4_75%,#3b82f6_100%)] border-4 border-yellow-500 flex items-center justify-center overflow-hidden shadow-2xl" style={{backgroundImage: 'url(/exp.svg)', backgroundSize: 'cover', backgroundPosition: 'center'}}>
       {/* Placeholder for profile image */}
       {profileImage ? (
         <img 

@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useRef, ChangeEvent, KeyboardEvent, useEffect, useCallback } from 'react';
-import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase } from 'lucide-react';
+import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase, Crown, Shield, CheckCircle } from 'lucide-react';
 import { Settings, HelpCircle, LogOut, Clock, Loader2, Plus } from 'lucide-react';
-import { Share2, Flag, EyeOff, X, Users } from 'lucide-react';
+import { Share2, Flag, EyeOff, X, Users, Image as ImageIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/src/utils/supabase/client';
 import { useCommunities } from '@/src/lib/hooks/useCommunities';
 import CreateCommunityModal from '@/src/components/CreateCommunityModal';
+import VerifySpeciesModal from '@/src/components/VerifySpeciesModal';
+import VerificationDetailsModal from '@/src/components/VerificationDetailsModal';
 import { communityService } from '@/src/lib/services';
 
 // IMPORTANT: Import the useSupabase hook (Assuming its location)
@@ -17,6 +19,7 @@ import { useSupabase } from '@/src/components/providers/SupabaseProvider';
 type Comment = {
   id: number;
   user: string;
+  userProfilePicture?: string | null;
   date: string;
   text: string;
   image?: string | null;
@@ -24,6 +27,7 @@ type Comment = {
   upvotes: number;
   downvotes: number;
   isReply: boolean;
+  isExpert?: boolean;
 };
 
 // Updated Post type to use string/UUID for id
@@ -31,6 +35,7 @@ type ClientPost = {
   id: string; 
   timestamp: number;
   user: string;
+  userProfilePicture?: string | null;
   date: string;
   heading: string;
   image?: string | null;
@@ -46,6 +51,11 @@ type ClientPost = {
   flairNames?: string[];
   userId?: string;
   authorUsername?: string;
+  location?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  isVerified?: boolean;
+  isExpert?: boolean; // Is the post author an expert
 };
 
 // FIX: Updated Supabase Post structure for fetching to treat joined fields as arrays
@@ -141,11 +151,13 @@ useEffect(() => {
   const { posts: fetchedPosts, isLoading: postsLoading, error: postsError, fetchPosts } = useAllPosts();
   
   const currentUserId = session?.user.id;
-  const currentUsername = session?.user.user_metadata?.username || session?.user.email?.split('@')[0] || 'Guest';
   const currentEmail = session?.user.email || 'N/A';
 
-  // State for user profile data
+  // State for username and user profile data
+  const [dbUsername, setDbUsername] = useState<string | null>(null);
+  const currentUsername = dbUsername || session?.user.user_metadata?.username || session?.user.email?.split('@')[0] || 'Guest';
   const [userProfile, setUserProfile] = useState<{ name: string; location: string; occupation: string; profile_picture: string | null } | null>(null);
+  const [isCurrentUserExpert, setIsCurrentUserExpert] = useState(false);
 
   // Fetch user profile data
   useEffect(() => {
@@ -156,16 +168,19 @@ useEffect(() => {
         const supabase = createClient();
         const { data, error } = await supabase
           .from('user_profiles')
-          .select('name, location, profile_picture')
+          .select('name, location, profile_picture, username, is_expert')
           .eq('user_id', currentUserId)
           .single();
 
         if (data) {
           console.log('User profile data:', data);
+          setDbUsername(data.username); // Set username from database
+          setIsCurrentUserExpert(data.is_expert || false); // Check if user is expert
+          console.log('is_expert from user_profiles:', data.is_expert);
           setUserProfile({
             name: data.name || 'Full Name',
             location: data.location || 'Location not set',
-            occupation: 'Wildlife Enthusiast', // Default occupation
+            occupation: data.is_expert ? 'Verified Expert' : 'Wildlife Enthusiast', // Set based on expert status
             profile_picture: data.profile_picture
           });
         }
@@ -173,12 +188,18 @@ useEffect(() => {
         // Fetch expert data if exists
         const { data: expertData } = await supabase
           .from('experts')
-          .select('occupation')
+          .select('occupation, is_verified')
           .eq('user_id', currentUserId)
           .single();
 
+        console.log('Expert data:', expertData);
         if (expertData) {
-          setUserProfile(prev => prev ? { ...prev, occupation: expertData.occupation } : null);
+          // If they have an experts record, check is_verified
+          if (expertData.is_verified) {
+            setIsCurrentUserExpert(true);
+            console.log('User is verified expert');
+            setUserProfile(prev => prev ? { ...prev, occupation: expertData.occupation || 'Verified Expert' } : null);
+          }
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -189,7 +210,7 @@ useEffect(() => {
   }, [currentUserId]);
 
   // Fetch user's communities from Supabase
-  const { userCommunities, loading: communitiesLoading } = useCommunities();
+  const { userCommunities, loading: communitiesLoading, refetch: refetchCommunities } = useCommunities();
 
   // Debug logging
   useEffect(() => {
@@ -198,10 +219,24 @@ useEffect(() => {
 
   // --- State Hooks ---
   const [activePost, setActivePost] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    }
+    return false;
+  });
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('All');
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // Save dark mode preference to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', isDarkMode.toString());
+    }
+  }, [isDarkMode]);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
   const [showRepostModal, setShowRepostModal] = useState(false);
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
@@ -213,6 +248,19 @@ useEffect(() => {
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
   const [isClosingCommunityModal, setIsClosingCommunityModal] = useState(false);
   const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
+  const [showLocationModal, setShowLocationModal] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState<{ name: string; lat: number; lng: number } | null>(null);
+  
+  // Verification modals state
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showVerificationDetails, setShowVerificationDetails] = useState(false);
+  const [selectedPostForVerification, setSelectedPostForVerification] = useState<ClientPost | null>(null);
+  
+  // User profile modal state
+  const [showUserProfileModal, setShowUserProfileModal] = useState(false);
+  const [selectedUserProfile, setSelectedUserProfile] = useState<{ username: string; profilePicture: string | null; userId: string; isExpert?: boolean } | null>(null);
+  const [userProfileData, setUserProfileData] = useState<any>(null);
+  const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(false);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -292,32 +340,145 @@ useEffect(() => {
     }
   }, [fetchedPosts]);
 
-  // Effect to map Supabase data to your client-side state structure
+  // Effect to map Supabase data to your client-side state structure and fetch comments
   useEffect(() => {
       if (fetchedPosts.length > 0) {
-          const mappedPosts: ClientPost[] = fetchedPosts.map((p: any) => ({
-              id: p.post_id,
-              timestamp: new Date(p.created_at).getTime(),
-              user: `@${p.user_profiles?.username || 'unknown'}`, 
-              date: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-              heading: p.title,
-              caption: p.content,
-              image: p.media_url || p.identifications?.[0]?.image_url || null, 
-              scientificName: p.identifications?.[0]?.species?.[0]?.scientific_name || 'Unidentified Species',
-              vote: null,
-              upvotes: p.upvotes || 0, 
-              downvotes: p.downvotes || 0,
-              comments: [],
-              communityId: p.communities?.community_id,
-              communityName: p.communities?.community_name,
-              communityProfilePicture: p.communities?.profile_picture,
-              flairNames: p.flairNames || [],
-              userId: p.user_id,
-              authorUsername: p.user_profiles?.username
-          }));
+          const mappedPosts: ClientPost[] = fetchedPosts.map((p: any) => {
+              // Get species data - handle both array and object structures
+              // With explicit FK join, identifications is an object, not array
+              const identification = Array.isArray(p.identifications) ? p.identifications[0] : p.identifications;
+              const species = identification?.species;
+              const speciesData = Array.isArray(species) ? species[0] : species;
+              const scientificName = speciesData?.scientific_name || 'Unidentified Species';
+              // Only mark as verified if there's a valid species name (not Unknown, not Unidentified, not empty)
+              const hasValidSpecies = speciesData?.scientific_name && 
+                speciesData.scientific_name !== 'Unidentified Species' && 
+                speciesData.scientific_name !== 'Unknown' &&
+                speciesData.scientific_name.trim() !== '';
+              
+              console.log('Post mapping:', p.post_id, 'identification:', identification, 'species:', speciesData, 'scientificName:', scientificName, 'isVerified:', hasValidSpecies);
+              
+              return {
+                  id: p.post_id,
+                  timestamp: new Date(p.created_at).getTime(),
+                  user: `@${p.user_profiles?.username || 'unknown'}`,
+                  userProfilePicture: p.user_profiles?.profile_picture || null,
+                  date: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                  heading: p.title,
+                  caption: p.content,
+                  image: p.media_url || identification?.image_url || null, 
+                  scientificName: scientificName,
+                  vote: null,
+                  upvotes: p.upvotes || 0, 
+                  downvotes: p.downvotes || 0,
+                  comments: [],
+                  communityId: p.communities?.community_id,
+                  communityName: p.communities?.community_name,
+                  communityProfilePicture: p.communities?.profile_picture,
+                  flairNames: p.flairNames || [],
+                  userId: p.user_id,
+                  authorUsername: p.user_profiles?.username,
+                  location: p.location || null,
+                  latitude: p.latitude || null,
+                  longitude: p.longitude || null,
+                  isVerified: hasValidSpecies,
+                  isExpert: p.user_profiles?.is_expert || false
+              };
+          });
           setClientPosts(mappedPosts);
+          
+          // Fetch comments for each post
+          mappedPosts.forEach(async (post) => {
+            try {
+              const response = await fetch(`/api/posts/${post.id}/comments`);
+              if (response.ok) {
+                const { comments } = await response.json();
+                const mappedComments: Comment[] = comments.map((c: any) => ({
+                  id: c.comment_id,
+                  user: `@${c.user_profiles?.username || 'user'}`,
+                  userProfilePicture: c.user_profiles?.profile_picture || null,
+                  date: formatTimeAgo(c.created_at),
+                  text: c.content,
+                  image: c.media_url,
+                  vote: c.userVote || null,
+                  upvotes: c.upvotes || 0,
+                  downvotes: c.downvotes || 0,
+                  isReply: c.parent_comment_id !== null,
+                  isExpert: c.user_profiles?.is_expert || false,
+                }));
+                
+                setClientPosts(prevPosts => prevPosts.map(p => 
+                  p.id === post.id ? { ...p, comments: mappedComments } : p
+                ));
+              }
+            } catch (error) {
+              console.error(`Error fetching comments for post ${post.id}:`, error);
+            }
+          });
       }
   }, [fetchedPosts]);
+
+  // Initialize Leaflet map when location modal opens
+  useEffect(() => {
+    if (showLocationModal && selectedLocation && typeof window !== 'undefined') {
+      // Dynamically load Leaflet if not already loaded
+      if (!(window as any).L) {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(link);
+
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+        script.onload = () => initializeMap();
+        document.head.appendChild(script);
+      } else {
+        // Leaflet already loaded
+        initializeMap();
+      }
+    }
+
+    function initializeMap() {
+      const L = (window as any).L;
+      if (!L || !selectedLocation) return;
+
+      const mapContainer = document.getElementById('dashboard-location-modal-map');
+      if (!mapContainer) return;
+
+      // Remove existing map instance if any
+      if ((mapContainer as any)._leaflet_id) {
+        const existingMap = (mapContainer as any)._leaflet_map;
+        if (existingMap) {
+          existingMap.remove();
+        }
+      }
+
+      // Create new map
+      const map = L.map('dashboard-location-modal-map').setView([selectedLocation.lat, selectedLocation.lng], 13);
+      (mapContainer as any)._leaflet_map = map;
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      L.marker([selectedLocation.lat, selectedLocation.lng])
+        .addTo(map)
+        .bindPopup(selectedLocation.name)
+        .openPopup();
+
+      // Fix map rendering issue
+      setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    // Cleanup function
+    return () => {
+      const mapContainer = document.getElementById('dashboard-location-modal-map');
+      if (mapContainer && (mapContainer as any)._leaflet_map) {
+        (mapContainer as any)._leaflet_map.remove();
+        delete (mapContainer as any)._leaflet_map;
+      }
+    };
+  }, [showLocationModal, selectedLocation]);
 
 
   // --- Handlers (CRUD Placeholders) ---
@@ -367,28 +528,33 @@ useEffect(() => {
   };
 
   const fetchPostsByFlair = async (flairName: string) => {
-    try {
-      const response = await fetch(`/api/posts/by-flair?flair=${encodeURIComponent(flairName)}`);
-      const data = await response.json();
-      if (data.posts) {
-        // Trigger a manual re-fetch by updating the posts state
-        // Note: This is a workaround since fetchPosts doesn't accept parameters
-        router.push(`?flair=${encodeURIComponent(flairName)}`);
-      }
-    } catch (error) {
-      console.error('Error fetching posts by flair:', error);
-    }
+    // No need to fetch from API, just filter locally
+    // The selectedFlair state will trigger filtering in the render
+    console.log('Filtering posts by flair:', flairName);
   };
 
   const clearFlairFilter = () => {
     setSelectedFlair(null);
-    fetchPosts(); // Reload all posts
   };
 
   const handleFlairClick = (flairName: string) => {
     setSelectedFlair(flairName);
     fetchPostsByFlair(flairName);
   };
+
+  // Filter and sort posts based on selected flair
+  const displayedPosts = selectedFlair
+    ? clientPosts
+        .filter(post => post.flairNames?.includes(selectedFlair))
+        .sort((a, b) => {
+          // Posts with the selected flair come first
+          const aHasFlair = a.flairNames?.includes(selectedFlair) ? 1 : 0;
+          const bHasFlair = b.flairNames?.includes(selectedFlair) ? 1 : 0;
+          if (aHasFlair !== bHasFlair) return bHasFlair - aHasFlair;
+          // Then sort by timestamp (newest first)
+          return b.timestamp - a.timestamp;
+        })
+    : clientPosts;
 
   const handleDeletePost = async (postId: string, post: ClientPost) => {
     const isAuthor = post.userId === currentUserId;
@@ -534,13 +700,11 @@ useEffect(() => {
         throw new Error(result.error || 'Failed to create community');
       }
 
-      // Close modal first
-      closeCreateCommunityModal();
+      // Refetch communities to show the new one immediately
+      await refetchCommunities();
       
-      // Wait a bit then refresh to ensure modal closes smoothly
-      setTimeout(() => {
-        router.refresh();
-      }, 500);
+      // Close modal
+      closeCreateCommunityModal();
       
     } catch (error: any) {
       console.error('Error creating community:', error);
@@ -551,45 +715,50 @@ useEffect(() => {
 
   // ===== SUPABASE HANDLER FOR COMMENTS =====
   const handlePostComment = async (postId: string) => {
-    if (!newCommentText.trim() && !attachedCommentImage) return;
-    if (!currentUserId || !supabase) return;
+    const trimmedContent = newCommentText.trim();
+    if (!trimmedContent && !attachedCommentImage) return;
+    if (!currentUserId) return;
     
-    // ----------------------------------------------------
-    // TODO: SUPABASE API CALL - INSERT NEW COMMENT
-    // (You need to implement image upload to Supabase Storage here)
-    // ----------------------------------------------------
-    let commentImageUrl = attachedCommentImage; // Placeholder for now
+    try {
+      console.log('Posting comment to post:', postId);
+      console.log('Comment content:', trimmedContent);
+      console.log('Attached image:', attachedCommentImage);
+      
+      // Call API to post comment
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: trimmedContent,
+          media_url: attachedCommentImage,
+          parent_comment_id: replyingToId
+        }),
+      });
 
-    const { data: insertedComment, error: commentError } = await supabase
-        .from('comments')
-        .insert({
-            post_id: postId,
-            user_id: currentUserId,
-            content: newCommentText,
-            media_url: commentImageUrl,
-            parent_comment_id: replyingToId 
-        })
-        .select()
-        .single();
-
-    if (commentError) {
-        console.error('Error posting comment:', commentError);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Failed to post comment:', response.status, errorData);
+        alert(`Failed to post comment: ${errorData.error || 'Unknown error'}`);
         return;
-    }
-    // ----------------------------------------------------
+      }
 
-    // CLIENT-SIDE STATE UPDATE (after successful DB insert)
-    const newComment: Comment = {
-      id: insertedComment?.id || Date.now(), 
-      user: currentUsername,
-      date: 'Just now', 
-      text: newCommentText,
-      image: attachedCommentImage,
-      vote: null,
-      upvotes: 0,
-      downvotes: 0,
-      isReply: replyingToId !== null,
-    };
+      const { comment: insertedComment } = await response.json();
+
+      // CLIENT-SIDE STATE UPDATE (after successful DB insert)
+      const newComment: Comment = {
+        id: insertedComment?.comment_id || Date.now(), 
+        user: `@${insertedComment?.user_profiles?.username || currentUsername}`,
+        userProfilePicture: insertedComment?.user_profiles?.profile_picture || null,
+        date: 'Just now', 
+        text: insertedComment?.content || newCommentText,
+        image: insertedComment?.media_url || attachedCommentImage,
+        vote: null,
+        upvotes: 0,
+        downvotes: 0,
+        isReply: replyingToId !== null,
+      };
     
     setClientPosts(prevPosts => prevPosts.map(post => {
       if (post.id !== postId) return post;
@@ -625,6 +794,10 @@ useEffect(() => {
     setNewCommentText('');
     setAttachedCommentImage(null);
     cancelReply();
+    } catch (error) {
+      console.error('Error posting comment:', error);
+      alert('An error occurred while posting your comment. Please try again.');
+    }
   };
 
   const handleCommentKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>, postId: string) => {
@@ -634,17 +807,33 @@ useEffect(() => {
     }
   };
 
-  // ===== HELPER FUNCTION =====
+  // ===== HELPER FUNCTIONS =====
   const formatVoteCount = (count: number) => {
     if (count >= 1000000) return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'm';
     if (count >= 1000) return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
     return count.toString();
   };
 
-  // ===== SUPABASE HANDLER FOR POST VOTES =====
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min${diffMins > 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // ===== HANDLER FOR POST VOTES =====
   const handlePostVote = async (postId: string, type: 'up' | 'down') => {
-    if (!currentUserId || !supabase) {
-      console.warn('Cannot vote: User not logged in or Supabase not initialized');
+    if (!currentUserId) {
+      console.warn('Cannot vote: User not logged in');
       return;
     }
 
@@ -676,99 +865,112 @@ useEffect(() => {
         action = currentPost.vote ? 'update' : 'insert';
     }
 
-    // ----------------------------------------------------
-    // TODO: SUPABASE API CALL - HANDLE VOTE
-    // ----------------------------------------------------
-    const voteData = {
-        post_id: postId,
-        user_id: currentUserId,
-        vote_type: type === 'up' ? 'upvote' : 'downvote',
-    };
-
-    let error = null;
-
     try {
-      if (action === 'insert') {
-        const { error: insertError } = await supabase.from('votes').insert(voteData);
-        error = insertError;
-    } else if (action === 'update') {
-        const { error: updateError } = await supabase
-            .from('votes')
-            .update(voteData)
-            .eq('post_id', postId)
-            .eq('user_id', currentUserId);
-        error = updateError;
-    } else if (action === 'delete') {
-        const { error: deleteError } = await supabase
-            .from('votes')
-            .delete()
-          .eq('post_id', postId)
-          .eq('user_id', currentUserId);
-      error = deleteError;
-    }
+      const response = await fetch(`/api/posts/${postId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vote_type: type === 'up' ? 'upvote' : 'downvote',
+          action: action
+        }),
+      });
 
-    if (error) {
-        console.error('Error handling vote:', error);
-        alert('Failed to update vote. Please try again.');
-        // Do NOT update client state if DB update failed.
-        return; 
+      if (!response.ok) {
+        console.error('Failed to update vote');
+        return;
+      }
+
+      // CLIENT-SIDE STATE UPDATE (Only if API call was successful)
+      setClientPosts(prevPosts => prevPosts.map(post => {
+          if (post.id !== postId) return post;
+          return { ...post, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+      }));
+    } catch (error) {
+      console.error('Error handling vote:', error);
     }
-    } catch (err: any) {
-      console.error('Error handling vote:', err);
-      alert('Failed to update vote. Please try again.');
-      return;
-    }
-    // ----------------------------------------------------    // CLIENT-SIDE STATE UPDATE (Only if DB operation was successful)
-    setClientPosts(prevPosts => prevPosts.map(post => {
-        if (post.id !== postId) return post;
-        return { ...post, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
-    }));
   };
 
-  // ===== SUPABASE HANDLER FOR COMMENT VOTES =====
+  // ===== HANDLER FOR COMMENT VOTES =====
   const handleCommentVote = async (postId: string, commentId: number, type: 'up' | 'down') => {
-    // This is similar to post voting but targets the 'comment_votes' table (if you have one)
-    if (!currentUserId || !supabase) return;
+    if (!currentUserId) return;
 
-    // TODO: You will need to determine the action (insert/update/delete) based on 
-    // the current state of the comment's vote by the user, then call Supabase.
-    
-    // ----------------------------------------------------
-    // TODO: SUPABASE API CALL - HANDLE COMMENT VOTE
-    // ----------------------------------------------------
-    // (Implement comment vote logic here)
-    // ----------------------------------------------------
+    // Find current comment state
+    let currentComment: Comment | undefined;
+    const currentPost = clientPosts.find(p => p.id === postId);
+    if (currentPost) {
+      currentComment = currentPost.comments.find(c => c.id === commentId);
+    }
+    if (!currentComment) return;
 
-    // CLIENT-SIDE STATE UPDATE (Mirroring the logic above)
-    setClientPosts(prevPosts => prevPosts.map(post => {
-      if (post.id !== postId) return post;
+    let newVote = currentComment.vote;
+    let newUpvotes = currentComment.upvotes;
+    let newDownvotes = currentComment.downvotes;
+    let action: 'insert' | 'update' | 'delete';
+
+    if (currentComment.vote === type) {
+      // User is unvoting
+      newVote = null;
+      if (type === 'up') newUpvotes--;
+      else newDownvotes--;
+      action = 'delete';
+    } else {
+      // User is changing vote or voting for the first time
+      if (currentComment.vote === 'up') newUpvotes--;
+      if (currentComment.vote === 'down') newDownvotes--;
       
-      const updatedComments = post.comments.map(comment => {
-        if (comment.id !== commentId) return comment;
-        
-        let newVote = comment.vote;
-        let newUpvotes = comment.upvotes;
-        let newDownvotes = comment.downvotes;
-        
-        // ... (Vote logic to calculate newVote, newUpvotes, newDownvotes)
-        if (comment.vote === type) {
-          newVote = null;
-          if (type === 'up') newUpvotes--;
-          else newDownvotes--;
-        } else {
-          if (comment.vote === 'up') newUpvotes--;
-          if (comment.vote === 'down') newDownvotes--;
-          
-          newVote = type;
-          if (type === 'up') newUpvotes++;
-          else newDownvotes++;
-        }
-        
-        return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+      newVote = type;
+      if (type === 'up') newUpvotes++;
+      else newDownvotes++;
+      
+      action = currentComment.vote ? 'update' : 'insert';
+    }
+
+    try {
+      const response = await fetch(`/api/comments/${commentId}/vote`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          vote_type: type === 'up' ? 'upvote' : 'downvote',
+          action: action
+        }),
       });
-      
-      return { ...post, comments: updatedComments };
-    }));
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Failed to update comment vote:', errorData);
+        return;
+      }
+
+      // CLIENT-SIDE STATE UPDATE
+      setClientPosts(prevPosts => prevPosts.map(post => {
+        if (post.id !== postId) return post;
+        
+        const updatedComments = post.comments.map(comment => {
+          if (comment.id !== commentId) return comment;
+          return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+        });
+        
+        return { ...post, comments: updatedComments };
+      }));
+
+      // Also update the modal view if it's currently open
+      if (selectedPostForComment && selectedPostForComment.id === postId) {
+        setSelectedPostForComment(prevPost => {
+          if (!prevPost) return null;
+          const updatedComments = prevPost.comments.map(comment => {
+            if (comment.id !== commentId) return comment;
+            return { ...comment, vote: newVote, upvotes: newUpvotes, downvotes: newDownvotes };
+          });
+          return { ...prevPost, comments: updatedComments };
+        });
+      }
+    } catch (error) {
+      console.error('Error handling comment vote:', error);
+    }
   };
 
   // ===== HANDLERS: COMMENT MODAL =====
@@ -828,14 +1030,18 @@ useEffect(() => {
     >
       {/* Top Fixed Header */}
       <div className="fixed top-0 left-0 right-0 w-full z-50">
-          <div className={`w-full h-11 justify-center ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`} />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1440px] max-w-full h-11">
-              <div className="absolute -top-0.5 left-[46px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
+          <div className={`w-full h-11 flex items-center justify-between px-4 ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`}>
+          
+          {/* Left Side - Logo */}
+          <div className="flex items-center gap-3">
+              <img className="w-[50px] h-[40px] aspect-[1.48] object-cover" alt="Spoticon" src="/eyecon.svg" />
+              <div className="[-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
                   SPOT
               </div>
+          </div>
 
-              {/* === UPDATED SEARCH BAR SECTION === */}
-              <div className="flex-1 max-w-xl mx-auto h-full flex items-center justify-center">
+              {/* === CENTER - SEARCH BAR === */}
+              <div className="flex-1 max-w-2xl mx-auto">
                   <div className="relative w-full">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       
@@ -844,7 +1050,7 @@ useEffect(() => {
                           value={searchQuery}
                           onChange={(e) => handleSearch(e.target.value)}
                           placeholder="Search communities, people, or flairs..."
-                          className="w-full pl-10 pr-4 h-8 border border-gray-200 rounded-[15px] bg-white/44 focus:outline-none focus:ring-1 focus:ring-[#7D9B76] text-left"
+                          className="w-full pl-10 pr-4 h-9 border border-gray-200 rounded-[15px] bg-white/80 focus:outline-none focus:ring-2 focus:ring-[#7D9B76] text-sm"
                           style={{ borderColor: 'rgba(0, 0, 0, 0.43)' }}
                           onFocus={() => setIsOpen(true)}
                           onBlur={() => setTimeout(() => setIsOpen(false), 300)}
@@ -1001,76 +1207,107 @@ useEffect(() => {
                       )}
                   </div>
               </div>
-              {/* === END SEARCH BAR SECTION === */}
-
-              {/* Logo Icon */}
-              <img className="absolute top-0 left-[-32px] w-[75px] h-[47px] aspect-[1.48] object-cover" alt="Spoticon" src="/spicon0.svg" />
+              {/* === END SEARCH BAR === */}
               
-              {/* Right Side Icons */}
-              <button 
-                  className="absolute top-0 left-[1340px] hover:scale-110 transition-transform duration-200 cursor-pointer"
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-              >
-                  {isDarkMode ? (
-                      <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/dark.svg" />
-                  ) : (
-                      <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/light.svg" />
-                  )}
-              </button>
-
-              {/* User Profile Button (Chevron + PFP combined) */}
-              <div className="absolute top-[5px] left-[1406px]">
+              {/* Right Side - Dark Mode & Profile */}
+              <div className="flex items-center gap-4">
                   <button 
-                      className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
-                      onClick={() => setIsProfileOpen(!isProfileOpen)}
-                      onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
+                      className="hover:scale-110 transition-transform duration-200 cursor-pointer"
+                      onClick={() => setIsDarkMode(!isDarkMode)}
                   >
-                      <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/down.svg" />
-                      <img className="w-[35px] h-[35px] aspect-[1] object-cover rounded-full" alt="User" src="/pfp.svg" />
+                      {isDarkMode ? (
+                          <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
+                      ) : (
+                          <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
+                      )}
                   </button>
+
+                  {/* User Profile Button */}
+                  <div className="relative">
+                      <button 
+                          className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+                          onClick={() => setIsProfileOpen(!isProfileOpen)}
+                          onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
+                      >
+                          <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/downn.svg" />
+                          <div className="w-[35px] h-[35px] bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                              {userProfile?.profile_picture ? (
+                                <img 
+                                  src={userProfile.profile_picture} 
+                                  alt={currentUsername} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.style.display = 'none';
+                                    e.currentTarget.parentElement!.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                                  }}
+                                />
+                              ) : (
+                                <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                              )}
+                          </div>
+                      </button>
 
                   {/* Profile Dropdown */}
                   {isProfileOpen && (
                       <div 
-                          className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50"
+                          className={`absolute right-0 mt-1 w-64 rounded-xl shadow-xl overflow-hidden z-50 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}
                           style={{ border: '2px solid #899A3C' }}
                           onMouseDown={(e) => e.preventDefault()}
                       >
                           {/* User Info Section */}
-                          <div className="px-4 py-3 border-b border-gray-300">
-                              <h3 className="text-base font-bold text-gray-900">@{currentUsername}</h3>
-                              <p className="text-xs text-gray-600 mt-0.5">{currentEmail}</p>
+                          <div className={`px-4 py-3 border-b flex items-center gap-3 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden shrink-0 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}>
+                                  {userProfile?.profile_picture ? (
+                                    <img 
+                                      src={userProfile.profile_picture} 
+                                      alt={currentUsername} 
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <User className={`w-6 h-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                                  )}
+                              </div>
+                              <div>
+                                  <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>@{currentUsername}</h3>
+                                  <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{currentEmail}</p>
+                              </div>
                           </div>
 
                           {/* Menu Items */}
                           <div className="py-1">
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
-                                  onClick={() => {/* View Profile logic here */}}
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
+                                  onClick={() => {
+                                      setIsProfileOpen(false);
+                                      router.push('/profile');
+                                  }}
                               >
-                                  <User className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">View Profile</span>
+                                  <Edit className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Edit Profile</span>
                               </button>
                               
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
-                                  onClick={() => {/* Account Settings logic here */}}
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
+                                  onClick={() => {
+                                      setIsProfileOpen(false);
+                                      router.push('/settings');
+                                  }}
                               >
-                                  <Settings className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">Account Settings</span>
+                                  <Settings className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Account Settings</span>
                               </button>
                               
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                                   onClick={() => {/* Help Center logic here */}}
                               >
-                                  <HelpCircle className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">Help Center</span>
+                                  <HelpCircle className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Help Center</span>
                               </button>
                           </div>
 
                           {/* Log Out Section */}
-                          <div className="border-t border-gray-400">
+                          <div className={`border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-400'}`}>
                               <button 
                                   className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
                                   onClick={async () => {
@@ -1083,12 +1320,13 @@ useEffect(() => {
                                       }
                                   }}
                               >
-                                  <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
-                                  <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+                                  <LogOut className={`w-4 h-4 group-hover:text-white ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium group-hover:text-white ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Log Out</span>
                               </button>
                           </div>
                       </div>
                   )}
+              </div>
               </div>
           </div>
       </div>
@@ -1101,13 +1339,21 @@ useEffect(() => {
           <aside className="w-80 flex-shrink-0 fixed left-5" style={{ top: '80px' }}>
               <div
                   className="p-8 text-white shadow-lg"
-                  style={{
-                      background: 'linear-gradient(131deg, #2A5528 15.98%, #927D31 125.22%)',
+                  style={isCurrentUserExpert ? {
+                      backgroundImage: 'url(/exp.svg)',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      borderRadius: '15px',
+                      border: '3px solid #d4a843'
+                  } : {
+                      background: isDarkMode 
+                        ? 'linear-gradient(131deg, #1a3318 15.98%, #4a3f1a 125.22%)'
+                        : 'linear-gradient(131deg, #2A5528 15.98%, #927D31 125.22%)',
                       borderRadius: '15px',
                   }}
               >
                   <div className="flex items-start gap-4 mb-5">
-                      <div className="w-16 h-16 bg-white/30 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden shrink-0 ${isCurrentUserExpert ? 'ring-2 ring-yellow-500 bg-white/30' : 'bg-white/30'}`}>
                           {userProfile?.profile_picture ? (
                             <img 
                               src={userProfile.profile_picture} 
@@ -1123,7 +1369,14 @@ useEffect(() => {
                           )}
                       </div>
                       <div className="flex-1">
-                          <p className="text-base font-semibold opacity-90">@{currentUsername}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-base font-semibold opacity-90">@{currentUsername}</p>
+                            {isCurrentUserExpert && (
+                              <div className="bg-yellow-500 rounded-full p-0.5" title="Verified Expert">
+                                <Crown className="w-4 h-4 text-white" />
+                              </div>
+                            )}
+                          </div>
                           <p className="text-xl font-bold">{userProfile?.name || 'Loading...'}</p> 
                       </div>
                   </div>
@@ -1133,24 +1386,19 @@ useEffect(() => {
                           <Briefcase className="w-5 h-5" />
                           <span className="font-medium">{userProfile?.occupation || 'Wildlife Enthusiast'}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                          <MapPin className="w-5 h-5" />
-                          <span>{userProfile?.location || 'Location not set'}</span>
-                      </div>
+                  <div className="flex items-center gap-2">
+                      <MapPin className="w-5 h-5" />
+                      <span>{userProfile?.location || 'Location not set'}</span>
                   </div>
-
-                  <button className="mt-5 w-full bg-white/20 hover:bg-white/30 rounded-full py-2.5 px-5 flex items-center justify-center gap-2 transition">
-                      <Edit className="w-5 h-5" />
-                      <span className="text-base font-medium">Edit Profile</span>
-                  </button>
               </div>
-
+          </div>
+          
               {/* Communities */}
               <div className="mt-6 rounded-3xl shadow-lg p-5"
-                  style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
+                  style={{ backgroundColor: isDarkMode ? 'rgba(40, 40, 40, 0.9)' : 'rgba(255, 255, 255, 0.75)' }}>
                   <div className="flex items-center gap-2 mb-5 px-2">
-                      <MessageCircle className="w-6 h-6 text-green-600" />
-                      <h3 className="font-bold text-gray-800 text-lg">Your Communities</h3>
+                      <MessageCircle className={`w-6 h-6 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+                      <h3 className={`font-bold text-lg ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Your Communities</h3>
                   </div>
 
                   <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar">
@@ -1163,7 +1411,7 @@ useEffect(() => {
                               <button
                                   key={comm.community_id}
                                   onClick={() => router.push(`/community/${comm.community_id}`)}
-                                  className="w-full flex items-center gap-3 p-4 rounded-xl hover:bg-green-50 transition" 
+                                  className={`w-full flex items-center gap-3 p-4 rounded-xl transition ${isDarkMode ? 'hover:bg-white/10' : 'hover:bg-green-50'}`} 
                               >
                                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center overflow-hidden">
                                       {comm.profile_picture ? (
@@ -1235,8 +1483,8 @@ useEffect(() => {
                   backgroundPosition: 'top center' 
               }}
           > 
-              <div className="w-[767px] px-5 pb-20 pt-2"> 
-                  <div className="p-8 mb-6 -ml-5">
+              <div className="w-[767px] px-5 pb-20 pt-0"> 
+                  <div className="p-6 mb-4 -ml-5">
                       <h1 className="font-bold mb-2" style={{ 
                           color: isDarkMode ? '#B6FFEA' : 'rgba(11, 87, 66, 0.93)',
                           fontFamily: 'Poppins',
@@ -1272,15 +1520,33 @@ useEffect(() => {
                       </div>
                   )}
 
+                  {/* Flair Filter Badge */}
+                  {selectedFlair && (
+                    <div className="mb-4 flex items-center gap-2">
+                      <div className="inline-flex items-center gap-2 bg-[#7D9B76] text-white px-4 py-2 rounded-full font-semibold">
+                        <span>Filtering by: {selectedFlair}</span>
+                        <button 
+                          onClick={clearFlairFilter}
+                          className="hover:bg-white/20 rounded-full p-1 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <span className="text-sm text-gray-600">
+                        {displayedPosts.length} {displayedPosts.length === 1 ? 'post' : 'posts'} found
+                      </span>
+                    </div>
+                  )}
+
                   {/* Post Cards */}
-                  {!postsLoading && clientPosts.length > 0 ? clientPosts.map((post) => (
+                  {!postsLoading && displayedPosts.length > 0 ? displayedPosts.map((post) => (
                       <article 
                           key={post.id} 
-                          className="rounded-3xl shadow-lg p-6 mb-8" 
+                          className="rounded-3xl shadow-lg p-6 mb-6" 
                           style={{
                               borderRadius: '25px',
-                              border: '1px solid #000',
-                              background: isDarkMode ? 'rgba(208, 230, 144, 0.12)' : 'rgba(208, 230, 144, 0.12)'
+                              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid #000',
+                              background: isDarkMode ? 'rgba(40, 40, 40, 0.95)' : 'rgba(208, 230, 144, 0.12)'
                           }}
                       >
                           <div className="flex items-start justify-between mb-4">
@@ -1302,11 +1568,15 @@ useEffect(() => {
                                               <>
                                                   <button
                                                       onClick={() => router.push(`/community/${post.communityId}`)}
-                                                      className="font-bold text-gray-800 hover:underline"
+                                                      className={`font-bold hover:underline ${isDarkMode ? 'text-white' : 'text-gray-800'}`}
                                                   >
                                                       {post.communityName}
                                                   </button>
-                                                  {!userCommunities.some(c => c.community_id === post.communityId) && (
+                                                  {userCommunities.some(c => c.community_id === post.communityId) ? (
+                                                      <span className="text-green-600 text-sm font-semibold">
+                                                          • Joined
+                                                      </span>
+                                                  ) : (
                                                       <button
                                                           onClick={() => handleJoinCommunity(post.communityId!)}
                                                           className="text-blue-600 text-sm font-semibold hover:underline"
@@ -1316,10 +1586,60 @@ useEffect(() => {
                                                   )}
                                               </>
                                           ) : (
-                                              <span className="font-bold text-gray-800">Community</span>
+                                              <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Community</span>
                                           )}
                                       </div>
-                                      <p className="text-sm text-gray-500">{post.user} • {post.date}</p>
+                                      <div className="flex items-center gap-2">
+                                          <button 
+                                              onClick={() => {
+                                                  setSelectedUserProfile({
+                                                      username: post.authorUsername || post.user.replace('@', ''),
+                                                      profilePicture: post.userProfilePicture || null,
+                                                      userId: post.userId || '',
+                                                      isExpert: post.isExpert
+                                                  });
+                                                  setShowUserProfileModal(true);
+                                              }}
+                                              className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-green-500 transition-all cursor-pointer"
+                                          >
+                                              {post.userProfilePicture ? (
+                                                  <img 
+                                                      src={post.userProfilePicture} 
+                                                      alt={post.user}
+                                                      className="w-full h-full object-cover"
+                                                      onError={(e) => {
+                                                          e.currentTarget.style.display = 'none';
+                                                          const parent = e.currentTarget.parentElement;
+                                                          if (parent) parent.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                                                      }}
+                                                  />
+                                              ) : (
+                                                  <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                                              )}
+                                          </button>
+                                          <div className="flex items-center gap-1">
+                                            <button 
+                                                onClick={() => {
+                                                    setSelectedUserProfile({
+                                                        username: post.authorUsername || post.user.replace('@', ''),
+                                                        profilePicture: post.userProfilePicture || null,
+                                                        userId: post.userId || '',
+                                                        isExpert: post.isExpert
+                                                    });
+                                                    setShowUserProfileModal(true);
+                                                }}
+                                                className={`text-sm hover:underline cursor-pointer ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                                            >
+                                                {post.user}
+                                            </button>
+                                            {post.isExpert && (
+                                              <div title="Verified Expert">
+                                                <Crown className="w-4 h-4 text-yellow-500" />
+                                              </div>
+                                            )}
+                                            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}> • {post.date}</span>
+                                          </div>
+                                      </div>
                                   </div>
                               </div>
                               
@@ -1414,7 +1734,7 @@ useEffect(() => {
                               </div>
                           </div>
 
-                          <h2 className="text-xl font-bold text-gray-800 mb-4">{post.heading}</h2>
+                          <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>{post.heading}</h2>
                           
                           {/* Flair Badges - Clickable */}
                           {post.flairNames && post.flairNames.length > 0 && (
@@ -1423,7 +1743,7 @@ useEffect(() => {
                                 <button
                                   key={index}
                                   onClick={() => handleFlairClick(flair)}
-                                  className="px-3 py-1 rounded-full text-xs font-bold bg-[#7D9B76] text-white shadow-sm hover:bg-[#6A8565] transition-colors cursor-pointer"
+                                  className={`px-3 py-1 rounded-full text-xs font-bold shadow-sm transition-colors cursor-pointer ${isDarkMode ? 'bg-[#4a6344] text-white hover:bg-[#5a7354]' : 'bg-[#7D9B76] text-white hover:bg-[#6A8565]'}`}
                                   title={`Filter by ${flair}`}
                                 >
                                   {flair}
@@ -1432,7 +1752,40 @@ useEffect(() => {
                             </div>
                           )}
                           
-                          <p className="text-sm font-medium text-gray-500 mb-4">Identified Species: {post.scientificName}</p>
+                          {/* Species Identification Section */}
+                          {post.isVerified ? (
+                              <div className="mb-4 flex items-center gap-2">
+                                  <button 
+                                      onClick={() => {
+                                          setSelectedPostForVerification(post);
+                                          setShowVerificationDetails(true);
+                                      }}
+                                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors ${isDarkMode ? 'bg-green-900/30 text-green-400 hover:bg-green-900/50' : 'bg-green-500 text-white hover:bg-green-600'}`}
+                                  >
+                                      <CheckCircle className="w-4 h-4" />
+                                      <span className="text-sm font-medium">Verified: {post.scientificName}</span>
+                                  </button>
+                              </div>
+                          ) : (
+                              <div className="mb-4 flex items-center gap-3">
+                                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${isDarkMode ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                                      <Shield className="w-4 h-4" />
+                                      <span className="text-sm font-medium">Unverified Species</span>
+                                  </div>
+                                  {isCurrentUserExpert && (
+                                      <button
+                                          onClick={() => {
+                                              setSelectedPostForVerification(post);
+                                              setShowVerifyModal(true);
+                                          }}
+                                          className="flex items-center gap-1.5 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+                                      >
+                                          <Shield className="w-4 h-4" />
+                                          Verify Species
+                                      </button>
+                                  )}
+                              </div>
+                          )}
 
 
                           {/* Image Placeholder/Display */}
@@ -1450,10 +1803,11 @@ useEffect(() => {
                               </div>
                           )}
 
-                          <p className="text-gray-700 mb-6">{post.caption}</p>
+                          <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{post.caption}</p>
 
                           {/* Action Buttons */}
-                          <div className="flex items-center gap-3 mt-auto">
+                          <div className="flex items-center gap-3 mt-auto justify-between">
+                              <div className="flex items-center gap-3">
                               {/* Upvote Button with Count */}
                               <div className="flex items-center gap-1.5 rounded-full px-2 py-1 bg-[#E0E0E0]/50 h-10 min-w-max">
                                   <button 
@@ -1494,20 +1848,54 @@ useEffect(() => {
                                   </span>
                               </div>
 
-                              {/* Comment Button */}
+                              {/* Comment Button with Count */}
                               <button 
                                   onClick={() => openCommentModal(post)} 
-                                  className="w-10 h-10 rounded-full flex items-center justify-center shadow-sm ml-2 bg-[#D9D9D9] hover:bg-blue-200 transition-colors"
+                                  className="flex items-center gap-2 rounded-full px-3 py-2 shadow-sm bg-[#D9D9D9] hover:bg-blue-200 transition-colors"
                               >
                                   <MessageCircle className="w-6 h-6 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
+                                  <span className={`font-bold text-sm ${isDarkMode ? "text-white" : "text-gray-700"}`}>
+                                      {post.comments.length}
+                                  </span>
                               </button>
+                              </div>
+
+                              {/* Location Button */}
+                              {post.location && (
+                                  <button 
+                                      onClick={() => {
+                                        setSelectedLocation({
+                                          name: post.location!,
+                                          lat: post.latitude || 0,
+                                          lng: post.longitude || 0
+                                        });
+                                        setShowLocationModal(true);
+                                      }} 
+                                      className="flex items-center gap-2 rounded-full px-3 py-2 shadow-sm bg-[#95AB33] hover:bg-[#7D9B28] transition-colors"
+                                  >
+                                      <MapPin className="w-5 h-5 text-white stroke-[2.5]" />
+                                      <span className="font-bold text-sm text-white">
+                                          Location
+                                      </span>
+                                  </button>
+                              )}
 
                           </div>
                       </article>
                   )) : (
                     !postsLoading && (
-                        <div className="text-center py-20 text-gray-500 text-xl">
-                            No posts found in this feed. Start a conversation!
+                        <div className="text-center py-20 text-gray-600 text-xl">
+                            {selectedFlair 
+                              ? `No posts found with flair "${selectedFlair}".` 
+                              : 'No posts available. Join a community to see posts!'}
+                            {selectedFlair && (
+                              <button 
+                                onClick={clearFlairFilter}
+                                className="mt-4 px-6 py-2 bg-[#7D9B76] text-white rounded-full hover:bg-[#6A8563] transition-colors block mx-auto"
+                              >
+                                Clear Filter
+                              </button>
+                            )}
                         </div>
                     )
                   )}
@@ -1520,14 +1908,14 @@ useEffect(() => {
               <div
                   className="bg-white rounded-3xl shadow-lg p-6"
                   style={{
-                      background: "rgba(241, 238, 229, 0.71)",
+                      background: isDarkMode ? "rgba(40, 40, 40, 0.9)" : "rgba(241, 238, 229, 0.71)",
                       boxShadow: "inset 0 4px 4px 0 rgba(0, 0, 0, 0.25)",
                       borderRadius: "15px",
                   }}
               >
-                  <h3 className="font-bold text-xl text-gray-800 mb-6">Popular Now!</h3>
+                  <h3 className={`font-bold text-xl mb-6 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>Popular Now!</h3>
 
-                  <div className="mt-3 space-y-2 max-h-[170px] overflow-y-auto">
+                  <div className="mt-3 space-y-2 max-h-[170px] overflow-y-auto overflow-x-hidden">
                       {popularFlairs.length > 0 ? (
                         popularFlairs.map((flair, index) => (
                           <button 
@@ -1552,7 +1940,7 @@ useEffect(() => {
                           </button>
                         ))
                       ) : (
-                        <div className="text-center py-4 text-gray-500 text-sm">
+                        <div className={`text-center py-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                           No popular flairs yet
                         </div>
                       )}
@@ -1580,18 +1968,26 @@ useEffect(() => {
       {isCommentModalOpen && selectedPostForComment && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
+            className={`rounded-2xl shadow-2xl w-[600px] max-h-[90vh] flex flex-col overflow-hidden ${
+              isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}
             style={{ border: '2px solid #899A3C' }}
           >
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <div className={`px-6 py-4 border-b flex items-center justify-between sticky top-0 z-10 ${
+              isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <h3 className={`text-xl font-bold flex items-center gap-2 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <MessageCircle className="w-5 h-5 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
                 Comments ({selectedPostForComment.comments.length})
               </h3>
               <button 
                 onClick={closeCommentModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                className={`transition-colors p-1 ${
+                  isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'
+                }`}
               >
                 <X className="w-6 h-6" />
               </button>
@@ -1599,10 +1995,18 @@ useEffect(() => {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Original Post Summary (Read-Only) */}
-              <div className="border-b border-gray-200 pb-4">
-                <p className="text-sm font-semibold text-gray-500">{selectedPostForComment.user} • {selectedPostForComment.date}</p>
-                <h4 className="text-lg font-bold text-gray-800 mt-1">{selectedPostForComment.heading}</h4>
-                <p className="text-gray-700 mt-2 line-clamp-2">{selectedPostForComment.caption}</p>
+              <div className={`border-b pb-4 ${
+                isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+                <p className={`text-sm font-semibold ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>{selectedPostForComment.user} • {selectedPostForComment.date}</p>
+                <h4 className={`text-lg font-bold mt-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-800'
+                }`}>{selectedPostForComment.heading}</h4>
+                <p className={`mt-2 line-clamp-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>{selectedPostForComment.caption}</p>
                 {selectedPostForComment.image && (
                   <img 
                     src={selectedPostForComment.image} 
@@ -1615,33 +2019,65 @@ useEffect(() => {
               {/* Comments List */}
               <div className="space-y-4">
                 {selectedPostForComment.comments.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500">Be the first to comment!</div>
+                  <div className={`text-center py-4 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>Be the first to comment!</div>
                 ) : (
                   selectedPostForComment.comments.map((comment) => (
                     <div 
                       key={comment.id} 
-                      className={`flex gap-3 ${comment.isReply ? 'ml-8 border-l border-gray-300 pl-4' : ''}`}
+                      className={`flex gap-3 ${comment.isReply ? `ml-8 border-l pl-4 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}` : ''}`}
                     >
-                      <div className="w-8 h-8 flex-shrink-0 bg-gray-200 rounded-full flex items-center justify-center mt-1">
-                        <User className="w-4 h-4 text-gray-500" />
+                      <div className={`w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden mt-1 ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                      }`}>
+                        {comment.userProfilePicture ? (
+                          <img 
+                            src={comment.userProfilePicture} 
+                            alt={comment.user} 
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const parent = e.currentTarget.parentElement;
+                              if (parent) parent.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                            }}
+                          />
+                        ) : (
+                          <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                        )}
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-gray-800 text-sm">{comment.user}</span>
-                          <span className="text-xs text-gray-500">• {comment.date}</span>
+                          <span className={`font-semibold text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-800'
+                          }`}>{comment.user}</span>
+                          {comment.isExpert && (
+                            <div title="Verified Expert">
+                              <Crown className="w-4 h-4 text-yellow-500" />
+                            </div>
+                          )}
+                          <span className={`text-xs ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>• {comment.date}</span>
                         </div>
-                        <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{comment.text}</p>
+                        <p className={`mt-0.5 whitespace-pre-wrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>{comment.text}</p>
                         
                         {comment.image && (
                           <img 
                             src={comment.image} 
                             alt="Comment media" 
-                            className="mt-2 max-h-32 object-contain rounded-lg border border-gray-200"
+                            className={`mt-2 max-h-32 object-contain rounded-lg border ${
+                              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                            }`}
                           />
                         )}
 
                         {/* Comment Actions (Reply/Vote) */}
-                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
+                        <div className={`flex items-center gap-3 mt-2 text-xs ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                           {/* Vote Action */}
                           <div className="flex items-center gap-1">
                             <button 
@@ -1677,15 +2113,21 @@ useEffect(() => {
             </div>
 
             {/* Comment Input Box (Sticky Footer) */}
-            <div className="border-t border-gray-200 p-4 sticky bottom-0 bg-white">
+            <div className={`border-t p-4 sticky bottom-0 ${
+              isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
               
               {/* Replying To Indicator */}
               {replyingToId !== null && (
-                <div className="flex items-center justify-between mb-2 p-2 bg-gray-100 rounded-lg text-sm">
-                  <span className="text-gray-600">Replying to <span className="font-semibold text-blue-600">{replyingToUser}</span></span>
+                <div className={`flex items-center justify-between mb-2 p-2 rounded-lg text-sm ${
+                  isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <span>Replying to <span className="font-semibold text-blue-600">{replyingToUser}</span></span>
                   <button 
                     onClick={cancelReply}
-                    className="text-gray-500 hover:text-red-500 transition-colors"
+                    className={`transition-colors ${
+                      isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'
+                    }`}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1700,7 +2142,11 @@ useEffect(() => {
                   onKeyDown={(e) => handleCommentKeyDown(e, selectedPostForComment.id)}
                   placeholder={replyingToId !== null ? 'Type your reply...' : 'Add a comment...'}
                   rows={2}
-                  className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none text-sm"
+                  className={`flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-green-500 resize-none text-sm ${
+                    isDarkMode 
+                      ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-500' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-green-500'
+                  }`}
                 />
                 
                 <input 
@@ -1725,10 +2171,14 @@ useEffect(() => {
                 ) : (
                   <button 
                     onClick={() => commentFileInputRef.current?.click()}
-                    className="p-2 h-10 w-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors flex-shrink-0"
+                    className={`p-2 h-10 w-10 flex items-center justify-center rounded-full transition-colors flex-shrink-0 ${
+                      isDarkMode 
+                        ? 'bg-gray-800 hover:bg-gray-700 text-gray-400' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-500'
+                    }`}
                     title="Attach Image"
                   >
-                    <Users className="w-5 h-5" />
+                    <ImageIcon className="w-5 h-5" />
                   </button>
                 )}
 
@@ -1759,6 +2209,176 @@ useEffect(() => {
         onCreate={handleCreateCommunity}
         modalOrigin={modalOrigin}
       />
+
+      {/* Location Modal */}
+      {showLocationModal && selectedLocation && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => {
+              setShowLocationModal(false);
+              setSelectedLocation(null);
+            }}
+          />
+          <div className="relative w-full max-w-3xl">
+            <div 
+              className={`w-full rounded-[40px] border shadow-2xl p-8 flex flex-col ${
+                isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"
+              }`}
+            >
+              <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                    isDarkMode ? 'bg-[#7D9B76]' : 'bg-[#7D9B76]'
+                  }`}>
+                    <MapPin className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-extrabold text-2xl">Post Location</h2>
+                    <p className="text-sm opacity-70">{selectedLocation.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    setShowLocationModal(false);
+                    setSelectedLocation(null);
+                  }}
+                  className="p-2 hover:bg-black/5 rounded-full transition-colors"
+                >
+                  <X className="w-8 h-8" />
+                </button>
+              </div>
+
+              {/* Map Container */}
+              <div className="w-full h-[400px] rounded-[20px] overflow-hidden border-2 border-black/10 mb-4">
+                <div id="dashboard-location-modal-map" className="w-full h-full" />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowLocationModal(false);
+                    setSelectedLocation(null);
+                  }}
+                  className="flex-1 px-6 py-3 rounded-full font-bold bg-[#7D9B76] text-white hover:bg-[#5A7353] transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Species Modal */}
+      {showVerifyModal && selectedPostForVerification && (
+        <VerifySpeciesModal
+          isOpen={showVerifyModal}
+          postId={selectedPostForVerification.id}
+          postTitle={selectedPostForVerification.heading}
+          postImage={selectedPostForVerification.image}
+          onClose={() => {
+            setShowVerifyModal(false);
+            setSelectedPostForVerification(null);
+          }}
+          onVerified={async () => {
+            setShowVerifyModal(false);
+            setSelectedPostForVerification(null);
+            // Refetch posts to update verification status
+            await fetchPosts();
+          }}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* Verification Details Modal */}
+      {showVerificationDetails && selectedPostForVerification && (
+        <VerificationDetailsModal
+          isOpen={showVerificationDetails}
+          postId={selectedPostForVerification.id}
+          onClose={() => {
+            setShowVerificationDetails(false);
+            setSelectedPostForVerification(null);
+          }}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {showUserProfileModal && selectedUserProfile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={() => setShowUserProfileModal(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`rounded-[20px] shadow-2xl w-full max-w-sm overflow-hidden ${
+              selectedUserProfile.isExpert ? '' : (isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white')
+            }`}
+            style={selectedUserProfile.isExpert ? {
+              backgroundImage: 'url(/exp.svg)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              border: '3px solid #d4a843'
+            } : {
+              border: isDarkMode ? '2px solid #555' : '2px solid #899A3C'
+            }}
+          >
+            <div className="p-6">
+              {/* Profile Header */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className={`w-20 h-20 rounded-full overflow-hidden flex-shrink-0 ${
+                  selectedUserProfile.isExpert ? 'ring-3 ring-yellow-500' : 'ring-2 ring-gray-300'
+                }`}>
+                  {selectedUserProfile.profilePicture ? (
+                    <img 
+                      src={selectedUserProfile.profilePicture} 
+                      alt={selectedUserProfile.username}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm ${selectedUserProfile.isExpert ? 'text-gray-200' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>
+                      @{selectedUserProfile.username}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <h3 className={`text-xl font-bold ${selectedUserProfile.isExpert ? 'text-white' : (isDarkMode ? 'text-white' : 'text-gray-900')}`}>
+                      {selectedUserProfile.username}
+                    </h3>
+                    {selectedUserProfile.isExpert && (
+                      <div className="bg-yellow-500 rounded-full p-1" title="Verified Expert">
+                        <Crown className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* User Type */}
+              <div className="flex items-center gap-2 mb-3">
+                <Briefcase className={`w-4 h-4 ${selectedUserProfile.isExpert ? 'text-gray-200' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
+                <span className={`text-sm ${selectedUserProfile.isExpert ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-700')}`}>
+                  {selectedUserProfile.isExpert ? 'Verified Expert' : 'Wildlife Enthusiast'}
+                </span>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowUserProfileModal(false)}
+                className={`w-full mt-4 py-2 rounded-full font-semibold transition-colors ${
+                  selectedUserProfile.isExpert 
+                    ? 'bg-white/20 text-white hover:bg-white/30' 
+                    : (isDarkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                }`}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

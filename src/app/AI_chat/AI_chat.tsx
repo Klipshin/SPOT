@@ -3,6 +3,12 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/src/utils/supabase/client'; // Make sure this path matches your project
+import dynamic from 'next/dynamic';
+
+// Dynamic import to avoid SSR issues with Leaflet
+const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
+  ssr: false
+});
 
 // Type definitions
 interface Prediction {
@@ -49,10 +55,25 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [username, setUsername] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [deleteConfirmMsg, setDeleteConfirmMsg] = useState<Message | null>(null);
   
   // Dark Mode State
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Initialize from localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('darkMode');
+      return stored === 'true';
+    }
+    return false;
+  });
+  
+  // Save dark mode preference to localStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('darkMode', isDarkMode.toString());
+    }
+  }, [isDarkMode]);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   
   // Post to Community State
@@ -66,6 +87,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [postTitle, setPostTitle] = useState('');
   const [postContent, setPostContent] = useState('');
   const [selectedFlairs, setSelectedFlairs] = useState<string[]>([]);
+  const [postLocation, setPostLocation] = useState('');
+  const [postCoordinates, setPostCoordinates] = useState<{ lat: number; lng: number } | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
   
   // Success/Delete confirmation modals
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -95,15 +119,16 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       // Set email
       setEmail(user.email || null);
 
-      // Fetch user profile for username
+      // Fetch user profile for username and profile picture
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('username')
+        .select('username, profile_picture')
         .eq('user_id', user.id)
         .single();
 
       if (profile) {
         setUsername(profile.username);
+        setProfilePicture(profile.profile_picture);
       }
 
       // Fetch user's communities using API route (bypasses RLS)
@@ -123,12 +148,13 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         setUserCommunities([]);
       }
 
-      // Fetch chat history
+      // Fetch chat history - OPTIMIZED: limit to 50 recent messages, select only needed columns
       const { data, error } = await supabase
         .from('chat_history')
-        .select('*')
+        .select('id, user_id, role, content, image_url, predictions, created_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (data && data.length > 0) {
         const historyMessages: Message[] = data.map((item: any) => ({
@@ -349,6 +375,12 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       console.log('Posting to community:', selectedCommunityId);
       console.log('Post data:', { postTitle, postContent, image: selectedMessageToPost?.image, flairs: selectedFlairs });
       
+      if (!postLocation.trim()) {
+        alert('Please select a location for wildlife tracking');
+        setIsPostingToCommunity(false);
+        return;
+      }
+
       const response = await fetch(`/api/communities/${selectedCommunityId}/posts/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -358,6 +390,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
           content: postContent,
           mediaUrl: selectedMessageToPost?.image || null,
           flairNames: selectedFlairs.length > 0 ? selectedFlairs : undefined,
+          location: postLocation,
+          latitude: postCoordinates?.lat,
+          longitude: postCoordinates?.lng
         })
       });
 
@@ -379,6 +414,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       setPostTitle('');
       setPostContent('');
       setSelectedFlairs([]);
+      setPostLocation('');
+      setPostCoordinates(null);
+      setShowLocationPicker(false);
     } catch (error) {
       console.error('Error posting to community:', error);
       alert('Failed to post to community. Please try again.');
@@ -551,71 +589,137 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
         {/* Header Bar */}
         <div className="fixed top-0 left-0 right-0 w-full z-50">
-          <div className={`w-full h-11 justify-center transition-colors duration-300 ${isDarkMode ? 'bg-[#353b35]' : 'bg-[#dad2b9]'}`} />
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1440px] max-w-full h-11">
-            <div className="absolute -top-0.5 left-[46px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
+          <div className={`w-full h-11 justify-center transition-colors duration-300 ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`} />
+          
+          {/* SPOT Logo Text */}
+          <div className="absolute -top-0.5 left-[70px] [-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
               SPOT
-            </div>
-            
-            {/* Header Deco Lines */}
-            <div className="absolute top-5 left-[-15px] w-[46px] h-[7px] bg-[#f1eee5]" />
-            <div className="absolute top-[15px] left-[-12px] w-10 h-[5px] bg-[#f1eee5]" />
-            <div className="absolute top-[27px] left-[-12px] w-10 h-[3px] bg-[#f1eee5]" />
-            <div className="top-[26px] absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
-            <div className="top-2.5 absolute left-[-8px] w-[30px] h-[9px] bg-[#f1eee5] rounded-[15px/4.5px]" />
-            
-            <img className="absolute top-0 left-[-32px] w-[75px] h-[47px] aspect-[1.48] object-cover" alt="Spoticon" src="/spicon0.svg" />
+          </div>
+
+          {/* Logo Icon */}
+          <img className="absolute top-0 left-[15px] w-[50px] h-[40px] aspect-[1.48] object-cover" alt="Spoticon" src="/eyecon.svg" />
 
             {/* DARK MODE TOGGLE */}
-            <img 
-              className="absolute top-1.5 left-[1340px] w-[47px] h-[31px] aspect-[1.51] cursor-pointer hover:opacity-80 transition-opacity" 
-              alt="Element" 
+            <button 
+              className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
               onClick={() => setIsDarkMode(!isDarkMode)}
-              src={isDarkMode ? "/dark-mode 1.svg" : "/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"} 
-            />
+            >
+              {isDarkMode ? (
+                  <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
+              ) : (
+                  <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
+              )}
+            </button>
 
             {/* Profile button */}
-            <div className="absolute top-[5px] left-[1406px]">
+            <div className="absolute top-[5px] left-[1440px]">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
                 className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
               >
-                <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/down-chevron 1.svg" />
-                <img className="w-[35px] h-[35px] aspect-[1] object-cover rounded-full" alt="User" src="/user (2) 9.svg" />
+                <img className="w-[35px] h-[35px] aspect-[1] object-cover" alt="Down chevron" src="/downn.svg" />
+                <div className="w-[35px] h-[35px] bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                  {profilePicture ? (
+                    <img 
+                      src={profilePicture} 
+                      alt={username || 'User'} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        e.currentTarget.parentElement!.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+                      }}
+                    />
+                  ) : (
+                    <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                  )}
+                </div>
               </button>
 
               {isProfileOpen && (
-                <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50" style={{ border: '2px solid #899A3C' }} onMouseDown={(e) => e.preventDefault()}>
-                  <div className="px-4 py-3 border-b border-gray-300">
-                    <h3 className="text-base font-bold text-gray-900">@{username || 'user'}</h3>
-                    <p className="text-xs text-gray-600 mt-0.5">{email || 'loading...'}</p>
+                <div className={`absolute right-0 mt-1 w-64 rounded-xl shadow-xl overflow-hidden z-50 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`} style={{ border: '2px solid #899A3C' }} onMouseDown={(e) => e.preventDefault()}>
+                  {/* User Info Section */}
+                  <div className={`px-4 py-3 border-b flex items-center gap-3 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+                    <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                      {profilePicture ? (
+                        <img 
+                          src={profilePicture} 
+                          alt={username || 'User'} 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className={`text-base font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>@{username || 'user'}</h3>
+                      <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{email || 'loading...'}</p>
+                    </div>
                   </div>
+                  
+                  {/* Menu Items */}
                   <div className="py-1">
-                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { }}>
-                      <span className="text-sm font-medium text-gray-900">View Profile</span>
+                    <button 
+                      className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push('/profile');
+                      }}
+                    >
+                      <svg className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Edit Profile</span>
                     </button>
-                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { }}>
-                      <span className="text-sm font-medium text-gray-900">Account Settings</span>
+                    
+                    <button 
+                      className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        router.push('/settings');
+                      }}
+                    >
+                      <svg className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Account Settings</span>
+                    </button>
+                    
+                    <button 
+                      className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
+                      onClick={() => {/* Help Center logic here */}}
+                    >
+                      <svg className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Help Center</span>
                     </button>
                   </div>
-                  <div className="border-t border-gray-400">
-                    <button className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group" onClick={async () => {
-                      try {
-                        const { error } = await supabase.auth.signOut();
-                        if (error) console.error('Error signing out:', error.message);
-                      } catch (err) {
-                        console.error('Sign out failed:', err);
-                      }
-                      try { router.push('/'); } finally { window.location.href = '/'; }
-                    }}>
-                      <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+                  
+                  {/* Log Out Section */}
+                  <div className={`border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-400'}`}>
+                    <button 
+                      className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
+                      onClick={async () => {
+                        try {
+                          const { error } = await supabase.auth.signOut();
+                          if (error) console.error('Error signing out:', error.message);
+                          router.push('/');
+                        } catch (err) {
+                          console.error('Sign out failed:', err);
+                        }
+                      }}
+                    >
+                      <svg className={`w-4 h-4 group-hover:text-white ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <span className={`text-sm font-medium group-hover:text-white ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Log Out</span>
                     </button>
                   </div>
                 </div>
               )}
             </div>
-          </div>
         </div>
 
         {/* Center Content Area Background */}
@@ -1027,7 +1131,21 @@ export const AiChatLoggedIn = (): React.ReactElement => {
         )}
 
         {/* User Icons & Footer Info */}
-        <img className="top-[640px] left-[-10px] w-[30px] h-[30px] absolute aspect-[1] object-cover" alt="User" src="/user (2) 6.svg" />
+        <div className="top-[640px] left-[-10px] w-[30px] h-[30px] absolute aspect-[1] bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+          {profilePicture ? (
+            <img 
+              src={profilePicture} 
+              alt={username || 'User'} 
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none';
+                e.currentTarget.parentElement!.innerHTML = '<img src="/pfp.svg" alt="User" class="w-full h-full object-cover" />';
+              }}
+            />
+          ) : (
+            <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+          )}
+        </div>
         <div className={`absolute top-[643px] left-[35px] w-[156px] font-black text-base tracking-[0.80px] leading-[normal] ${isDarkMode ? 'text-[#a0c563]' : 'text-[#072d0d]'}`}>
           @{username || 'user'}
         </div>
@@ -1377,6 +1495,54 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                         </div>
                       </div>
 
+                      {/* Location (Required) */}
+                      <div>
+                        <label className="block text-sm font-bold mb-2 opacity-70 flex items-center gap-2">
+                          📍 Location (Required for tracking)
+                        </label>
+                        {showLocationPicker ? (
+                          <div className="space-y-2">
+                            <LocationSearch 
+                              value={postLocation} 
+                              onChange={(loc, lat, lng) => {
+                                setPostLocation(loc);
+                                if (lat !== undefined && lng !== undefined) {
+                                  setPostCoordinates({ lat, lng });
+                                }
+                              }} 
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowLocationPicker(false)}
+                              className="px-4 py-2 bg-[#7D9B76] text-white rounded-lg hover:bg-[#5A7353] transition-colors text-sm font-medium"
+                            >
+                              Done
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            onClick={() => setShowLocationPicker(true)}
+                            className={`w-full text-base font-medium outline-none border-2 rounded-xl p-3 transition-colors cursor-pointer min-h-[48px] flex items-center gap-2 ${
+                              isDarkMode 
+                                ? "border-gray-600 bg-[#333] text-white hover:border-[#7D9B76]" 
+                                : postLocation 
+                                  ? "border-[#7D9B76] bg-[#E2DFC8] text-black" 
+                                  : "border-red-400 bg-[#FFE2E2] text-black hover:border-red-500"
+                            }`}
+                          >
+                            📍
+                            {postLocation ? (
+                              <span className="text-sm">{postLocation}</span>
+                            ) : (
+                              <span className="opacity-50">Click to select location...</span>
+                            )}
+                          </div>
+                        )}
+                        {!postLocation && !showLocationPicker && (
+                          <p className="text-xs text-red-500 mt-1">* Location is required for wildlife tracking</p>
+                        )}
+                      </div>
+
                       {/* Image preview */}
                       {selectedMessageToPost.image && (
                         <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
@@ -1392,7 +1558,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                       {/* Post button */}
                       <button
                         onClick={handlePostToCommunity}
-                        disabled={isPostingToCommunity || !postTitle.trim() || !postContent.trim()}
+                        disabled={isPostingToCommunity || !postTitle.trim() || !postContent.trim() || !postLocation.trim()}
                         className={`w-full py-4 rounded-full font-bold text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                           isDarkMode
                             ? 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
