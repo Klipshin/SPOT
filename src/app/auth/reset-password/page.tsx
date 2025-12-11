@@ -7,7 +7,7 @@ import { IoChevronBackCircle } from "react-icons/io5";
 import { PiEyeBold, PiEyeClosedBold } from "react-icons/pi";
 
 export default function ForgotPasswordPage() {
-    const supabase = createClient();
+    const getSupabase = () => createClient();
     const router = useRouter();
     const [sent, setSent] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -27,6 +27,7 @@ export default function ForgotPasswordPage() {
         setLoading(false);
         return;
         }
+        const supabase = getSupabase();
         const { data, error } = await supabase.auth.updateUser({
         password,
         });

@@ -2,19 +2,19 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/src/utils/supabase/client';
+import { createClient } from '@/src/utils/supabase/client'; // Make sure this path matches your project
 
 // Type definitions
 interface Prediction {
   common_name: string;
   scientific_name: string;
+  confidence?: number;
   danger_level: string;
   status: string;
   conservation_status: string;
   wiki_summary?: string;
   wiki_link?: string;
   wiki_image?: string;
-  // iNaturalist enrichment
   inat_taxon_id?: number | null;
   inat_url?: string | null;
   inat_default_photo?: string | null;
@@ -30,10 +30,13 @@ interface Message {
   image?: string;
   predictions?: Prediction[];
   timestamp: Date;
+  sessionId?: string;
 }
 
 export const AiChatLoggedIn = (): React.ReactElement => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]); // Current chat messages
+  const [chatHistory, setChatHistory] = useState<Message[]>([]); // All saved history
+  const [currentSessionId, setCurrentSessionId] = useState<string>(Date.now().toString()); // Current chat session
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [modalPred, setModalPred] = useState<Prediction | null>(null);
@@ -43,18 +46,147 @@ export const AiChatLoggedIn = (): React.ReactElement => {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [showMainContent, setShowMainContent] = useState(true);
   const [isCameraLoading, setIsCameraLoading] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [username, setUsername] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [deleteConfirmMsg, setDeleteConfirmMsg] = useState<Message | null>(null);
   
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  
+  // Post to Community State
+  const [showPostToCommunityModal, setShowPostToCommunityModal] = useState(false);
+  const [selectedMessageToPost, setSelectedMessageToPost] = useState<Message | null>(null);
+  const [userCommunities, setUserCommunities] = useState<any[]>([]);
+  const [isPostingToCommunity, setIsPostingToCommunity] = useState(false);
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string | null>(null);
+  
+  // Customizable post fields
+  const [postTitle, setPostTitle] = useState('');
+  const [postContent, setPostContent] = useState('');
+  const [selectedFlairs, setSelectedFlairs] = useState<string[]>([]);
+  
+  // Success/Delete confirmation modals
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
   const router = useRouter();
+  
+  // Lazy Supabase initialization to avoid SSR issues - use useMemo to create once
+  const supabase = React.useMemo(() => {
+    if (typeof window !== 'undefined') {
+      return createClient();
+    }
+    return null as any; // Return null during SSR, will be properly initialized on client
+  }, []);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll logic targeting ONLY the chat container
+  // --- 1. LOAD USER PROFILE AND HISTORY ON STARTUP ---
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Set email
+      setEmail(user.email || null);
+
+      // Fetch user profile for username
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('username')
+        .eq('user_id', user.id)
+        .single();
+
+      if (profile) {
+        setUsername(profile.username);
+      }
+
+      // Fetch user's communities using API route (bypasses RLS)
+      try {
+        const response = await fetch('/api/communities/user');
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Communities loaded via API:', result.communities);
+          setUserCommunities(result.communities || []);
+        } else {
+          console.error('❌ Failed to fetch communities, status:', response.status);
+          setUserCommunities([]);
+        }
+      } catch (error) {
+        console.error('❌ Error fetching communities:', error);
+        setUserCommunities([]);
+      }
+
+      // Fetch chat history
+      const { data, error } = await supabase
+        .from('chat_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (data && data.length > 0) {
+        const historyMessages: Message[] = data.map((item: any) => ({
+          id: item.id,
+          type: item.role === 'user' ? 'user' : 'assistant',
+          content: item.content || "",
+          image: item.image_url || undefined,
+          predictions: item.predictions as Prediction[],
+          timestamp: new Date(item.created_at),
+          sessionId: item.id // Use id as session for now
+        }));
+        setChatHistory(historyMessages); // Store in history only
+        // Don't auto-load into current chat - keep it clean for new session
+      }
+    };
+    fetchUserData();
+  }, []);
+
+  // --- 2. HELPER: UPLOAD IMAGE TO SUPABASE ---
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+        return null;
+      }
+
+      const { data } = supabase.storage.from('chat-images').getPublicUrl(filePath);
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Upload function error:', error);
+      return null;
+    }
+  };
+
+  // --- 3. HELPER: SAVE CHAT TO DATABASE ---
+  const saveToHistory = async (role: 'user' | 'assistant', content: string, predictions: Prediction[] | null, imageUrl?: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase.from('chat_history').insert({
+      user_id: user.id,
+      role: role,
+      content: content,
+      predictions: predictions,
+      image_url: imageUrl || null
+      // Note: session_id column doesn't exist yet - will be added in migration
+    });
+  };
+
+  // Auto-scroll logic
   useEffect(() => {
     if (chatContainerRef.current) {
       const { scrollHeight, clientHeight } = chatContainerRef.current;
@@ -175,18 +307,106 @@ export const AiChatLoggedIn = (): React.ReactElement => {
     setIsCameraLoading(false);
   };
 
+  // --- HANDLER: SELECT COMMUNITY (STEP 1) ---
+  const handleSelectCommunity = (communityId: string) => {
+    if (!selectedMessageToPost || !selectedMessageToPost.predictions || selectedMessageToPost.predictions.length === 0) {
+      alert('No identification results to post');
+      return;
+    }
+
+    // Set the selected community and initialize post fields
+    setSelectedCommunityId(communityId);
+    
+    const topPrediction = selectedMessageToPost.predictions[0];
+    setPostTitle(`Identification Help: ${topPrediction.common_name}`);
+    
+    // Create a nicely formatted post content with emojis and structure
+    const aiIdentification = 
+      `🤖 AI Identification Result\n\n` +
+      `Species: ${topPrediction.common_name} (${topPrediction.scientific_name})\n\n` +
+      `📊 Confidence Level: ${topPrediction.confidence || 'N/A'}%\n\n` +
+      `⚠️ Danger Level: ${topPrediction.danger_level}\n\n` +
+      `📍 Status: ${topPrediction.status}\n\n` +
+      `🌿 Conservation Status: ${topPrediction.conservation_status}\n\n`;
+    
+    setPostContent(aiIdentification + `Can anyone confirm or provide more information about this identification?`);
+    setSelectedFlairs([]);
+  };
+
+  // --- HANDLER: POST TO COMMUNITY (STEP 2) ---
+  const handlePostToCommunity = async () => {
+    if (!selectedCommunityId || !postTitle.trim() || !postContent.trim()) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setIsPostingToCommunity(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Create post in the community
+      console.log('Posting to community:', selectedCommunityId);
+      console.log('Post data:', { postTitle, postContent, image: selectedMessageToPost?.image, flairs: selectedFlairs });
+      
+      const response = await fetch(`/api/communities/${selectedCommunityId}/posts/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          communityId: selectedCommunityId,
+          title: postTitle,
+          content: postContent,
+          mediaUrl: selectedMessageToPost?.image || null,
+          flairNames: selectedFlairs.length > 0 ? selectedFlairs : undefined,
+        })
+      });
+
+      console.log('Response status:', response.status);
+      const responseData = await response.json();
+      console.log('Response data:', responseData);
+
+      if (!response.ok) {
+        throw new Error(responseData.error || 'Failed to create post');
+      }
+
+      // Show success modal
+      setSuccessMessage('Successfully posted to community! 🎉');
+      setShowSuccessModal(true);
+      
+      setShowPostToCommunityModal(false);
+      setSelectedMessageToPost(null);
+      setSelectedCommunityId(null);
+      setPostTitle('');
+      setPostContent('');
+      setSelectedFlairs([]);
+    } catch (error) {
+      console.error('Error posting to community:', error);
+      alert('Failed to post to community. Please try again.');
+    } finally {
+      setIsPostingToCommunity(false);
+    }
+  };
+
+  // --- UPDATED IDENTIFY FUNCTION ---
   const handleIdentifyImageAuto = async (file: File, preview: string) => {
     setIsLoading(true);
+
+    // 1. Upload to Supabase Storage first
+    const publicUrl = await uploadImage(file);
+    const displayImage = publicUrl || preview; // Use the permanent URL if upload succeeds
 
     const userMessage: Message = {
       id: Date.now().toString(),
       type: "user",
       content: "Please identify this species",
-      image: preview,
+      image: displayImage,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
+
+    // Save User Message to DB
+    saveToHistory('user', "Please identify this species", null, displayImage);
 
     try {
       const formData = new FormData();
@@ -208,7 +428,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       if (predictionCount === 0) {
         responseText = "I couldn't confidently identify any species from this image. Please try a clearer photo.";
       } else if (predictionCount === 1) {
-        responseText = "I've analyzed the image — this species is **very likely** to be:";
+        responseText = "I've analyzed the image — this species is *very likely* to be:";
       } else {
         responseText = "I've analyzed the image. Here are the top 3 possible species:";
       }
@@ -222,6 +442,10 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Save Assistant Response to DB
+      saveToHistory('assistant', responseText, data.predictions);
+
     } catch (error) {
       console.error("Error identifying image:", error);
       const errorMessage: Message = {
@@ -238,6 +462,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
     }
   };
 
+  // --- UPDATED SEND MESSAGE FUNCTION ---
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
@@ -253,6 +478,9 @@ export const AiChatLoggedIn = (): React.ReactElement => {
     setInputValue("");
     setIsLoading(true);
 
+    // Save text to history
+    saveToHistory('user', currentInput, null);
+
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -265,14 +493,20 @@ export const AiChatLoggedIn = (): React.ReactElement => {
       }
 
       const data = await response.json();
+      const reply = data.reply || "Sorry, I couldn't generate a response.";
+
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
-        content: data.reply || "Sorry, I couldn't generate a response.",
+        content: reply,
         timestamp: new Date(),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Save assistant text to history
+      saveToHistory('assistant', reply, null);
+
     } catch (error) {
       console.error("Error sending message:", error);
       const errorMessage: Message = {
@@ -323,7 +557,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
               SPOT
             </div>
             
-            {/* Header Deco Lines - ALWAYS LIGHT to preserve logo contrast */}
+            {/* Header Deco Lines */}
             <div className="absolute top-5 left-[-15px] w-[46px] h-[7px] bg-[#f1eee5]" />
             <div className="absolute top-[15px] left-[-12px] w-10 h-[5px] bg-[#f1eee5]" />
             <div className="absolute top-[27px] left-[-12px] w-10 h-[3px] bg-[#f1eee5]" />
@@ -332,7 +566,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
             
             <img className="absolute top-0 left-[-32px] w-[75px] h-[47px] aspect-[1.48] object-cover" alt="Spoticon" src="/spicon0.svg" />
 
-            {/* DARK MODE TOGGLE (restored) */}
+            {/* DARK MODE TOGGLE */}
             <img 
               className="absolute top-1.5 left-[1340px] w-[47px] h-[31px] aspect-[1.51] cursor-pointer hover:opacity-80 transition-opacity" 
               alt="Element" 
@@ -340,7 +574,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
               src={isDarkMode ? "/dark-mode 1.svg" : "/6ae923df-a01f-4168-9d3a-9f0563de2a4d-removebg-preview 2.svg"} 
             />
 
-            {/* Profile button (chevron + pfp) */}
+            {/* Profile button */}
             <div className="absolute top-[5px] left-[1406px]">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -354,36 +588,27 @@ export const AiChatLoggedIn = (): React.ReactElement => {
               {isProfileOpen && (
                 <div className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50" style={{ border: '2px solid #899A3C' }} onMouseDown={(e) => e.preventDefault()}>
                   <div className="px-4 py-3 border-b border-gray-300">
-                    <h3 className="text-base font-bold text-gray-900">@username</h3>
-                    <p className="text-xs text-gray-600 mt-0.5">username@gmail.com</p>
+                    <h3 className="text-base font-bold text-gray-900">@{username || 'user'}</h3>
+                    <p className="text-xs text-gray-600 mt-0.5">{email || 'loading...'}</p>
                   </div>
                   <div className="py-1">
-                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { /* view profile */ }}>
-                      <svg className="w-4 h-4 text-gray-700" />
+                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { }}>
                       <span className="text-sm font-medium text-gray-900">View Profile</span>
                     </button>
-                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { /* account settings */ }}>
-                      <svg className="w-4 h-4 text-gray-700" />
+                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { }}>
                       <span className="text-sm font-medium text-gray-900">Account Settings</span>
-                    </button>
-                    <button className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5" onClick={() => { /* help center */ }}>
-                      <svg className="w-4 h-4 text-gray-700" />
-                      <span className="text-sm font-medium text-gray-900">Help Center</span>
                     </button>
                   </div>
                   <div className="border-t border-gray-400">
                     <button className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group" onClick={async () => {
                       try {
-                        const supabase = createClient();
                         const { error } = await supabase.auth.signOut();
-                        if (error) console.error('Error signing out:', error.message || error);
-                        else console.log('Sign out successful');
+                        if (error) console.error('Error signing out:', error.message);
                       } catch (err) {
                         console.error('Sign out failed:', err);
                       }
                       try { router.push('/'); } finally { window.location.href = '/'; }
                     }}>
-                      <svg className="w-4 h-4 text-gray-700 group-hover:text-white" />
                       <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
                     </button>
                   </div>
@@ -426,17 +651,45 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                     <div className="mt-3 space-y-3 text-left">
                       {message.predictions.map((pred, idx) => (
                         <div key={idx} className={`border-t pt-2 ${isDarkMode ? 'border-gray-500' : 'border-gray-200'}`}>
-                          <h3 className="font-bold text-base">{pred.common_name}</h3>
-                          <p className={`text-xs italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{pred.scientific_name}</p>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-bold text-base">{pred.common_name}</h3>
+                              <p className={`text-xs italic ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{pred.scientific_name}</p>
+                            </div>
+                            {pred.confidence !== undefined && (
+                              <div className="text-sm font-semibold">{pred.confidence}%</div>
+                            )}
+                          </div>
                           <div className="mt-1 flex flex-wrap gap-2">
                             <span className="text-xs bg-yellow-100 text-black px-2 py-0.5 rounded">{pred.danger_level}</span>
                             <span className="text-xs bg-blue-100 text-black px-2 py-0.5 rounded">{pred.status}</span>
                             <span className="text-xs bg-green-100 text-black px-2 py-0.5 rounded">{pred.conservation_status}</span>
                           </div>
                           {pred.wiki_summary && <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>{pred.wiki_summary}</p>}
-                          {pred.wiki_link && (
-                            <button onClick={() => { setModalPred(pred); setModalTab('wiki'); }} className="text-xs text-blue-400 underline mt-1 inline-block">Learn more →</button>
-                          )}
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            {pred.wiki_link && (
+                              <button onClick={() => { setModalPred(pred); setModalTab('wiki'); }} className="text-xs text-blue-400 underline inline-block">Learn more →</button>
+                            )}
+                            {idx === 0 && (
+                              <button 
+                                onClick={() => {
+                                  console.log('Post to Community clicked', message);
+                                  // Find the user message with the image (should be right before this assistant message)
+                                  const messageIndex = messages.findIndex(m => m.id === message.id);
+                                  const userMessage = messageIndex > 0 ? messages[messageIndex - 1] : null;
+                                  const messageToPost = {
+                                    ...message,
+                                    image: message.image || userMessage?.image
+                                  };
+                                  setSelectedMessageToPost(messageToPost);
+                                  setShowPostToCommunityModal(true);
+                                }}
+                                className="text-xs font-semibold bg-[#95ab33] text-white px-3 py-1.5 rounded-full hover:bg-[#7a8c2a] transition-colors shadow-sm"
+                              >
+                                📮 Post to Community
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -455,72 +708,205 @@ export const AiChatLoggedIn = (): React.ReactElement => {
           </div>
         </div>
 
-              {/* Modal for Wikipedia / iNaturalist details */}
-              {modalPred && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                  <div className="absolute inset-0 bg-black/60" onClick={() => setModalPred(null)} />
-                  <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-[94%] mx-4 p-4 z-60 overflow-auto max-h-[80vh]">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-bold">{modalPred.common_name || modalPred.scientific_name}</h3>
-                        {modalPred.scientific_name && <p className="text-xs italic text-gray-600">{modalPred.scientific_name}</p>}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex rounded-md bg-gray-100 p-1">
-                          <button onClick={() => setModalTab('wiki')} className={`px-3 py-1 rounded ${modalTab === 'wiki' ? 'bg-white shadow' : 'text-gray-600'}`}>Wikipedia</button>
-                          <button onClick={() => setModalTab('inat')} className={`px-3 py-1 rounded ${modalTab === 'inat' ? 'bg-white shadow' : 'text-gray-600'}`}>iNaturalist</button>
-                        </div>
-                        <button onClick={() => setModalPred(null)} className="text-gray-500 hover:text-gray-800">✕</button>
-                      </div>
-                    </div>
+        {/* Modal for Wikipedia / iNaturalist details */}
+        {modalPred && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setModalPred(null)} />
+            <div className="relative bg-white rounded-xl shadow-xl max-w-3xl w-[94%] mx-4 p-4 z-60 overflow-auto max-h-[80vh]">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-bold">{modalPred.common_name || modalPred.scientific_name}</h3>
+                  {modalPred.scientific_name && <p className="text-xs italic text-gray-600">{modalPred.scientific_name}</p>}
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-md bg-gray-100 p-1">
+                    <button onClick={() => setModalTab('wiki')} className={`px-3 py-1 rounded ${modalTab === 'wiki' ? 'bg-white shadow' : 'text-gray-600'}`}>Wikipedia</button>
+                    <button onClick={() => setModalTab('inat')} className={`px-3 py-1 rounded ${modalTab === 'inat' ? 'bg-white shadow' : 'text-gray-600'}`}>iNaturalist</button>
+                  </div>
+                  <button onClick={() => setModalPred(null)} className="text-gray-500 hover:text-gray-800">✕</button>
+                </div>
+              </div>
 
-                    <div className="mt-4">
-                      {modalTab === 'wiki' ? (
-                        <div className="flex flex-col md:flex-row gap-4">
-                          {modalPred.wiki_image ? (
-                            <img src={modalPred.wiki_image} alt={modalPred.common_name || modalPred.scientific_name || 'Image'} className="w-full md:w-48 h-auto object-cover rounded" />
-                          ) : null}
-                          <div className="flex-1">
-                            {modalPred.wiki_summary ? (
-                              <p className="text-sm text-gray-700 whitespace-pre-line">{modalPred.wiki_summary}</p>
-                            ) : (
-                              <p className="text-sm text-gray-600">No additional information available.</p>
-                            )}
-                            {modalPred.wiki_link && (
-                              <div className="mt-4"><a href={modalPred.wiki_link} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open on Wikipedia</a></div>
-                            )}
-                          </div>
-                        </div>
+              <div className="mt-4">
+                {modalTab === 'wiki' ? (
+                  <div className="flex flex-col md:flex-row gap-4">
+                    {modalPred.wiki_image ? (
+                      <img src={modalPred.wiki_image} alt={modalPred.common_name || modalPred.scientific_name || 'Image'} className="w-full md:w-48 h-auto object-cover rounded" />
+                    ) : null}
+                    <div className="flex-1">
+                      {modalPred.wiki_summary ? (
+                        <p className="text-sm text-gray-700 whitespace-pre-line">{modalPred.wiki_summary}</p>
                       ) : (
-                        <div className="space-y-3">
-                          {modalPred.inat_default_photo ? (
-                            <img src={modalPred.inat_default_photo} alt={modalPred.inat_preferred_common_name || modalPred.scientific_name || 'iNaturalist image'} className="w-full md:w-48 h-auto object-cover rounded" />
-                          ) : (
-                            <div className="w-full md:w-48 h-40 bg-gray-100 rounded flex items-center justify-center text-gray-500">No image</div>
-                          )}
-
-                          <div>
-                            {modalPred.inat_preferred_common_name && <p className="text-sm font-semibold">{modalPred.inat_preferred_common_name}</p>}
-                            <p className="text-xs italic text-gray-600">Observations: {modalPred.inat_observations ?? '—'}</p>
-                            {modalPred.inat_conservation_status && <p className="text-xs text-red-600">Conservation: {modalPred.inat_conservation_status}</p>}
-                            {modalPred.inat_url && (
-                              <div className="mt-2"><a href={modalPred.inat_url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open on iNaturalist</a></div>
-                            )}
-                          </div>
-                        </div>
+                        <p className="text-sm text-gray-600">No additional information available.</p>
+                      )}
+                      {modalPred.wiki_link && (
+                        <div className="mt-4"><a href={modalPred.wiki_link} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open on Wikipedia</a></div>
                       )}
                     </div>
                   </div>
-                </div>
-              )}
+                ) : (
+                  <div className="space-y-3">
+                    {modalPred.inat_default_photo ? (
+                      <img src={modalPred.inat_default_photo} alt={modalPred.inat_preferred_common_name || modalPred.scientific_name || 'iNaturalist image'} className="w-full md:w-48 h-auto object-cover rounded" />
+                    ) : (
+                      <div className="w-full md:w-48 h-40 bg-gray-100 rounded flex items-center justify-center text-gray-500">No image</div>
+                    )}
 
-        {/* Left Chat History Panel */}
+                    <div>
+                      {modalPred.inat_preferred_common_name && <p className="text-sm font-semibold">{modalPred.inat_preferred_common_name}</p>}
+                      <p className="text-xs italic text-gray-600">Observations: {modalPred.inat_observations ?? '—'}</p>
+                      {modalPred.inat_conservation_status && <p className="text-xs text-red-600">Conservation: {modalPred.inat_conservation_status}</p>}
+                      {modalPred.inat_url && (
+                        <div className="mt-2"><a href={modalPred.inat_url} target="_blank" rel="noreferrer" className="text-sm text-blue-600 underline">Open on iNaturalist</a></div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Chat History Toggle Button */}
+        <button
+          onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+          className={`absolute top-[120px] left-[20px] w-[200px] font-extrabold text-xl tracking-[1.00px] leading-[normal] cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-2 ${isDarkMode ? 'text-[#dad2b9]' : 'text-[#4d4d4d]'}`}
+        >
+          Chat History
+          <span className={`text-sm transition-transform ${isHistoryOpen ? 'rotate-90' : ''}`}>▶</span>
+        </button>
+
+        {/* New Chat Button */}
+        <button
+          onClick={async () => {
+            setMessages([]); // Clear current chat
+            setCurrentSessionId(Date.now().toString()); // Create new session
+            setShowMainContent(true);
+            setInputValue('');
+            // Don't close history dropdown
+            
+            // Refresh history from database
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data } = await supabase
+                .from('chat_history')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: true });
+              
+              if (data) {
+                const historyMessages: Message[] = data.map((item: any) => ({
+                  id: item.id,
+                  type: item.role === 'user' ? 'user' : 'assistant',
+                  content: item.content || "",
+                  image: item.image_url || undefined,
+                  predictions: item.predictions as Prediction[],
+                  timestamp: new Date(item.created_at),
+                  sessionId: item.id
+                }));
+                setChatHistory(historyMessages);
+              }
+            }
+          }}
+          className={`absolute top-[120px] left-[235px] w-[135px] h-[35px] rounded-[20px] font-semibold text-sm cursor-pointer hover:opacity-90 transition-all flex items-center justify-center gap-2 ${isDarkMode ? 'bg-[#95ab33] text-[#292d29]' : 'bg-[#95ab33] text-white'}`}
+        >
+          <span className="text-lg">+</span>
+          New Chat
+        </button>
+
+        {/* Left Chat History Panel - Static Background */}
         <div 
-          className={`absolute top-[100px] left-[-15] w-[410px] h-[500px] rounded-[25px] border border-solid transition-colors duration-300
+          className={`absolute top-[160px] left-[-15] w-[410px] h-[440px] rounded-[25px] border border-solid transition-all duration-300
           ${isDarkMode 
             ? 'bg-[#3b423b] border-gray-600' 
             : 'bg-[#d0e58f1f] border-black'}`}
-        />
+        >
+          {isHistoryOpen ? (
+            <div className="p-4 h-full overflow-y-auto">
+              {chatHistory.length > 0 ? (
+                <div className="space-y-2">
+                  {/* Group messages by session and show only first user message per session */}
+                  {(() => {
+                    const sessionMap = new Map<string, Message>();
+                    chatHistory.filter(m => m.type === 'user').forEach(msg => {
+                      const sessId = msg.sessionId || msg.id;
+                      if (!sessionMap.has(sessId)) {
+                        sessionMap.set(sessId, msg);
+                      }
+                    });
+                    
+                    return Array.from(sessionMap.values()).reverse().map((msg) => {
+                      // Find the assistant response right after this user message
+                      const msgIndex = chatHistory.findIndex(m => m.id === msg.id);
+                      const assistantResponse = chatHistory
+                        .slice(msgIndex + 1)
+                        .find(m => m.type === 'assistant' && m.predictions && m.predictions.length > 0);
+                      const firstSpecies = assistantResponse?.predictions?.[0]?.common_name;
+                      // Prioritize species name, then fall back to 'Image identification'
+                      const displayTitle = firstSpecies || 'Image identification';
+                      const sessId = msg.sessionId || msg.id;
+                      
+                      return (
+                        <div 
+                          key={msg.id}
+                          onClick={() => {
+                            // Load all messages near this one (within 5 minutes = rough session)
+                            const msgTime = msg.timestamp.getTime();
+                            const sessionMsgs = chatHistory.filter(m => {
+                              const diff = Math.abs(m.timestamp.getTime() - msgTime);
+                              return diff < 5 * 60 * 1000; // 5 minutes window
+                            });
+                            setMessages(sessionMsgs);
+                            setCurrentSessionId(sessId);
+                          }}
+                          className={`p-3 rounded-lg cursor-pointer hover:opacity-80 transition flex items-center gap-3 relative ${
+                            isDarkMode ? 'bg-[#4a524a]' : 'bg-white'
+                          } ${currentSessionId === sessId ? 'ring-2 ring-[#95ab33]' : ''}`}
+                        >
+                          {msg.image && (
+                            <img 
+                              src={msg.image} 
+                              alt="Chat" 
+                              className="w-12 h-12 rounded-md object-cover flex-shrink-0" 
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                              {displayTitle}
+                            </p>
+                            <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {msg.timestamp.toLocaleDateString()} {msg.timestamp.toLocaleTimeString()}
+                            </p>
+                          </div>
+                          {/* Delete button */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirmMsg(msg);
+                            }}
+                            className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition text-xl font-bold ${isDarkMode ? 'text-gray-400 bg-gray-600' : 'text-gray-600 bg-gray-200'}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              ) : (
+                <p className={`text-sm text-center mt-20 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  No chat history yet. Start a conversation!
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <p className={`text-sm italic ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Click "Chat History" to view past conversations
+              </p>
+            </div>
+          )}
+        </div>
 
         {/* Chat Input Box */}
         <div 
@@ -572,96 +958,78 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={handleFileSelect} className="hidden" />
 
-        {/* Main Center Content Area */}
-        <div 
-          className={`absolute top-[25px] left-[444px] w-[552px] h-[650px] rounded-[76px] border border-dashed overflow-hidden z-10 flex flex-col items-center justify-center transition-colors duration-300
-          ${isDarkMode 
-            ? 'bg-[#6d8a6d] border-[#dad2b9]' 
-            : 'bg-[#d9d9d95c] border-[#140e0e]'}`}
-        >
-          
-          {/* Default State (Buttons) */}
-          {!showCamera && (
-            <>
-              <img className="absolute top-[78px] left-[203px] w-[146px] h-[146px] aspect-[1] object-cover" alt="Binoculars" src="/bin.svg" />
-              <div className="absolute top-[205px] left-[122px] w-[305px] font-extrabold text-black text-2xl tracking-[1.20px] leading-[normal] text-center">Spotted Anything?</div>
+        {/* Main Center Content Area - ALWAYS VISIBLE EXCEPT WHEN CAMERA IS ACTIVE */}
+        {!showCamera && (
+          <div 
+            className={`absolute top-[25px] left-[444px] w-[552px] h-[650px] rounded-[76px] border border-dashed overflow-hidden z-10 flex flex-col items-center justify-center transition-colors duration-300
+            ${isDarkMode 
+              ? 'bg-[#6d8a6d] border-[#dad2b9]' 
+              : 'bg-[#d9d9d95c] border-[#140e0e]'}`}
+          >
+            <img className="absolute top-[78px] left-[203px] w-[146px] h-[146px] aspect-[1] object-cover" alt="Binoculars" src="/bin.svg" />
+            <div className="absolute top-[205px] left-[122px] w-[305px] font-extrabold text-black text-2xl tracking-[1.20px] leading-[normal] text-center">Spotted Anything?</div>
 
-              {/* Open Camera Button */}
-              <div className="absolute top-[380px] left-[120px] w-[327px] h-[60px] cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200" onClick={openCamera}>
-                <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
-                <div className="absolute top-[15px] left-[110px] w-[251px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">Open Camera</div>
-                <img className="absolute top-2.5 left-14 w-[38px] h-[38px] aspect-[1] object-cover" alt="Cam" src="/cam.svg" />
-              </div>
-
-              {/* Upload Photo Button */}
-              <div className="absolute top-[475px] left-[120px] w-[329px] h-[60px] cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200" onClick={() => fileInputRef.current?.click()}>
-                <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
-                <div className="absolute top-[15px] left-[68px] w-[178px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">Upload Photo</div>
-                <img className="absolute top-2.5 left-[227px] w-[37px] h-[38px] aspect-[1] object-cover" alt="Pic" src="/pic.svg" />
-              </div>
-            </>
-          )}
-
-          {/* Active Camera View */}
-          {showCamera && (
-            <div className="relative w-full h-full bg-black">
-              {/* Loading Overlay */}
-              {isCameraLoading && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 text-white">
-                  <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4"></div>
-                  <p className="font-semibold tracking-wider text-sm">STARTING CAMERA...</p>
-                </div>
-              )}
-
-              {/* Video Element */}
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-
-              {/* Overlay Controls */}
-              {!isCameraLoading && (
-                <div className="absolute inset-0 z-10 flex flex-col justify-end pb-12">
-                  <div className="flex items-center justify-center gap-8 px-8">
-                    
-                    {/* 1. Upload Button (Left) */}
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition border border-white/30 shadow-lg"
-                      title="Upload Photo"
-                    >
-                      <img src="/pic.svg" alt="Upload" className="w-6 h-6 object-contain" />
-                    </button>
-
-                    {/* 2. Shutter Button (Center) */}
-                    <button onClick={capturePhoto} className="group relative w-20 h-20 rounded-full border-4 border-white bg-transparent flex items-center justify-center hover:scale-105 transition-transform shadow-xl mx-2">
-                      <div className="w-16 h-16 bg-white rounded-full group-active:scale-90 transition-transform" />
-                    </button>
-
-                    {/* 3. Exit Button (Right) */}
-                    <button onClick={closeCamera} className="w-14 h-14 bg-red-500/80 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-red-600 transition shadow-lg border border-red-400/50" title="Close Camera">
-                      <span className="text-2xl font-bold mb-0.5">×</span>
-                    </button>
-                    
-                  </div>
-                </div>
-              )}
+            {/* Open Camera Button */}
+            <div className="absolute top-[380px] left-[120px] w-[327px] h-[60px] cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200" onClick={openCamera}>
+              <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
+              <div className="absolute top-[15px] left-[110px] w-[251px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">Open Camera</div>
+              <img className="absolute top-2.5 left-14 w-[38px] h-[38px] aspect-[1] object-cover" alt="Cam" src="/cam.svg" />
             </div>
-          )}
-        </div>
+
+            {/* Upload Photo Button */}
+            <div className="absolute top-[475px] left-[120px] w-[329px] h-[60px] cursor-pointer hover:opacity-90 hover:scale-105 transition-all duration-200" onClick={() => fileInputRef.current?.click()}>
+              <div className="absolute top-0 left-0 w-[327px] h-[60px] bg-white rounded-[29px] shadow-lg" />
+              <div className="absolute top-[15px] left-[68px] w-[178px] font-semibold text-black text-xl tracking-[1.00px] leading-[normal]">Upload Photo</div>
+              <img className="absolute top-2.5 left-[227px] w-[37px] h-[38px] aspect-[1] object-cover" alt="Pic" src="/pic.svg" />
+            </div>
+          </div>
+        )}
+
+        {/* Active Camera View */}
+        {showCamera && (
+          <div className={`absolute top-[25px] left-[444px] w-[552px] h-[650px] rounded-[76px] overflow-hidden z-20 bg-black`}>
+            {isCameraLoading && (
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 text-white">
+                <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mb-4"></div>
+                <p className="font-semibold tracking-wider text-sm">STARTING CAMERA...</p>
+              </div>
+            )}
+
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+
+            {!isCameraLoading && (
+              <div className="absolute inset-0 z-10 flex flex-col justify-end pb-12">
+                <div className="flex items-center justify-center gap-8 px-8">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition border border-white/30 shadow-lg"
+                  >
+                    <img src="/pic.svg" alt="Upload" className="w-6 h-6 object-contain" />
+                  </button>
+
+                  <button onClick={capturePhoto} className="group relative w-20 h-20 rounded-full border-4 border-white bg-transparent flex items-center justify-center hover:scale-105 transition-transform shadow-xl mx-2">
+                    <div className="w-16 h-16 bg-white rounded-full group-active:scale-90 transition-transform" />
+                  </button>
+
+                  <button onClick={closeCamera} className="w-14 h-14 bg-red-500/80 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-red-600 transition shadow-lg border border-red-400/50">
+                    <span className="text-2xl font-bold mb-0.5">×</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* User Icons & Footer Info */}
         <img className="top-[640px] left-[-10px] w-[30px] h-[30px] absolute aspect-[1] object-cover" alt="User" src="/user (2) 6.svg" />
-        
         <div className={`absolute top-[643px] left-[35px] w-[156px] font-black text-base tracking-[0.80px] leading-[normal] ${isDarkMode ? 'text-[#a0c563]' : 'text-[#072d0d]'}`}>
-          @username
-        </div>
-        
-        <div className={`absolute top-[120px] left-[20px] w-[251px] font-extrabold text-xl tracking-[1.00px] leading-[normal] ${isDarkMode ? 'text-[#dad2b9]' : 'text-[#4d4d4d]'}`}>
-          Chat History
+          @{username || 'user'}
         </div>
 
         {/* Back Button */}
@@ -672,6 +1040,409 @@ export const AiChatLoggedIn = (): React.ReactElement => {
             back
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirmMsg && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60" onClick={() => setDeleteConfirmMsg(null)} />
+            <div 
+              className="relative rounded-2xl shadow-2xl w-[400px] p-6 z-[201]"
+              style={{ 
+                background: isDarkMode ? '#3b423b' : '#f1eee5',
+                border: '2px solid #899A3C'
+              }}
+            >
+              <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-[#dad2b9]' : 'text-[#072d0d]'}`}>
+                Delete Conversation?
+              </h3>
+              <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                This will permanently delete this conversation and cannot be undone.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setDeleteConfirmMsg(null)}
+                  className={`px-6 py-2 rounded-full font-semibold transition hover:opacity-80 ${
+                    isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-800'
+                  }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const msg = deleteConfirmMsg;
+                    setDeleteConfirmMsg(null);
+                    
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                      try {
+                        // Find all messages in this conversation (within 5 min window)
+                        const msgTime = msg.timestamp.getTime();
+                        const conversationMsgs = chatHistory.filter(m => {
+                          const diff = Math.abs(m.timestamp.getTime() - msgTime);
+                          return diff < 5 * 60 * 1000;
+                        });
+                        
+                        console.log('Attempting to delete messages:', conversationMsgs.map(m => ({ id: m.id, type: m.type })));
+                        
+                        // Delete each message individually to avoid query issues
+                        let deletedCount = 0;
+                        for (const message of conversationMsgs) {
+                          const { error, count } = await supabase
+                            .from('chat_history')
+                            .delete()
+                            .eq('id', message.id)
+                            .eq('user_id', user.id);
+                          
+                          if (error) {
+                            console.error('Delete error for message:', message.id, error);
+                            alert(`Failed to delete message: ${error.message}`);
+                            return;
+                          } else {
+                            deletedCount++;
+                            console.log('Successfully deleted message:', message.id);
+                          }
+                        }
+                        
+                        console.log(`Successfully deleted ${deletedCount} messages`);
+                        
+                        // Refresh history
+                        const { data } = await supabase
+                          .from('chat_history')
+                          .select('*')
+                          .eq('user_id', user.id)
+                          .order('created_at', { ascending: true });
+                        
+                        if (data) {
+                          const historyMessages: Message[] = data.map((item: any) => ({
+                            id: item.id,
+                            type: item.role === 'user' ? 'user' : 'assistant',
+                            content: item.content || "",
+                            image: item.image_url || undefined,
+                            predictions: item.predictions as Prediction[],
+                            timestamp: new Date(item.created_at),
+                          sessionId: item.id
+                        }));
+                        setChatHistory(historyMessages);
+                      }
+                      
+                      // Clear current messages if any were deleted
+                      if (conversationMsgs.some(m => messages.some(msg => msg.id === m.id))) {
+                        setMessages([]);
+                        setCurrentSessionId(Date.now().toString());
+                      }
+                    } catch (error) {
+                      console.error('Failed to delete conversation:', error);
+                      alert('Failed to delete conversation. Please try again.');
+                    }
+                  }
+                  }}
+                  className="px-6 py-2 rounded-full font-semibold bg-red-500 text-white hover:bg-red-600 transition"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* POST TO COMMUNITY MODAL */}
+        {showPostToCommunityModal && selectedMessageToPost && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+              onClick={() => {
+                if (!isPostingToCommunity) {
+                  setShowPostToCommunityModal(false);
+                  setSelectedCommunityId(null);
+                  setPostTitle('');
+                  setPostContent('');
+                  setSelectedFlairs([]);
+                }
+              }}
+            />
+            <div className="relative w-full max-w-2xl">
+              <div 
+                className={`w-full rounded-[40px] border shadow-2xl max-h-[90vh] flex flex-col animate-genie-in ${isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"}`}
+              >
+                {/* Header */}
+                <div className={`flex justify-between items-center px-8 pt-8 pb-4 border-b ${isDarkMode ? "border-white/10" : "border-black/10"}`}>
+                  <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-full border flex items-center justify-center ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
+                      <span className="text-2xl">📮</span>
+                    </div>
+                    <h2 className="font-extrabold text-2xl italic">
+                      {selectedCommunityId ? 'Customize Post' : 'Post to Community'}
+                    </h2>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setShowPostToCommunityModal(false);
+                      setSelectedCommunityId(null);
+                      setPostTitle('');
+                      setPostContent('');
+                      setSelectedFlairs([]);
+                    }}
+                    disabled={isPostingToCommunity}
+                    className="p-2 hover:bg-black/5 rounded-full transition-colors disabled:opacity-50"
+                  >
+                    <span className="text-3xl leading-none">✕</span>
+                  </button>
+                </div>
+
+                {/* Form - Scrollable Content */}
+                <div className="flex-1 overflow-y-auto px-8 py-6">
+                  {!selectedCommunityId ? (
+                    // STEP 1: Select Community
+                    <div className="flex flex-col gap-5">
+                      {/* Preview */}
+                      <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
+                        <p className="text-sm font-bold mb-3 opacity-70">Preview:</p>
+                        {selectedMessageToPost.image && (
+                          <img 
+                            src={selectedMessageToPost.image} 
+                            alt="Preview" 
+                            className="w-full h-40 object-cover rounded-xl mb-3"
+                          />
+                        )}
+                        {selectedMessageToPost.predictions && selectedMessageToPost.predictions[0] && (
+                          <div className="text-sm">
+                            <p className="font-bold">{selectedMessageToPost.predictions[0].common_name}</p>
+                            <p className="italic opacity-70">{selectedMessageToPost.predictions[0].scientific_name}</p>
+                            <p className="text-xs opacity-60 mt-1">Confidence: {selectedMessageToPost.predictions[0].confidence || 'N/A'}%</p>
+                          </div>
+                        )}
+                      </div>
+
+                      <p className="text-sm font-medium opacity-70">
+                        Select a community to post this identification:
+                      </p>
+
+                      {/* Community list */}
+                      <div className="space-y-3 max-h-[300px] overflow-y-auto">
+                        {userCommunities.length > 0 ? (
+                          userCommunities.map((community: any) => (
+                            <button
+                              key={community.community_id}
+                              onClick={() => handleSelectCommunity(community.community_id)}
+                              className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all ${
+                                isDarkMode 
+                                  ? "border-gray-600 bg-[#333] hover:bg-[#444] hover:border-[#7D9B76]" 
+                                  : "border-gray-300 bg-white hover:bg-[#E2DFC8] hover:border-[#7D9B76]"
+                              }`}
+                            >
+                              {community.profile_picture ? (
+                                <img 
+                                  src={community.profile_picture} 
+                                  alt={community.community_name}
+                                  className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-[#7D9B76] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
+                                  {community.community_name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <span className="font-bold text-base text-left">{community.community_name}</span>
+                            </button>
+                          ))
+                        ) : (
+                          <div className={`text-center py-12 px-4 rounded-2xl border-2 ${
+                            isDarkMode ? 'border-gray-600 bg-[#333]' : 'border-gray-300 bg-white'
+                          }`}>
+                            <p className="text-base mb-4 opacity-70">You're not a member of any communities yet.</p>
+                            <button
+                              onClick={() => {
+                                setShowPostToCommunityModal(false);
+                                router.push('/dashboard');
+                              }}
+                              className="px-6 py-3 rounded-full font-bold bg-[#7D9B76] text-white hover:bg-[#6B8765]"
+                            >
+                              Join a Community →
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    // STEP 2: Customize Post
+                    <div className="flex flex-col gap-5">
+                      {/* Back button */}
+                      <button
+                        onClick={() => setSelectedCommunityId(null)}
+                        className="text-sm text-[#7D9B76] hover:underline self-start"
+                      >
+                        ← Back to communities
+                      </button>
+
+                      {/* Title */}
+                      <div>
+                        <label className="block text-sm font-bold mb-2 opacity-70">
+                          Title *
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g., Can anyone identify this bird?"
+                          value={postTitle}
+                          onChange={(e) => setPostTitle(e.target.value)}
+                          maxLength={100}
+                          className={`w-full text-xl font-bold bg-transparent outline-none border-b-2 pb-2 placeholder:italic transition-colors ${
+                            isDarkMode 
+                              ? "border-gray-600 placeholder:text-gray-500 focus:border-[#5E5CE6]" 
+                              : "border-gray-300 placeholder:text-gray-400 focus:border-[#5E5CE6]"
+                          }`}
+                        />
+                        <div className="text-xs opacity-50 mt-1 text-right">
+                          {postTitle.length}/100
+                        </div>
+                      </div>
+
+                      {/* AI Identification Result (Read-only) */}
+                      {selectedMessageToPost.predictions && selectedMessageToPost.predictions[0] && (
+                        <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#2a2a2a] border-[#7D9B76]' : 'bg-[#f0f7e8] border-[#7D9B76]'}`}>
+                          <p className="text-sm font-bold mb-3 opacity-70">🤖 AI Identification Result:</p>
+                          <div className={`text-sm font-mono ${isDarkMode ? 'text-[#a8d08d]' : 'text-[#4a6b3a]'}`}>
+                            <p className="mb-1">Species: {selectedMessageToPost.predictions[0].common_name} ({selectedMessageToPost.predictions[0].scientific_name})</p>
+                            <p>📊 Confidence Level: {selectedMessageToPost.predictions[0].confidence || 'N/A'}%</p>
+                            <p>⚠️ Danger Level: {selectedMessageToPost.predictions[0].danger_level}</p>
+                            <p>📍 Status: {selectedMessageToPost.predictions[0].status}</p>
+                            <p>🌿 Conservation Status: {selectedMessageToPost.predictions[0].conservation_status}</p>
+                          </div>
+                          <p className="text-xs opacity-60 mt-2 italic">This section will be included in your post automatically</p>
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <div>
+                        <label className="block text-sm font-bold mb-2 opacity-70">
+                          Additional Details *
+                        </label>
+                        <textarea
+                          placeholder="Add your own observations, location, questions for the community..."
+                          value={postContent.split('🌿 Conservation Status: ').slice(-1)[0].split('\n\n').slice(-1)[0] || ''}
+                          onChange={(e) => {
+                            // Preserve the AI identification part and only update the user's additional text
+                            const pred = selectedMessageToPost.predictions?.[0];
+                            if (pred) {
+                              const aiPart = 
+                                `🤖 AI Identification Result\n\n` +
+                                `Species: ${pred.common_name} (${pred.scientific_name})\n` +
+                                `📊 Confidence Level: ${pred.confidence || 'N/A'}%\n` +
+                                `⚠️ Danger Level: ${pred.danger_level}\n` +
+                                `📍 Status: ${pred.status}\n` +
+                                `🌿 Conservation Status: ${pred.conservation_status}\n\n`;
+                              setPostContent(aiPart + e.target.value);
+                            } else {
+                              setPostContent(e.target.value);
+                            }
+                          }}
+                          maxLength={1000}
+                          rows={6}
+                          className={`w-full text-base bg-transparent outline-none border-2 rounded-xl p-4 placeholder:italic transition-colors resize-none ${
+                            isDarkMode 
+                              ? "border-gray-600 placeholder:text-gray-500 focus:border-[#5E5CE6]" 
+                              : "border-gray-300 placeholder:text-gray-400 focus:border-[#5E5CE6]"
+                          }`}
+                        />
+                        <div className="text-xs opacity-50 mt-1 text-right">
+                          {postContent.length}/1000
+                        </div>
+                      </div>
+
+                      {/* Categories */}
+                      <div>
+                        <label className="block text-sm font-bold mb-2 opacity-70">
+                          Categories (Optional)
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {['Mammals', 'Birds', 'Reptiles', 'Amphibians', 'Fish', 'Insects', 'Plants', 'Fungi', 'Other'].map(category => (
+                            <button
+                              key={category}
+                              onClick={() => {
+                                setSelectedFlairs(prev => 
+                                  prev.includes(category) 
+                                    ? prev.filter(f => f !== category)
+                                    : [...prev, category]
+                                );
+                              }}
+                              className={`px-4 py-2 rounded-full text-sm font-bold transition-colors ${
+                                selectedFlairs.includes(category)
+                                  ? 'bg-[#7D9B76] text-white'
+                                  : isDarkMode
+                                    ? 'bg-[#333] border-2 border-gray-600 hover:border-[#7D9B76]'
+                                    : 'bg-white border-2 border-gray-300 hover:border-[#7D9B76]'
+                              }`}
+                            >
+                              {category}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Image preview */}
+                      {selectedMessageToPost.image && (
+                        <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
+                          <p className="text-sm font-bold mb-2 opacity-70">Attached Image:</p>
+                          <img 
+                            src={selectedMessageToPost.image} 
+                            alt="Attached" 
+                            className="w-full h-40 object-cover rounded-xl"
+                          />
+                        </div>
+                      )}
+
+                      {/* Post button */}
+                      <button
+                        onClick={handlePostToCommunity}
+                        disabled={isPostingToCommunity || !postTitle.trim() || !postContent.trim()}
+                        className={`w-full py-4 rounded-full font-bold text-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                          isDarkMode
+                            ? 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
+                            : 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
+                        }`}
+                      >
+                        {isPostingToCommunity ? 'Posting...' : 'Post to Community'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SUCCESS MODAL */}
+        {showSuccessModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <div 
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowSuccessModal(false)}
+            />
+            <div className="relative w-full max-w-md">
+              <div 
+                className={`w-full rounded-[40px] border shadow-2xl p-8 flex flex-col items-center animate-genie-in ${
+                  isDarkMode ? "bg-[#222222] border-white/20 text-white" : "bg-[#F8FDEB] border-black/10 text-black"
+                }`}
+              >
+                <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${
+                  isDarkMode ? 'bg-[#7D9B76]' : 'bg-[#7D9B76]'
+                }`}>
+                  <span className="text-5xl">✓</span>
+                </div>
+                <h2 className="font-extrabold text-2xl mb-2 text-center">Success!</h2>
+                <p className="text-center mb-6 opacity-80">{successMessage}</p>
+                <button
+                  onClick={() => setShowSuccessModal(false)}
+                  className={`px-8 py-3 rounded-full font-bold transition-colors ${
+                    isDarkMode
+                      ? 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
+                      : 'bg-[#7D9B76] text-white hover:bg-[#6B8765]'
+                  }`}
+                >
+                  Awesome!
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

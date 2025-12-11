@@ -1,16 +1,80 @@
 "use client";
 
-import React, { useState } from 'react'
+import React, { useState, useTransition } from 'react'
 import Link from 'next/link';
 import { PiEyeBold, PiEyeClosedBold } from "react-icons/pi";
 import { FaFacebookSquare } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 import { login, signInWithFacebook, signInWithGoogle } from '@/src/lib/auth-actions';
 import { useRouter } from 'next/navigation';
+import { useProfiles } from '@/src/lib/hooks/useProfiles';
 
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
+    const [error, setError] = useState<string>('');
+    const [loading, setLoading] = useState(false);
+    const { checkUserProfile } = useProfiles("");
+
+    const validateEmail = (email: string): string | null => {
+        if (!email.trim()) {
+            return 'Email is required';
+        }
+        
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return 'Please enter a valid email address';
+        }
+        
+        return null;
+    };
+
+    const validatePassword = (password: string): string | null => {
+        if (!password) {
+            return 'Password is required';
+        }
+        return null;
+    };
+
+    const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+
+        const formData = new FormData(e.currentTarget);
+        const email = formData.get('email') as string;
+        const password = formData.get('password') as string;
+
+        const emailError = validateEmail(email);
+        if (emailError) {
+            setError(emailError);
+            setLoading(false);
+            return;
+        }
+
+        const passwordError = validatePassword(password);
+        if (passwordError) {
+            setError(passwordError);
+            setLoading(false);
+            return;
+        }
+
+        try {
+            const res = await login(formData);
+
+            if (res?.userId) {
+                const redirected = await checkUserProfile(res.userId);
+                if (!redirected) {
+                    router.push("/dashboard");
+                }
+                return;
+            }
+            
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An error occurred during signup');
+            setLoading(false);
+        }
+    };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-[#82C3C1] to-white overflow-hidden">
@@ -48,7 +112,13 @@ export default function LoginPage() {
                     </h3>
                 </div>
 
-                <form action={login} className="flex flex-col items-center justify-center">
+                {error && (
+                    <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+                        {error}
+                    </div>
+                )}
+
+                <form onSubmit={handleLogin} className="flex flex-col items-center justify-center">
                     <div className="mt-4">
                         <div className="relative w-fit">
                             <input
@@ -57,6 +127,7 @@ export default function LoginPage() {
                                 type="email"
                                 className="border border-[#082E0D8F] outline-none focus:border-black p-3 px-5 w-100 rounded-lg cursor-text"
                                 autoComplete="off"
+                                disabled={loading}
                             />
                             <div className="absolute left-5 -top-3">
                                 <label
@@ -76,11 +147,13 @@ export default function LoginPage() {
                                 type={showPassword ? "text" : "password"}
                                 className="border border-[#082E0D8F] outline-none focus:border-black p-3 px-5 w-100 rounded-lg cursor-text transition-colors duration-600 ease-in-out"
                                 autoComplete="off"
+                                disabled={loading}
                             />
                             <button 
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute top-1/2 right-3 -translate-y-1/2 bg-white cursor-pointer"
+                                disabled={loading}
                             >
                                 {showPassword ? (
                                     <PiEyeBold className="text-2xl" />
@@ -101,15 +174,19 @@ export default function LoginPage() {
                         <div className="text-left py-1 px-5">
                             <button 
                                 onClick={() => router.push("/auth/forgot-password")}
+                                disabled={loading}
                                 className="font-poppins-italic text-sm text-[#082E0D8F] hover:text-black transition-colors duration-300 ease-in-out cursor-pointer">
                                     Forgot password?
                             </button>
                         </div>
                     </div>
 
-                    <button type="submit" className="w-65 mt-3 rounded-lg font-poppins-bold text-2xl p-2 text-[#082E0D] bg-[#95AB33B2] 
-                        shadow-[0_4px_8px_rgba(0,0,0,0.3)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer">
-                        Log In
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-65 mt-3 rounded-lg font-poppins-bold text-2xl p-2 text-[#082E0D] bg-[#95AB33B2] 
+                            shadow-[0_4px_8px_rgba(0,0,0,0.3)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer">
+                        {loading ? 'Logging In...' : 'Log In'}
                     </button>
                 </form>
 

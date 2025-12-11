@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react'
+import  { useRef, useState } from 'react'
 import { FaLink } from "react-icons/fa";
 import FileUpload from './FileUpload';
 import JobInput from './JobInput';
@@ -11,23 +11,59 @@ import useExperts from '@/src/lib/hooks/useExperts';
 
 export default function ExpertVerification({currentUser} : {currentUser: string}) {
     const jobOptions = [
-        "Software Engineer",
-        "Product Manager",
-        "Designer",
-        "Data Analyst",
-        "Marketing Specialist",
+        "Wildlife Biologist",
+        "Conservation Biologist",
+        "Zoologist",
+        "Ecologist",
+        "Environmental Scientist",
+        "Wildlife Veterinarian",
+        "Marine Biologist",
+        "Forestry Specialist",
+        "Wildlife Rehabilitator",
+        "Animal Behaviorist",
+        "Park Ranger",
+        "Field Researcher",
+        "Environmental Educator",
+        "Biodiversity Specialist",
+        "Habitat Restoration Specialist",
+        "Wildlife Policy Specialist",
+        "Fisheries Scientist",
+        "Ornithologist",
+        "Herpetologist",
+        "Mammalogist",
+        "Entomologist",
     ];
+
+    const allowedMimeTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png",
+    ];
+
 
     const [selectedJob, setSelectedJob] = useState("");
     const [profileLink, setProfileLink] = useState("");
     const [showVerificationModal, setShowVerificationModal] = useState(false);
-    const [idDocument, setIdDocument] = useState("");
-    const [employmentProof, setEmploymentProof] = useState("");
-    const [diplomaDocument, setDiplomaDocument] = useState("");
     const [submitError, setSubmitError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const { createExpert } = useExperts(currentUser);
+    const [idDocument, setIdDocument] = useState("");
+    const [employmentProof, setEmploymentProof] = useState("");
+    const [diplomaDocument, setDiplomaDocument] = useState("");
+
+    const [idDocFile, setIdDocFile] = useState<File | null>(null);
+    const [employmentProofFile, setEmploymentProofFile] = useState<File | null>(null);
+    const [diplomaFile, setDiplomaFile] = useState<File | null>(null);
+
+    const { 
+        createExpert,
+        uploadingIdDocu,
+        uploadingEmploymentProof,
+        uploadingDiplomaDocu
+     } = useExperts(currentUser);
+
     const router = useRouter();
     const handleBack = () => {
         if (window.history.length > 1) {
@@ -37,39 +73,80 @@ export default function ExpertVerification({currentUser} : {currentUser: string}
         }
     }
 
-    const handleContinue = async () => {
-        if (!selectedJob.trim()) {
-            alert("Please provide your job or occupation.");
+    const handleFileChange = (
+        e: React.ChangeEvent<HTMLInputElement>,
+        fileType: "id" | "employment" | "diploma"
+        ) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (!allowedMimeTypes.includes(file.type)) {
+            alert("Invalid file type. Only PDF, Word, JPEG, PNG are allowed.");
             return;
         }
 
-        if (!idDocument && !employmentProof && !diplomaDocument) {
-            alert("Please upload at least one supporting document.");
+        if (file.size > 100 * 1024 * 1024) {
+            alert("File size must be less than 100MB");
             return;
         }
 
-        try {
-            setIsSubmitting(true);
-            setSubmitError(null);
-            const payload = {
-                occupation: selectedJob,
-                id_docu: idDocument,
-                employment_proof: employmentProof,
-                diploma_docu: diplomaDocument,
-                ...(profileLink.trim()
-                    ? { academic_profile: profileLink.trim() }
-                    : {}),
-            };
-            await createExpert(payload);
-            setShowVerificationModal(true);
-        } catch (err) {
-            const message = err instanceof Error ? err.message : "Failed to submit verification.";
-            setSubmitError(message);
-            alert(message);
-        } finally {
-            setIsSubmitting(false);
+        switch (fileType) {
+            case "id":
+                setIdDocFile(file);
+            break;
+            case "employment":
+                setEmploymentProofFile(file);
+            break;
+            case "diploma":
+                setDiplomaFile(file);
+            break;
         }
     };
+
+
+    const handleContinue = async () => {
+    if (!selectedJob.trim()) {
+        alert("Please provide your job or occupation.");
+        return;
+    }
+
+    // FIXED VALIDATION
+    if (!idDocFile && !employmentProofFile && !diplomaFile) {
+        alert("Please upload at least one supporting document.");
+        return;
+    }
+
+    try {
+        const expertData: {
+            occupation: string;
+            id_docu?: File | string;
+            employment_proof?: File | string;
+            diploma_docu?: File | string;
+            academic_profile?: string;
+        } = {
+            occupation: selectedJob,
+        };
+
+        if (idDocFile) expertData.id_docu = idDocFile;
+        if (employmentProofFile) expertData.employment_proof = employmentProofFile;
+        if (diplomaFile) expertData.diploma_docu = diplomaFile;
+
+        if (profileLink.trim()) {
+            expertData.academic_profile = profileLink.trim();
+        }
+
+        await createExpert(expertData as any);
+        setShowVerificationModal(true);
+
+    } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to submit verification.";
+        setSubmitError(message);
+        alert(message);
+    } finally {
+        setIsSubmitting(false);
+    }
+};
+
 
     if (showVerificationModal) {
         return <VerificationModal />;
@@ -126,21 +203,21 @@ export default function ExpertVerification({currentUser} : {currentUser: string}
                     label="ID/Certificate"
                     id="certificateFile"
                     acceptedFiles=".pdf,.jpg,.png"
-                    onFileLoad={setIdDocument}
+                    onFileChange={(e) => handleFileChange(e, "id")}
                 />
 
                 <FileUpload 
                     label="Employment/Organization Proof"
                     id="employmentFile"
                     acceptedFiles=".pdf,.jpg,.png"
-                    onFileLoad={setEmploymentProof}
+                    onFileChange={(e) => handleFileChange(e, "employment")}
                 />
 
                 <FileUpload 
                     label="Degree/Diploma"
                     id="diplomaFile"
                     acceptedFiles=".pdf,.jpg,.png"
-                    onFileLoad={setDiplomaDocument}
+                    onFileChange={(e) => handleFileChange(e, "diploma")}
                 />
             </div>
 
