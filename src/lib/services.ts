@@ -379,10 +379,23 @@ export const voteService = {
             .single();
 
         if (error) throw error;
+    },
+
+    async removeVote(userId: string, postId: string) {
+        const supabase = getSupabase();
+        const { error } = await supabase
+            .from("votes")
+            .delete()
+            .eq("user_id", userId)
+            .eq("post_id", postId);
+
+        if (error) throw error;
+    },
 }
 
 export const adminService = {
     async getTotalUsers() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .select("*")
@@ -392,6 +405,7 @@ export const adminService = {
     },
 
     async getActiveUsers() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .select("*")
@@ -402,6 +416,7 @@ export const adminService = {
     },
 
     async getSuspendedUsers() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .select("*")
@@ -412,6 +427,7 @@ export const adminService = {
     },
 
     async getVerifiedExperts() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("experts")
             .select("*")
@@ -422,6 +438,7 @@ export const adminService = {
     },
 
     async getPendingExperts() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("experts")
             .select("*")
@@ -432,6 +449,7 @@ export const adminService = {
     },
 
     async approveExpert(expert_id: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("experts")
             .update({ is_verified: "true", verified_at: new Date().toISOString() })
@@ -442,6 +460,7 @@ export const adminService = {
     },
 
     async rejectExpert(expert_id: string) {
+        const supabase = getSupabase();
         const { data: expertData, error: fetchError } = await supabase
             .from("experts")
             .select("user_id")
@@ -469,6 +488,7 @@ export const adminService = {
     },
 
     async activateUser(user_id: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .update({ is_suspended: false })
@@ -479,6 +499,7 @@ export const adminService = {
     },
 
     async suspendUser(user_id: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
             .update({ is_suspended: true })
@@ -489,6 +510,7 @@ export const adminService = {
     },
 
     async getTotalReports() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("reports")
             .select("*")
@@ -498,6 +520,7 @@ export const adminService = {
     },
 
     async getUndismissedReports() {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("reports")
             .select("*")
@@ -508,6 +531,7 @@ export const adminService = {
     },
 
     async getPost(postId: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("posts")
             .select("*")
@@ -522,6 +546,7 @@ export const adminService = {
     },
 
     async getComment(commentId: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("comments")
             .select("*")
@@ -545,6 +570,7 @@ export const adminService = {
         if (error) throw error;
     },
     async dismissReport(reportId: string) {
+        const supabase = getSupabase();
         const { data, error } = await supabase
             .from("reports")
             .update({ is_dismissed: true })
