@@ -1250,13 +1250,13 @@ useEffect(() => {
                   {/* Profile Dropdown */}
                   {isProfileOpen && (
                       <div 
-                          className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50"
+                          className={`absolute right-0 mt-1 w-64 rounded-xl shadow-xl overflow-hidden z-50 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}
                           style={{ border: '2px solid #899A3C' }}
                           onMouseDown={(e) => e.preventDefault()}
                       >
                           {/* User Info Section */}
-                          <div className="px-4 py-3 border-b border-gray-300 flex items-center gap-3">
-                              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                          <div className={`px-4 py-3 border-b flex items-center gap-3 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden shrink-0 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}>
                                   {userProfile?.profile_picture ? (
                                     <img 
                                       src={userProfile.profile_picture} 
@@ -1264,50 +1264,50 @@ useEffect(() => {
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
-                                    <User className="w-6 h-6 text-gray-500" />
+                                    <User className={`w-6 h-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                                   )}
                               </div>
                               <div>
-                                  <h3 className="text-base font-bold text-gray-900">@{currentUsername}</h3>
-                                  <p className="text-xs text-gray-600 mt-0.5">{currentEmail}</p>
+                                  <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>@{currentUsername}</h3>
+                                  <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{currentEmail}</p>
                               </div>
                           </div>
 
                           {/* Menu Items */}
                           <div className="py-1">
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                                   onClick={() => {
                                       setIsProfileOpen(false);
                                       router.push('/profile');
                                   }}
                               >
-                                  <Edit className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">Edit Profile</span>
+                                  <Edit className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Edit Profile</span>
                               </button>
                               
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                                   onClick={() => {
                                       setIsProfileOpen(false);
                                       router.push('/settings');
                                   }}
                               >
-                                  <Settings className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">Account Settings</span>
+                                  <Settings className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Account Settings</span>
                               </button>
                               
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                                   onClick={() => {/* Help Center logic here */}}
                               >
-                                  <HelpCircle className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">Help Center</span>
+                                  <HelpCircle className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Help Center</span>
                               </button>
                           </div>
 
                           {/* Log Out Section */}
-                          <div className="border-t border-gray-400">
+                          <div className={`border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-400'}`}>
                               <button 
                                   className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
                                   onClick={async () => {
@@ -1320,8 +1320,8 @@ useEffect(() => {
                                       }
                                   }}
                               >
-                                  <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
-                                  <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+                                  <LogOut className={`w-4 h-4 group-hover:text-white ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium group-hover:text-white ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Log Out</span>
                               </button>
                           </div>
                       </div>

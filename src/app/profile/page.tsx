@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft } from 'lucide-react';
+import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft, Crown } from 'lucide-react';
 import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
@@ -33,6 +33,7 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isExpert, setIsExpert] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -56,16 +57,19 @@ export default function ProfilePage() {
 
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('username, name, location, profile_picture')
+          .select('username, name, location, profile_picture, is_expert')
           .eq('user_id', user.id)
           .single();
 
         // Check if user is an expert to get occupation
         const { data: expertData } = await supabase
           .from('experts')
-          .select('occupation')
+          .select('occupation, is_verified')
           .eq('user_id', user.id)
           .single();
+
+        // Set expert status
+        setIsExpert(profile?.is_expert || (expertData?.is_verified === true));
 
         if (profile) {
           setFormData({
@@ -242,43 +246,43 @@ export default function ProfilePage() {
   {/* Profile Dropdown */}
   {isProfileOpen && (
     <div 
-     className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50"
+     className={`absolute right-0 mt-1 w-64 rounded-xl shadow-xl overflow-hidden z-50 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}
       style={{ border: '2px solid #899A3C' }}
       onMouseDown={(e) => e.preventDefault()}
     >
       {/* User Info Section */}
-      <div className="px-4 py-3 border-b border-gray-300">
-        <h3 className="text-base font-bold text-gray-900">@{formData.username || 'username'}</h3>
-        <p className="text-xs text-gray-600 mt-0.5">{formData.email || 'email@example.com'}</p>
+      <div className={`px-4 py-3 border-b ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+        <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>@{formData.username || 'username'}</h3>
+        <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{formData.email || 'email@example.com'}</p>
       </div>
 
       {/* Menu Items - WITHOUT "View Profile" since we're already on the profile edit page */}
       <div className="py-1">
         <button 
-          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
           onClick={() => {
             setIsProfileOpen(false);
             router.push('/settings');
           }}
         >
-          <Settings className="w-4 h-4 text-gray-700" />
-          <span className="text-sm font-medium text-gray-900">Account Settings</span>
+          <Settings className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Account Settings</span>
         </button>
         
         <button 
-          className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+          className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
           onClick={() => {
             setIsProfileOpen(false);
             // Help Center logic here
           }}
         >
-          <HelpCircle className="w-4 h-4 text-gray-700" />
-          <span className="text-sm font-medium text-gray-900">Help Center</span>
+          <HelpCircle className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+          <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Help Center</span>
         </button>
       </div>
 
       {/* Log Out Section */}
-      <div className="border-t border-gray-400">
+      <div className={`border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-400'}`}>
         <button 
           className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
           onClick={async () => {
@@ -290,8 +294,8 @@ export default function ProfilePage() {
             }
           }}
         >
-          <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
-          <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+          <LogOut className={`w-4 h-4 group-hover:text-white ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+          <span className={`text-sm font-medium group-hover:text-white ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Log Out</span>
         </button>
       </div>
     </div>
@@ -308,22 +312,22 @@ export default function ProfilePage() {
       {/* Main Content */}
       <div className="relative z-10 flex gap-10 px-12 py-20 max-w-[1800px] mx-auto">
         {isLoading ? (
-          <div className="flex-1 bg-white rounded-[40px] p-15 shadow-2xl w-250 flex items-center justify-center">
+          <div className={`flex-1 rounded-[40px] p-15 shadow-2xl w-250 flex items-center justify-center ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}>
             <div className="text-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#306137] mx-auto mb-4"></div>
-              <p className="text-gray-600 text-lg">Loading profile...</p>
+              <p className={`text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Loading profile...</p>
             </div>
           </div>
         ) : (
           <>
         {/* Left Panel - Profile Editing Form */}
-        <div className="flex-1 bg-white rounded-[40px] p-15 shadow-2xl w-250">
+        <div className={`flex-1 rounded-[40px] p-15 shadow-2xl w-250 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}>
           <div className="flex gap-8">
             {/* Form Fields */}
             <div className="flex-1 space-y-6">
               {/* Username */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Username</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Username</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -333,16 +337,18 @@ export default function ProfilePage() {
                     onBlur={() => disableFieldEditing('username')}
                     readOnly={!editableFields.username}
                     placeholder="Username"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.username
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('username')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -354,7 +360,7 @@ export default function ProfilePage() {
 
               {/* Name */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Name</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Name</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -364,16 +370,18 @@ export default function ProfilePage() {
                     onBlur={() => disableFieldEditing('name')}
                     readOnly={!editableFields.name}
                     placeholder="Name"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.name
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('name')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -385,7 +393,7 @@ export default function ProfilePage() {
 
               {/* Job/Occupation */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Job/Occupation</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Job/Occupation</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="text"
@@ -395,16 +403,18 @@ export default function ProfilePage() {
                     onBlur={() => disableFieldEditing('job')}
                     readOnly={!editableFields.job}
                     placeholder="Job/Occupation"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.job
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('job')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -416,7 +426,7 @@ export default function ProfilePage() {
 
               {/* Email */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Email</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Email</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="email"
@@ -426,16 +436,18 @@ export default function ProfilePage() {
                     onBlur={() => disableFieldEditing('email')}
                     readOnly={!editableFields.email}
                     placeholder="Email"
-                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 ${
+                    className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
                       editableFields.email
                         ? 'border-[#306137]'
-                        : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
-                    }`}
+                        : isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                    } ${isDarkMode ? 'text-white bg-gray-800' : 'text-gray-900'}`}
                   />
                   <button
                     type="button"
                     onClick={() => enableFieldEditing('email')}
-                    className="p-2.5 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+                    className={`p-2.5 rounded-lg transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                   >
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="#306137" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -447,7 +459,7 @@ export default function ProfilePage() {
 
               {/* Location */}
               <div className="space-y-2">
-                <label className="text-base font-semibold text-gray-800">Location</label>
+                <label className={`text-base font-semibold ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>Location</label>
                 {editableFields.location ? (
                   <div>
                     <LocationSearch 
@@ -470,7 +482,11 @@ export default function ProfilePage() {
                       value={formData.location}
                       readOnly
                       placeholder="Location"
-                      className="flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-gray-900 text-base placeholder:text-gray-400 border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500"
+                      className={`flex-1 px-4 py-3.5 border-2 rounded-xl focus:outline-none text-base placeholder:text-gray-400 ${
+                        isDarkMode 
+                          ? 'border-gray-600 bg-gray-700 cursor-not-allowed text-gray-300'
+                          : 'border-gray-300 bg-gray-50 cursor-not-allowed text-gray-500'
+                      }`}
                     />
                     <button
                       type="button"
@@ -533,7 +549,12 @@ export default function ProfilePage() {
         <aside className="w-80 flex-shrink-0 flex flex-col">
           <div
             className="p-8 text-white shadow-lg relative overflow-hidden"
-            style={{
+            style={isExpert ? {
+              backgroundImage: 'url(/exp.svg)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              borderRadius: '15px',
+            } : {
                background: 'linear-gradient(131deg, #2A5528 15.98%, #927D31 125.22%)',
               borderRadius: '15px',
             }}
@@ -553,6 +574,9 @@ export default function ProfilePage() {
                   <p className="text-base font-semibold opacity-90">@{formData.username || 'username'}</p>
                   <div className="flex items-center gap-2">
                     <p className="text-xl font-bold">{formData.name || 'Your Name'}</p>
+                    {isExpert && (
+                      <img src="/badge.svg" alt="Expert Badge" className="w-6 h-6" />
+                    )}
                   </div>
                 </div>
               </div>

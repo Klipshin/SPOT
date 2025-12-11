@@ -132,12 +132,12 @@ function Header() {
         {/* Profile Dropdown */}
         {isProfileOpen && (
           <div 
-            className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50"
+            className={`absolute right-0 mt-1 w-64 rounded-xl shadow-xl overflow-hidden z-50 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}
             style={{ border: '2px solid #899A3C' }}
             onMouseDown={(e) => e.preventDefault()}
           >
             {/* User Info Section */}
-            <div className="px-4 py-3 border-b border-gray-300 flex items-center gap-3">
+            <div className={`px-4 py-3 border-b flex items-center gap-3 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
               <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden shrink-0">
                 {profilePicture ? (
                   <img 
@@ -150,51 +150,51 @@ function Header() {
                 )}
               </div>
               <div>
-                <h3 className="text-base font-bold text-gray-900">@{username || 'user'}</h3>
-                <p className="text-xs text-gray-600 mt-0.5">{email || 'loading...'}</p>
+                <h3 className={`text-base font-bold ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>@{username || 'user'}</h3>
+                <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{email || 'loading...'}</p>
               </div>
             </div>
             
             {/* Menu Items */}
             <div className="py-1">
               <button 
-                className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                 onClick={() => {
                   setIsProfileOpen(false);
                   router.push('/profile');
                 }}
               >
-                <Edit2 className="w-4 h-4 text-gray-700" />
-                <span className="text-sm font-medium text-gray-900">Edit Profile</span>
+                <Edit2 className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Edit Profile</span>
               </button>
               
               <button 
-                className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                 onClick={() => {
                   setIsProfileOpen(false);
                   router.push('/settings');
                 }}
               >
-                <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
-                <span className="text-sm font-medium text-gray-900">Account Settings</span>
+                <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Account Settings</span>
               </button>
               
               <button 
-                className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                 onClick={() => {/* Help Center logic here */}}
               >
-                <svg className="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span className="text-sm font-medium text-gray-900">Help Center</span>
+                <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Help Center</span>
               </button>
             </div>
             
             {/* Log Out Section */}
-            <div className="border-t border-gray-400">
+            <div className={`border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-400'}`}>
               <button 
                 className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
                 onClick={async () => {
@@ -207,10 +207,10 @@ function Header() {
                   }
                 }}
               >
-                <svg className="w-4 h-4 text-gray-700 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-4 h-4 group-hover:text-white ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                 </svg>
-                <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+                <span className={`text-sm font-medium group-hover:text-white ${isDarkMode ? 'text-gray-100' : 'text-gray-900'}`}>Log Out</span>
               </button>
             </div>
           </div>
