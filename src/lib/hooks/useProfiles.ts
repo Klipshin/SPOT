@@ -12,6 +12,7 @@ export function useProfiles(userId: string) {
     const [userProfiles, setUserProfiles] = useState<Profile[]>([])
     const [userLoading, setUserLoading] = useState(true);
     const [userError, setUserError] = useState<string | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -38,28 +39,86 @@ export function useProfiles(userId: string) {
     async function createUserProfile(profileData: {
         name: string;
         username: string;
-        profile_picture: string;
+        profile_picture?: File;
         location: string;
     }) {
         if (!userId) throw new Error("User does not exist.");
 
         try {
+            let profilePicturePath = "";
+
+            if (profileData.profile_picture && profileData.profile_picture instanceof File) {
+                setUploadingImage(true);
+                profilePicturePath = await profileService.uploadProfilePicture(
+                    profileData.profile_picture,
+                    userId
+                );
+                setUploadingImage(false);
+            }
+
             const newProfile = await profileService.createUserProfile(
                 {
                     name: profileData.name,
                     username: profileData.username,
-                    profile_picture: profileData.profile_picture,
+                    profile_picture: profilePicturePath, 
                     location: profileData.location,
                 },
                 userId
             );
+            
             setUserProfiles((prev) => [newProfile, ...prev]);
             setUserProfile(newProfile);
             return newProfile;
         } catch (err) {
             setUserError(err instanceof Error ? err.message : "Failed to create user.");
             throw err;
+        } finally {
+            setUploadingImage(false);
         }
+    }
+
+    async function updateProfilePicture(file: File) {
+        if (!userId) throw new Error("User does not exist.");
+
+        try {
+            setUploadingImage(true);
+            
+            // Delete old profile picture if exists
+            if (userProfile?.profile_picture) {
+                try {
+                    await profileService.deleteProfilePicture(userProfile.profile_picture);
+                } catch (err) {
+                    console.warn("Failed to delete old profile picture:", err);
+                }
+            }
+
+            // Upload new picture
+            const filePath = await profileService.uploadProfilePicture(file, userId);
+
+            // Update database with the new path
+            const updatedProfile = await profileService.createUserProfile(
+                {
+                    name: userProfile?.name || "",
+                    username: userProfile?.username || "",
+                    profile_picture: filePath, // String path
+                    location: userProfile?.location || "",
+                },
+                userId
+            );
+
+            setUserProfile(updatedProfile);
+            return updatedProfile;
+        } catch (err) {
+            setUserError(err instanceof Error ? err.message : "Failed to update profile picture.");
+            throw err;
+        } finally {
+            setUploadingImage(false);
+        }
+    }
+
+    function getProfilePictureUrl(profile: Profile | null): string | null {
+        if (!profile?.profile_picture) return null;
+        return profileService.getProfilePictureUrl(profile.profile_picture);
     }
 
     async function checkUserProfile(userId: string) {
@@ -79,7 +138,6 @@ export function useProfiles(userId: string) {
             }
 
             if (profile.username === null && profile.is_expert === true) {
-
                 const expert = await expertService.getExpert(userId);
 
                 if (!expert) {
@@ -101,5 +159,15 @@ export function useProfiles(userId: string) {
         }
     }
 
-    return {userProfiles, userProfile, userLoading, userError, createUserProfile, checkUserProfile}
+    return {
+        userProfiles, 
+        userProfile, 
+        userLoading, 
+        userError, 
+        uploadingImage,
+        createUserProfile, 
+        checkUserProfile,
+        updateProfilePicture,
+        getProfilePictureUrl
+    }
 }

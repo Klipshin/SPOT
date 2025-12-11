@@ -2,14 +2,17 @@
 
 import FeedCell from '@/src/components/admin/FeedCell';
 import HistoryCell from '@/src/components/admin/HistoryCell';
-import InfoCards from '@/src/components/admin/InfoCards'
-import SearchBar from '@/src/components/admin/SearchBar'
-import SortDropDown from '@/src/components/admin/SortDropDown'
-import ToggleBar from '@/src/components/admin/ToggleBar'
-import React, { useState } from 'react'
+import InfoCards from '@/src/components/admin/InfoCards';
+import SearchBar from '@/src/components/admin/SearchBar';
+import SortDropDown from '@/src/components/admin/SortDropDown';
+import ToggleBar from '@/src/components/admin/ToggleBar';
+import useAdmin from '@/src/lib/hooks/useAdmin';
+import React, { useState } from 'react';
 
 export default function ReportsPage() {
   const [activeCategory, setActiveCategory] = useState("Feed");
+
+  const { totalUsers, totalReports, totalUndismissedReports, loading, error } = useAdmin();
 
   return (
     <div className="relative flex flex-col mt-3 space-y-5 w-full px-5">
@@ -21,13 +24,13 @@ export default function ReportsPage() {
         <InfoCards 
           icon="/total-users.svg"
           title="Total Users"
-          data={4}
+          data={totalUsers.length}
         />
 
         <InfoCards
           icon="/total-reports.svg"
           title="Reports"
-          data={10}
+          data={totalReports.length}
         />
       </div>
 
@@ -48,16 +51,29 @@ export default function ReportsPage() {
       <div className="w-full flex flex-col bg-white/35 p-5 rounded-2xl space-y-2">
         {activeCategory === "Feed" && (
           <>
-            <FeedCell 
-              reporterProfile="/avatar-cat.png"
-              reporterUsername="lovesaiki"
-              reportedProfile="/avatar-capybara.png"
-              reportedUsername="nendouglazer"
-              reportedAt="11/07/2025"
-              reportedContent="Well, it was before I was born. He died trying to save a little girl who'd run in front of a bus. Huh, maybe that means he was into little girls ..."
-              contentPostedAt="06/07/6767"
-              contentViolation="hate"
-            />
+            {totalUndismissedReports.map((r) => {
+              const reporterAvatar = r.reporterProfile?.profile_picture ?? "/default-avatar.png";
+              const reporterUsername = r.reporterProfile?.username ?? "Unknown";
+              const reportedAvatar = r.reportedProfile?.profile_picture ?? "/default-avatar.png";
+              const reportedUsername = r.reportedProfile?.username ?? "Unknown";
+
+              return (
+                <FeedCell
+                  key={r.id}
+                  reportId={r.id}
+                  reporterProfile={reporterAvatar}
+                  reporterUsername={reporterUsername}
+                  reportedId={r.reported_user_id}
+                  reportedProfile={reportedAvatar}
+                  reportedUsername={reportedUsername}
+                  reportedAt={r.reported_at}
+                  type={r.type}
+                  postContent={r.postContent ?? null}
+                  commentContent={r.commentContent ?? null}
+                  contentViolation={r.violation}
+                />
+              );
+            })}
           </>
         )}
 
@@ -69,16 +85,26 @@ export default function ReportsPage() {
               <div className="text-center">Date</div>
             </div>
 
-            <HistoryCell 
-              reporterProfile="/avatar-cat.png"
-              reporterUsername="lovesaiki"
-              reportedProfile="/avatar-capybara.png"
-              reportedUsername="nendouglazer"
-              date="11/07/2025"
-            />
+            {totalReports.map((r) => {
+              const reporterAvatar = r.reporterProfile?.profile_picture ?? "/default-avatar.png";
+              const reporterUsername = r.reporterProfile?.username ?? "Unknown";
+              const reportedAvatar = r.reportedProfile?.profile_picture ?? "/default-avatar.png";
+              const reportedUsername = r.reportedProfile?.username ?? "Unknown";
+
+              return (
+                <HistoryCell
+                  key={r.id}
+                  reporterProfile={reporterAvatar}
+                  reporterUsername={reporterUsername}
+                  reportedProfile={reportedAvatar}
+                  reportedUsername={reportedUsername}
+                  date={r.reported_at}
+                />
+              );
+            })}
           </>
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -1,10 +1,26 @@
+"use client";
+
 import InfoCards from '@/src/components/admin/InfoCards'
 import SearchBar from '@/src/components/admin/SearchBar'
 import SortDropDown from '@/src/components/admin/SortDropDown'
 import UserCell from '@/src/components/admin/UserCell'
+import useAdmin from '@/src/lib/hooks/useAdmin'
 import React from 'react'
 
 export default function UserManagementPage() {
+  const { activeUsers, suspendedUsers, loading, error } = useAdmin();
+
+  const allUsers = [
+    ...activeUsers.map((user) => ({
+      ...user,
+      status: user.is_suspended ? "Suspended" : "Active",
+    })),
+    ...suspendedUsers.map((user) => ({
+      ...user,
+      status: user.is_suspended ? "Suspended": "Active"
+    })),
+  ];
+
   return (
     <div className="relative flex flex-col mt-3 space-y-5 w-full px-5">
       <div className="absolute -right-10 w-120 rounded-full bg-[#D0E69080] py-2 px-7 text-2xl font-poppins-bold">
@@ -14,14 +30,14 @@ export default function UserManagementPage() {
       <div className="flex flex-row justify-start items-center gap-8 w-full">
         <InfoCards 
           icon="/total-users.svg"
-          title="Total Users"
-          data={4}
+          title="Active Users"
+          data={activeUsers.length}
         />
 
         <InfoCards
           icon="/total-reports.svg"
-          title="Reports"
-          data={10}
+          title="Suspended"
+          data={suspendedUsers.length}
         />
       </div>
 
@@ -40,18 +56,18 @@ export default function UserManagementPage() {
             <div className="text-center">Access</div>
         </div>
 
-        <UserCell 
-          profile="/avatar-capybara.png"
-          username="nendouglazer"
-          status="Active"
-        />
+        {loading && <p>Loading users...</p>}
+        {error && <p className="text-red-500">{error}</p>}
 
-        <UserCell 
-          profile="/avatar-cat.png"
-          username="lovesaiki"
-          status="Suspended"
-        />
-
+        {allUsers.map((user) => (
+          <UserCell
+            key={user.user_id}
+            userId={user.user_id}
+            profile={user.profile_picture || "/avatar-capybara.png"}
+            username={user.username}
+            status={user.status}
+          />
+        ))}
       </div>
     </div>
   )

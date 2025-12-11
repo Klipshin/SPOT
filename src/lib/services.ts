@@ -19,9 +19,9 @@ export const profileService = {
     },
 
     async createUserProfile (
-        profile: Omit<Profile, "user_id" | "is_expert" | "created_at">,
+        profile: Omit<Profile, "user_id" | "is_expert" | "created_at" | "is_suspended">,
         userId: string,
-    ) : Promise<Profile> {
+    ): Promise<Profile> {
         const supabase = getSupabase();
         const { data, error } = await supabase
             .from("user_profiles")
@@ -32,6 +32,55 @@ export const profileService = {
         if (error) throw error;
 
         return data;
+    },
+
+    async uploadProfilePicture(file: File, userId: string): Promise<string> {
+        const supabase = getSupabase();
+        
+        if (!file.type.startsWith('image/')) {
+            throw new Error('File must be an image');
+        }
+
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            throw new Error('File size must be less than 5MB');
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const timestamp = Date.now();
+        const filePath = `${userId}/${timestamp}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('profile-pictures')
+            .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false
+            });
+
+        if (uploadError) throw uploadError;
+
+        return filePath;
+    },
+
+    async deleteProfilePicture(filePath: string): Promise<void> {
+        const supabase = getSupabase();
+        
+        const { error } = await supabase.storage
+            .from('profile-pictures')
+            .remove([filePath]);
+
+        if (error) throw error;
+    },
+
+    getProfilePictureUrl(filePath: string | null): string | null {
+        if (!filePath) return null;
+        
+        const supabase = getSupabase();
+        const { data } = supabase.storage
+            .from('profile-pictures')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
     },
 }
 
@@ -64,6 +113,63 @@ export const expertService = {
 		if (error) throw new Error(error.message);
 
         return data;
+    },
+
+    async uploadFile(file: File, userId: string): Promise<string> {
+        const supabase = getSupabase();
+        
+        const allowedMimeTypes = [
+            "application/pdf",
+            "application/msword",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "image/jpeg",
+            "image/png",
+        ];
+
+        if (!allowedMimeTypes.includes(file.type)) {
+            throw new Error("Unsupported file type");
+        }
+
+        const maxSize = 10 * 1024 * 1024;
+        if (file.size > maxSize) {
+            throw new Error("File size must be less than 10MB");
+        }
+
+        const fileExt = file.name.split('.').pop();
+        const timestamp = Date.now();
+        const filePath = `${userId}/${timestamp}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from("expert-files") 
+            .upload(filePath, file, {
+                cacheControl: "3600",
+                upsert: false
+            });
+
+        if (uploadError) throw uploadError;
+
+        return filePath;
+    },
+
+    async deleteFile(filePath: string): Promise<void> {
+        const supabase = getSupabase();
+        
+        const { error } = await supabase.storage
+            .from('expert-files')
+            .remove([filePath]);
+
+        if (error) throw error;
+    },
+
+    getFileUrl(filePath: string | null): string | null {
+        if (!filePath) return null;
+        
+        const supabase = getSupabase();
+        const { data } = supabase.storage
+            .from('expert-files')
+            .getPublicUrl(filePath);
+
+        return data.publicUrl;
     },
 }
 
@@ -273,6 +379,157 @@ export const voteService = {
             .single();
 
         if (error) throw error;
+}
+
+export const adminService = {
+    async getTotalUsers() {
+        const { data, error } = await supabase
+            .from("user_profiles")
+            .select("*")
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getActiveUsers() {
+        const { data, error } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("is_suspended", false);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getSuspendedUsers() {
+        const { data, error } = await supabase
+            .from("user_profiles")
+            .select("*")
+            .eq("is_suspended", true);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getVerifiedExperts() {
+        const { data, error } = await supabase
+            .from("experts")
+            .select("*")
+            .eq("is_verified", true);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getPendingExperts() {
+        const { data, error } = await supabase
+            .from("experts")
+            .select("*")
+            .eq("is_verified", false);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async approveExpert(expert_id: string) {
+        const { data, error } = await supabase
+            .from("experts")
+            .update({ is_verified: "true", verified_at: new Date().toISOString() })
+            .eq("expert_id", expert_id);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async rejectExpert(expert_id: string) {
+        const { data: expertData, error: fetchError } = await supabase
+            .from("experts")
+            .select("user_id")
+            .eq("expert_id", expert_id)
+            .single();
+
+        if (fetchError) throw new Error(fetchError.message);
+        const userId = expertData.user_id;
+
+        const { error: deleteError } = await supabase
+            .from("experts")
+            .delete()
+            .eq("expert_id", expert_id);
+
+        if (deleteError) throw new Error(deleteError.message);
+
+        const { error: updateError } = await supabase
+            .from("user_profiles")
+            .update({ is_expert: false })
+            .eq("user_id", userId);
+
+        if (updateError) throw new Error(updateError.message);
+
+        return true;
+    },
+
+    async activateUser(user_id: string) {
+        const { data, error } = await supabase
+            .from("user_profiles")
+            .update({ is_suspended: false })
+            .eq("user_id", user_id);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async suspendUser(user_id: string) {
+        const { data, error } = await supabase
+            .from("user_profiles")
+            .update({ is_suspended: true })
+            .eq("user_id", user_id);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getTotalReports() {
+        const { data, error } = await supabase
+            .from("reports")
+            .select("*")
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getUndismissedReports() {
+        const { data, error } = await supabase
+            .from("reports")
+            .select("*")
+            .eq("is_dismissed", false);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
+    async getPost(postId: string) {
+        const { data, error } = await supabase
+            .from("posts")
+            .select("*")
+            .eq("post_id", postId);
+
+        if (error) {
+            throw new Error(error.message);
+        }
+
+        console.log("Post data returned:", data);
+        return data;
+    },
+
+    async getComment(commentId: string) {
+        const { data, error } = await supabase
+            .from("comments")
+            .select("*")
+            .eq("comment_id", commentId);
+
+        if (error) {
+            throw new Error(error.message);
+        }
 
         return data;
     },
@@ -287,4 +544,14 @@ export const voteService = {
 
         if (error) throw error;
     },
+    async dismissReport(reportId: string) {
+        const { data, error } = await supabase
+            .from("reports")
+            .update({ is_dismissed: true })
+            .eq("id", reportId);
+
+        if (error) throw new Error(error.message);
+        return data;
+    },
+
 }
