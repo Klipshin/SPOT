@@ -164,7 +164,7 @@ export default function useAdmin() {
       setLoading(true);
       setError(null);
       const users = await adminService.getTotalUsers();
-      const usersWithProfiles = users.map((user) => ({
+      const usersWithProfiles = users.map((user: Profile) => ({
         ...user,
         profileUrl: user.profile_picture || "/default-avatar.png",
         name: user.name || "Unknown",
@@ -185,9 +185,9 @@ export default function useAdmin() {
       setError(null);
       const experts = await adminService.getVerifiedExperts();
       const expertsWithProfiles = await Promise.all(
-        experts.map(async (expert) => {
+        experts.map(async (expert: Expert) => {
           try {
-            const profile = await profileService.getUserProfile(expert.userId);
+            const profile = await profileService.getUserProfile(expert.user_id);
             return { ...expert, ...profile };
           } catch {
             return {
@@ -214,9 +214,9 @@ export default function useAdmin() {
       setError(null);
       const experts = await adminService.getPendingExperts();
       const expertsWithProfiles = await Promise.all(
-        experts.map(async (expert) => {
+        experts.map(async (expert: Expert) => {
           try {
-            const profile = await profileService.getUserProfile(expert.userId);
+            const profile = await profileService.getUserProfile(expert.user_id);
             return { ...expert, ...profile };
           } catch {
             return {
@@ -242,7 +242,7 @@ export default function useAdmin() {
       setLoading(true);
       setError(null);
       const users = await adminService.getActiveUsers();
-      const usersWithProfiles = users.map((user) => ({
+      const usersWithProfiles = users.map((user: Profile) => ({
         ...user,
         profileUrl: user.profile_picture || "/default-avatar.png",
         name: user.name || "Unknown",
@@ -262,7 +262,7 @@ export default function useAdmin() {
       setLoading(true);
       setError(null);
       const users = await adminService.getSuspendedUsers();
-      const usersWithProfiles = users.map((user) => ({
+      const usersWithProfiles = users.map((user: Profile) => ({
         ...user,
         profileUrl: user.profile_picture || "/default-avatar.png",
         name: user.name || "Unknown",
