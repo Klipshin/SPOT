@@ -16,8 +16,44 @@ export interface Expert {
     employment_proof: string;
     diploma_docu: string;
 	academic_profile: string | null;
-    is_verified: string;
+    is_verified: boolean;
     verified_at: string;
+}
+
+export interface Species {
+    species_id: string;
+    scientific_name: string | null;
+    common_name: string | null;
+    habitat: string | null;
+    conservation_status: string;
+    behavior: string | null;
+    image_url: string | null;
+}
+
+export interface SafetyProtocol {
+    protocol_id: string;
+    species_id: string;
+    guidance: string | null;
+    safety_level: string | null;
+}
+
+export interface Identification {
+    identification_id: string;
+    user_id: string;
+    species_id: string;
+    image_url: string | null;
+    confidence_score: number | null;
+    identified_at: string;
+    species?: Species;
+}
+
+export interface ExpertValidation {
+    validation_id: string;
+    identification_id: string;
+    expert_id: string;
+    validation_status: string | null;
+    validation_notes: string | null;
+    validated_at: string;
 }
 
 export interface Community {
@@ -49,6 +85,9 @@ export interface Post {
     updated_at: string;
     user_profiles?: Profile;
     communities?: Community;
+    identifications?: Identification[];
+    expert_validations?: ExpertValidation[];
+    is_verified?: boolean;
 }
 
 export interface Comment {

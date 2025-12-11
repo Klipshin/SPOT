@@ -1,6 +1,6 @@
 'use client';
 import { useState, useRef, ChangeEvent, KeyboardEvent} from 'react';
-import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase } from 'lucide-react';
+import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase, Crown, Shield, CheckCircle } from 'lucide-react';
 import { Settings, HelpCircle, LogOut, Clock } from 'lucide-react';
 import { Share2, Flag, EyeOff, X, Users } from 'lucide-react';
 
@@ -16,6 +16,9 @@ type Post = {
   upvotes: number;              
   downvotes: number;            
   comments: Comment[];
+  isExpert?: boolean;
+  isVerified?: boolean;
+  scientificName?: string;
 };
 
 type Comment = {

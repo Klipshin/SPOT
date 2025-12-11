@@ -148,6 +148,7 @@ export default function CreateCommunityModal({
                 <LocationSearch
                   value={location}
                   onChange={setLocation}
+                  isDarkMode={isDarkMode}
                 />
               </div>
             </div>

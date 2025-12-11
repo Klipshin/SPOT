@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useRef, ChangeEvent, KeyboardEvent, useEffect, useCallback } from 'react';
-import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase } from 'lucide-react';
+import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase, Crown, Shield, CheckCircle } from 'lucide-react';
 import { Settings, HelpCircle, LogOut, Clock, Loader2, Plus } from 'lucide-react';
 import { Share2, Flag, EyeOff, X, Users, Image as ImageIcon } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/src/utils/supabase/client';
 import { useCommunities } from '@/src/lib/hooks/useCommunities';
 import CreateCommunityModal from '@/src/components/CreateCommunityModal';
+import VerifySpeciesModal from '@/src/components/VerifySpeciesModal';
+import VerificationDetailsModal from '@/src/components/VerificationDetailsModal';
 import { communityService } from '@/src/lib/services';
 
 // IMPORTANT: Import the useSupabase hook (Assuming its location)
@@ -25,6 +27,7 @@ type Comment = {
   upvotes: number;
   downvotes: number;
   isReply: boolean;
+  isExpert?: boolean;
 };
 
 // Updated Post type to use string/UUID for id
@@ -51,6 +54,8 @@ type ClientPost = {
   location?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  isVerified?: boolean;
+  isExpert?: boolean; // Is the post author an expert
 };
 
 // FIX: Updated Supabase Post structure for fetching to treat joined fields as arrays
@@ -152,6 +157,7 @@ useEffect(() => {
   const [dbUsername, setDbUsername] = useState<string | null>(null);
   const currentUsername = dbUsername || session?.user.user_metadata?.username || session?.user.email?.split('@')[0] || 'Guest';
   const [userProfile, setUserProfile] = useState<{ name: string; location: string; occupation: string; profile_picture: string | null } | null>(null);
+  const [isCurrentUserExpert, setIsCurrentUserExpert] = useState(false);
 
   // Fetch user profile data
   useEffect(() => {
@@ -162,17 +168,19 @@ useEffect(() => {
         const supabase = createClient();
         const { data, error } = await supabase
           .from('user_profiles')
-          .select('name, location, profile_picture, username')
+          .select('name, location, profile_picture, username, is_expert')
           .eq('user_id', currentUserId)
           .single();
 
         if (data) {
           console.log('User profile data:', data);
           setDbUsername(data.username); // Set username from database
+          setIsCurrentUserExpert(data.is_expert || false); // Check if user is expert
+          console.log('is_expert from user_profiles:', data.is_expert);
           setUserProfile({
             name: data.name || 'Full Name',
             location: data.location || 'Location not set',
-            occupation: 'Wildlife Enthusiast', // Default occupation
+            occupation: data.is_expert ? 'Verified Expert' : 'Wildlife Enthusiast', // Set based on expert status
             profile_picture: data.profile_picture
           });
         }
@@ -180,12 +188,18 @@ useEffect(() => {
         // Fetch expert data if exists
         const { data: expertData } = await supabase
           .from('experts')
-          .select('occupation')
+          .select('occupation, is_verified')
           .eq('user_id', currentUserId)
           .single();
 
+        console.log('Expert data:', expertData);
         if (expertData) {
-          setUserProfile(prev => prev ? { ...prev, occupation: expertData.occupation } : null);
+          // If they have an experts record, check is_verified
+          if (expertData.is_verified) {
+            setIsCurrentUserExpert(true);
+            console.log('User is verified expert');
+            setUserProfile(prev => prev ? { ...prev, occupation: expertData.occupation || 'Verified Expert' } : null);
+          }
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -236,6 +250,17 @@ useEffect(() => {
   const [modalOrigin, setModalOrigin] = useState({ x: 0, y: 0 });
   const [showLocationModal, setShowLocationModal] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<{ name: string; lat: number; lng: number } | null>(null);
+  
+  // Verification modals state
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [showVerificationDetails, setShowVerificationDetails] = useState(false);
+  const [selectedPostForVerification, setSelectedPostForVerification] = useState<ClientPost | null>(null);
+  
+  // User profile modal state
+  const [showUserProfileModal, setShowUserProfileModal] = useState(false);
+  const [selectedUserProfile, setSelectedUserProfile] = useState<{ username: string; profilePicture: string | null; userId: string; isExpert?: boolean } | null>(null);
+  const [userProfileData, setUserProfileData] = useState<any>(null);
+  const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(false);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -318,30 +343,48 @@ useEffect(() => {
   // Effect to map Supabase data to your client-side state structure and fetch comments
   useEffect(() => {
       if (fetchedPosts.length > 0) {
-          const mappedPosts: ClientPost[] = fetchedPosts.map((p: any) => ({
-              id: p.post_id,
-              timestamp: new Date(p.created_at).getTime(),
-              user: `@${p.user_profiles?.username || 'unknown'}`,
-              userProfilePicture: p.user_profiles?.profile_picture || null,
-              date: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-              heading: p.title,
-              caption: p.content,
-              image: p.media_url || p.identifications?.[0]?.image_url || null, 
-              scientificName: p.identifications?.[0]?.species?.[0]?.scientific_name || 'Unidentified Species',
-              vote: null,
-              upvotes: p.upvotes || 0, 
-              downvotes: p.downvotes || 0,
-              comments: [],
-              communityId: p.communities?.community_id,
-              communityName: p.communities?.community_name,
-              communityProfilePicture: p.communities?.profile_picture,
-              flairNames: p.flairNames || [],
-              userId: p.user_id,
-              authorUsername: p.user_profiles?.username,
-              location: p.location || null,
-              latitude: p.latitude || null,
-              longitude: p.longitude || null
-          }));
+          const mappedPosts: ClientPost[] = fetchedPosts.map((p: any) => {
+              // Get species data - handle both array and object structures
+              // With explicit FK join, identifications is an object, not array
+              const identification = Array.isArray(p.identifications) ? p.identifications[0] : p.identifications;
+              const species = identification?.species;
+              const speciesData = Array.isArray(species) ? species[0] : species;
+              const scientificName = speciesData?.scientific_name || 'Unidentified Species';
+              // Only mark as verified if there's a valid species name (not Unknown, not Unidentified, not empty)
+              const hasValidSpecies = speciesData?.scientific_name && 
+                speciesData.scientific_name !== 'Unidentified Species' && 
+                speciesData.scientific_name !== 'Unknown' &&
+                speciesData.scientific_name.trim() !== '';
+              
+              console.log('Post mapping:', p.post_id, 'identification:', identification, 'species:', speciesData, 'scientificName:', scientificName, 'isVerified:', hasValidSpecies);
+              
+              return {
+                  id: p.post_id,
+                  timestamp: new Date(p.created_at).getTime(),
+                  user: `@${p.user_profiles?.username || 'unknown'}`,
+                  userProfilePicture: p.user_profiles?.profile_picture || null,
+                  date: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                  heading: p.title,
+                  caption: p.content,
+                  image: p.media_url || identification?.image_url || null, 
+                  scientificName: scientificName,
+                  vote: null,
+                  upvotes: p.upvotes || 0, 
+                  downvotes: p.downvotes || 0,
+                  comments: [],
+                  communityId: p.communities?.community_id,
+                  communityName: p.communities?.community_name,
+                  communityProfilePicture: p.communities?.profile_picture,
+                  flairNames: p.flairNames || [],
+                  userId: p.user_id,
+                  authorUsername: p.user_profiles?.username,
+                  location: p.location || null,
+                  latitude: p.latitude || null,
+                  longitude: p.longitude || null,
+                  isVerified: hasValidSpecies,
+                  isExpert: p.user_profiles?.is_expert || false
+              };
+          });
           setClientPosts(mappedPosts);
           
           // Fetch comments for each post
@@ -361,6 +404,7 @@ useEffect(() => {
                   upvotes: c.upvotes || 0,
                   downvotes: c.downvotes || 0,
                   isReply: c.parent_comment_id !== null,
+                  isExpert: c.user_profiles?.is_expert || false,
                 }));
                 
                 setClientPosts(prevPosts => prevPosts.map(p => 
@@ -1206,13 +1250,13 @@ useEffect(() => {
                   {/* Profile Dropdown */}
                   {isProfileOpen && (
                       <div 
-                          className="absolute right-0 mt-1 w-64 bg-white rounded-xl shadow-xl overflow-hidden z-50"
+                          className={`absolute right-0 mt-1 w-64 rounded-xl shadow-xl overflow-hidden z-50 ${isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white'}`}
                           style={{ border: '2px solid #899A3C' }}
                           onMouseDown={(e) => e.preventDefault()}
                       >
                           {/* User Info Section */}
-                          <div className="px-4 py-3 border-b border-gray-300 flex items-center gap-3">
-                              <div className="w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                          <div className={`px-4 py-3 border-b flex items-center gap-3 ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+                              <div className={`w-12 h-12 rounded-full flex items-center justify-center overflow-hidden shrink-0 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`}>
                                   {userProfile?.profile_picture ? (
                                     <img 
                                       src={userProfile.profile_picture} 
@@ -1220,50 +1264,50 @@ useEffect(() => {
                                       className="w-full h-full object-cover"
                                     />
                                   ) : (
-                                    <User className="w-6 h-6 text-gray-500" />
+                                    <User className={`w-6 h-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
                                   )}
                               </div>
                               <div>
-                                  <h3 className="text-base font-bold text-gray-900">@{currentUsername}</h3>
-                                  <p className="text-xs text-gray-600 mt-0.5">{currentEmail}</p>
+                                  <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>@{currentUsername}</h3>
+                                  <p className={`text-xs mt-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{currentEmail}</p>
                               </div>
                           </div>
 
                           {/* Menu Items */}
                           <div className="py-1">
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                                   onClick={() => {
                                       setIsProfileOpen(false);
                                       router.push('/profile');
                                   }}
                               >
-                                  <Edit className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">Edit Profile</span>
+                                  <Edit className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Edit Profile</span>
                               </button>
                               
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                                   onClick={() => {
                                       setIsProfileOpen(false);
                                       router.push('/settings');
                                   }}
                               >
-                                  <Settings className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">Account Settings</span>
+                                  <Settings className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Account Settings</span>
                               </button>
                               
                               <button 
-                                  className="w-full px-4 py-2 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-2.5"
+                                  className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${isDarkMode ? 'hover:bg-[#3a3a3a]' : 'hover:bg-[#DBE9AF]'}`}
                                   onClick={() => {/* Help Center logic here */}}
                               >
-                                  <HelpCircle className="w-4 h-4 text-gray-700" />
-                                  <span className="text-sm font-medium text-gray-900">Help Center</span>
+                                  <HelpCircle className={`w-4 h-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Help Center</span>
                               </button>
                           </div>
 
                           {/* Log Out Section */}
-                          <div className="border-t border-gray-400">
+                          <div className={`border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-400'}`}>
                               <button 
                                   className="w-full px-4 py-2 text-left hover:bg-red-500 hover:text-white transition-colors flex items-center gap-2.5 group"
                                   onClick={async () => {
@@ -1276,8 +1320,8 @@ useEffect(() => {
                                       }
                                   }}
                               >
-                                  <LogOut className="w-4 h-4 text-gray-700 group-hover:text-white" />
-                                  <span className="text-sm font-medium text-gray-900 group-hover:text-white">Log Out</span>
+                                  <LogOut className={`w-4 h-4 group-hover:text-white ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} />
+                                  <span className={`text-sm font-medium group-hover:text-white ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Log Out</span>
                               </button>
                           </div>
                       </div>
@@ -1295,7 +1339,13 @@ useEffect(() => {
           <aside className="w-80 flex-shrink-0 fixed left-5" style={{ top: '80px' }}>
               <div
                   className="p-8 text-white shadow-lg"
-                  style={{
+                  style={isCurrentUserExpert ? {
+                      backgroundImage: 'url(/exp.svg)',
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      borderRadius: '15px',
+                      border: '3px solid #d4a843'
+                  } : {
                       background: isDarkMode 
                         ? 'linear-gradient(131deg, #1a3318 15.98%, #4a3f1a 125.22%)'
                         : 'linear-gradient(131deg, #2A5528 15.98%, #927D31 125.22%)',
@@ -1303,7 +1353,7 @@ useEffect(() => {
                   }}
               >
                   <div className="flex items-start gap-4 mb-5">
-                      <div className="w-16 h-16 bg-white/30 rounded-full flex items-center justify-center overflow-hidden shrink-0">
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center overflow-hidden shrink-0 ${isCurrentUserExpert ? 'ring-2 ring-yellow-500 bg-white/30' : 'bg-white/30'}`}>
                           {userProfile?.profile_picture ? (
                             <img 
                               src={userProfile.profile_picture} 
@@ -1319,7 +1369,14 @@ useEffect(() => {
                           )}
                       </div>
                       <div className="flex-1">
-                          <p className="text-base font-semibold opacity-90">@{currentUsername}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-base font-semibold opacity-90">@{currentUsername}</p>
+                            {isCurrentUserExpert && (
+                              <div className="bg-yellow-500 rounded-full p-0.5" title="Verified Expert">
+                                <Crown className="w-4 h-4 text-white" />
+                              </div>
+                            )}
+                          </div>
                           <p className="text-xl font-bold">{userProfile?.name || 'Loading...'}</p> 
                       </div>
                   </div>
@@ -1515,7 +1572,11 @@ useEffect(() => {
                                                   >
                                                       {post.communityName}
                                                   </button>
-                                                  {!userCommunities.some(c => c.community_id === post.communityId) && (
+                                                  {userCommunities.some(c => c.community_id === post.communityId) ? (
+                                                      <span className="text-green-600 text-sm font-semibold">
+                                                          • Joined
+                                                      </span>
+                                                  ) : (
                                                       <button
                                                           onClick={() => handleJoinCommunity(post.communityId!)}
                                                           className="text-blue-600 text-sm font-semibold hover:underline"
@@ -1529,7 +1590,18 @@ useEffect(() => {
                                           )}
                                       </div>
                                       <div className="flex items-center gap-2">
-                                          <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden">
+                                          <button 
+                                              onClick={() => {
+                                                  setSelectedUserProfile({
+                                                      username: post.authorUsername || post.user.replace('@', ''),
+                                                      profilePicture: post.userProfilePicture || null,
+                                                      userId: post.userId || '',
+                                                      isExpert: post.isExpert
+                                                  });
+                                                  setShowUserProfileModal(true);
+                                              }}
+                                              className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-green-500 transition-all cursor-pointer"
+                                          >
                                               {post.userProfilePicture ? (
                                                   <img 
                                                       src={post.userProfilePicture} 
@@ -1544,8 +1616,29 @@ useEffect(() => {
                                               ) : (
                                                   <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
                                               )}
+                                          </button>
+                                          <div className="flex items-center gap-1">
+                                            <button 
+                                                onClick={() => {
+                                                    setSelectedUserProfile({
+                                                        username: post.authorUsername || post.user.replace('@', ''),
+                                                        profilePicture: post.userProfilePicture || null,
+                                                        userId: post.userId || '',
+                                                        isExpert: post.isExpert
+                                                    });
+                                                    setShowUserProfileModal(true);
+                                                }}
+                                                className={`text-sm hover:underline cursor-pointer ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}
+                                            >
+                                                {post.user}
+                                            </button>
+                                            {post.isExpert && (
+                                              <div title="Verified Expert">
+                                                <Crown className="w-4 h-4 text-yellow-500" />
+                                              </div>
+                                            )}
+                                            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}> • {post.date}</span>
                                           </div>
-                                          <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{post.user} • {post.date}</p>
                                       </div>
                                   </div>
                               </div>
@@ -1659,7 +1752,40 @@ useEffect(() => {
                             </div>
                           )}
                           
-                          <p className={`text-sm font-medium mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Identified Species: {post.scientificName}</p>
+                          {/* Species Identification Section */}
+                          {post.isVerified ? (
+                              <div className="mb-4 flex items-center gap-2">
+                                  <button 
+                                      onClick={() => {
+                                          setSelectedPostForVerification(post);
+                                          setShowVerificationDetails(true);
+                                      }}
+                                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-colors ${isDarkMode ? 'bg-green-900/30 text-green-400 hover:bg-green-900/50' : 'bg-green-500 text-white hover:bg-green-600'}`}
+                                  >
+                                      <CheckCircle className="w-4 h-4" />
+                                      <span className="text-sm font-medium">Verified: {post.scientificName}</span>
+                                  </button>
+                              </div>
+                          ) : (
+                              <div className="mb-4 flex items-center gap-3">
+                                  <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${isDarkMode ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-700'}`}>
+                                      <Shield className="w-4 h-4" />
+                                      <span className="text-sm font-medium">Unverified Species</span>
+                                  </div>
+                                  {isCurrentUserExpert && (
+                                      <button
+                                          onClick={() => {
+                                              setSelectedPostForVerification(post);
+                                              setShowVerifyModal(true);
+                                          }}
+                                          className="flex items-center gap-1.5 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+                                      >
+                                          <Shield className="w-4 h-4" />
+                                          Verify Species
+                                      </button>
+                                  )}
+                              </div>
+                          )}
 
 
                           {/* Image Placeholder/Display */}
@@ -1842,18 +1968,26 @@ useEffect(() => {
       {isCommentModalOpen && selectedPostForComment && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-[600px] max-h-[90vh] flex flex-col overflow-hidden"
+            className={`rounded-2xl shadow-2xl w-[600px] max-h-[90vh] flex flex-col overflow-hidden ${
+              isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}
             style={{ border: '2px solid #899A3C' }}
           >
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white z-10">
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <div className={`px-6 py-4 border-b flex items-center justify-between sticky top-0 z-10 ${
+              isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+              <h3 className={`text-xl font-bold flex items-center gap-2 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
                 <MessageCircle className="w-5 h-5 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
                 Comments ({selectedPostForComment.comments.length})
               </h3>
               <button 
                 onClick={closeCommentModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                className={`transition-colors p-1 ${
+                  isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'
+                }`}
               >
                 <X className="w-6 h-6" />
               </button>
@@ -1861,10 +1995,18 @@ useEffect(() => {
 
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               {/* Original Post Summary (Read-Only) */}
-              <div className="border-b border-gray-200 pb-4">
-                <p className="text-sm font-semibold text-gray-500">{selectedPostForComment.user} • {selectedPostForComment.date}</p>
-                <h4 className="text-lg font-bold text-gray-800 mt-1">{selectedPostForComment.heading}</h4>
-                <p className="text-gray-700 mt-2 line-clamp-2">{selectedPostForComment.caption}</p>
+              <div className={`border-b pb-4 ${
+                isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+                <p className={`text-sm font-semibold ${
+                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>{selectedPostForComment.user} • {selectedPostForComment.date}</p>
+                <h4 className={`text-lg font-bold mt-1 ${
+                  isDarkMode ? 'text-white' : 'text-gray-800'
+                }`}>{selectedPostForComment.heading}</h4>
+                <p className={`mt-2 line-clamp-2 ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>{selectedPostForComment.caption}</p>
                 {selectedPostForComment.image && (
                   <img 
                     src={selectedPostForComment.image} 
@@ -1877,14 +2019,18 @@ useEffect(() => {
               {/* Comments List */}
               <div className="space-y-4">
                 {selectedPostForComment.comments.length === 0 ? (
-                  <div className="text-center py-4 text-gray-500">Be the first to comment!</div>
+                  <div className={`text-center py-4 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>Be the first to comment!</div>
                 ) : (
                   selectedPostForComment.comments.map((comment) => (
                     <div 
                       key={comment.id} 
-                      className={`flex gap-3 ${comment.isReply ? 'ml-8 border-l border-gray-300 pl-4' : ''}`}
+                      className={`flex gap-3 ${comment.isReply ? `ml-8 border-l pl-4 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}` : ''}`}
                     >
-                      <div className="w-8 h-8 flex-shrink-0 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden mt-1">
+                      <div className={`w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden mt-1 ${
+                        isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+                      }`}>
                         {comment.userProfilePicture ? (
                           <img 
                             src={comment.userProfilePicture} 
@@ -1902,21 +2048,36 @@ useEffect(() => {
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-gray-800 text-sm">{comment.user}</span>
-                          <span className="text-xs text-gray-500">• {comment.date}</span>
+                          <span className={`font-semibold text-sm ${
+                            isDarkMode ? 'text-white' : 'text-gray-800'
+                          }`}>{comment.user}</span>
+                          {comment.isExpert && (
+                            <div title="Verified Expert">
+                              <Crown className="w-4 h-4 text-yellow-500" />
+                            </div>
+                          )}
+                          <span className={`text-xs ${
+                            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                          }`}>• {comment.date}</span>
                         </div>
-                        <p className="text-gray-700 mt-0.5 whitespace-pre-wrap">{comment.text}</p>
+                        <p className={`mt-0.5 whitespace-pre-wrap ${
+                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                        }`}>{comment.text}</p>
                         
                         {comment.image && (
                           <img 
                             src={comment.image} 
                             alt="Comment media" 
-                            className="mt-2 max-h-32 object-contain rounded-lg border border-gray-200"
+                            className={`mt-2 max-h-32 object-contain rounded-lg border ${
+                              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                            }`}
                           />
                         )}
 
                         {/* Comment Actions (Reply/Vote) */}
-                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
+                        <div className={`flex items-center gap-3 mt-2 text-xs ${
+                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                           {/* Vote Action */}
                           <div className="flex items-center gap-1">
                             <button 
@@ -1952,15 +2113,21 @@ useEffect(() => {
             </div>
 
             {/* Comment Input Box (Sticky Footer) */}
-            <div className="border-t border-gray-200 p-4 sticky bottom-0 bg-white">
+            <div className={`border-t p-4 sticky bottom-0 ${
+              isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
               
               {/* Replying To Indicator */}
               {replyingToId !== null && (
-                <div className="flex items-center justify-between mb-2 p-2 bg-gray-100 rounded-lg text-sm">
-                  <span className="text-gray-600">Replying to <span className="font-semibold text-blue-600">{replyingToUser}</span></span>
+                <div className={`flex items-center justify-between mb-2 p-2 rounded-lg text-sm ${
+                  isDarkMode ? 'bg-gray-800 text-gray-300' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  <span>Replying to <span className="font-semibold text-blue-600">{replyingToUser}</span></span>
                   <button 
                     onClick={cancelReply}
-                    className="text-gray-500 hover:text-red-500 transition-colors"
+                    className={`transition-colors ${
+                      isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-500 hover:text-red-500'
+                    }`}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1975,7 +2142,11 @@ useEffect(() => {
                   onKeyDown={(e) => handleCommentKeyDown(e, selectedPostForComment.id)}
                   placeholder={replyingToId !== null ? 'Type your reply...' : 'Add a comment...'}
                   rows={2}
-                  className="flex-1 p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 resize-none text-sm"
+                  className={`flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-green-500 resize-none text-sm ${
+                    isDarkMode 
+                      ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400 focus:border-green-500' 
+                      : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500 focus:border-green-500'
+                  }`}
                 />
                 
                 <input 
@@ -2000,7 +2171,11 @@ useEffect(() => {
                 ) : (
                   <button 
                     onClick={() => commentFileInputRef.current?.click()}
-                    className="p-2 h-10 w-10 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 transition-colors flex-shrink-0"
+                    className={`p-2 h-10 w-10 flex items-center justify-center rounded-full transition-colors flex-shrink-0 ${
+                      isDarkMode 
+                        ? 'bg-gray-800 hover:bg-gray-700 text-gray-400' 
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-500'
+                    }`}
                     title="Attach Image"
                   >
                     <ImageIcon className="w-5 h-5" />
@@ -2090,6 +2265,116 @@ useEffect(() => {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Verify Species Modal */}
+      {showVerifyModal && selectedPostForVerification && (
+        <VerifySpeciesModal
+          isOpen={showVerifyModal}
+          postId={selectedPostForVerification.id}
+          postTitle={selectedPostForVerification.heading}
+          postImage={selectedPostForVerification.image}
+          onClose={() => {
+            setShowVerifyModal(false);
+            setSelectedPostForVerification(null);
+          }}
+          onVerified={async () => {
+            setShowVerifyModal(false);
+            setSelectedPostForVerification(null);
+            // Refetch posts to update verification status
+            await fetchPosts();
+          }}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* Verification Details Modal */}
+      {showVerificationDetails && selectedPostForVerification && (
+        <VerificationDetailsModal
+          isOpen={showVerificationDetails}
+          postId={selectedPostForVerification.id}
+          onClose={() => {
+            setShowVerificationDetails(false);
+            setSelectedPostForVerification(null);
+          }}
+          isDarkMode={isDarkMode}
+        />
+      )}
+
+      {/* User Profile Modal */}
+      {showUserProfileModal && selectedUserProfile && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={() => setShowUserProfileModal(false)}>
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className={`rounded-[20px] shadow-2xl w-full max-w-sm overflow-hidden ${
+              selectedUserProfile.isExpert ? '' : (isDarkMode ? 'bg-[#2a2a2a]' : 'bg-white')
+            }`}
+            style={selectedUserProfile.isExpert ? {
+              backgroundImage: 'url(/exp.svg)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              border: '3px solid #d4a843'
+            } : {
+              border: isDarkMode ? '2px solid #555' : '2px solid #899A3C'
+            }}
+          >
+            <div className="p-6">
+              {/* Profile Header */}
+              <div className="flex items-start gap-4 mb-4">
+                <div className={`w-20 h-20 rounded-full overflow-hidden flex-shrink-0 ${
+                  selectedUserProfile.isExpert ? 'ring-3 ring-yellow-500' : 'ring-2 ring-gray-300'
+                }`}>
+                  {selectedUserProfile.profilePicture ? (
+                    <img 
+                      src={selectedUserProfile.profilePicture} 
+                      alt={selectedUserProfile.username}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm ${selectedUserProfile.isExpert ? 'text-gray-200' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`}>
+                      @{selectedUserProfile.username}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <h3 className={`text-xl font-bold ${selectedUserProfile.isExpert ? 'text-white' : (isDarkMode ? 'text-white' : 'text-gray-900')}`}>
+                      {selectedUserProfile.username}
+                    </h3>
+                    {selectedUserProfile.isExpert && (
+                      <div className="bg-yellow-500 rounded-full p-1" title="Verified Expert">
+                        <Crown className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* User Type */}
+              <div className="flex items-center gap-2 mb-3">
+                <Briefcase className={`w-4 h-4 ${selectedUserProfile.isExpert ? 'text-gray-200' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
+                <span className={`text-sm ${selectedUserProfile.isExpert ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-700')}`}>
+                  {selectedUserProfile.isExpert ? 'Verified Expert' : 'Wildlife Enthusiast'}
+                </span>
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowUserProfileModal(false)}
+                className={`w-full mt-4 py-2 rounded-full font-semibold transition-colors ${
+                  selectedUserProfile.isExpert 
+                    ? 'bg-white/20 text-white hover:bg-white/30' 
+                    : (isDarkMode ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
+                }`}
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
