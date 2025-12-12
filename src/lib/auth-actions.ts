@@ -91,22 +91,26 @@ export async function updatePassword(password: string) {
 
 export async function signInWithGoogle() {
   const supabase = await createClient();
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?next=/dashboard`,
       queryParams: {
         access_type: "offline",
         prompt: "consent",
-      },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`,
-    },
+      }
+    }
   });
+
+  console.log("OAuth URL: ", data.url)
 
   if (error) {
     console.log(error);
     redirect("/error");
   }
-  return data.url;
+
+  redirect(data.url);
 }
 
 export async function signInWithFacebook() {
@@ -114,7 +118,7 @@ export async function signInWithFacebook() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'facebook',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
     },
   })
 
@@ -131,7 +135,7 @@ export async function signUpWithGoogle(role: 'enthusiast' | 'expert') {
     provider: "google",
     options: {
       queryParams: { access_type: "offline", prompt: "consent" },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/oauth-callback?role=${role}`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?role=${role}`,
     },
   });
 
@@ -147,7 +151,7 @@ export async function signUpWithFacebook(role: 'enthusiast' | 'expert') {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "facebook",
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/oauth-callback?role=${role}`,
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?role=${role}`,
     },
   });
 

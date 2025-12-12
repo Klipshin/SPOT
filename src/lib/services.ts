@@ -260,19 +260,7 @@ export const postService = {
         const supabase = getSupabase();
         const { data, error } = await supabase
             .from("posts")
-            .select(`
-                *,
-                user_profiles!posts_user_id_fkey (
-                    user_id,
-                    username,
-                    name,
-                    profile_picture
-                ),
-                communities!posts_community_id_fkey (
-                    community_id,
-                    community_name
-                )
-            `)
+            .select("*")
             .order("created_at", { ascending: false })
             .limit(limit);
 
@@ -379,7 +367,18 @@ export const voteService = {
             .single();
 
         if (error) throw error;
-    }
+    },
+
+    async removeVote(userId: string, postId: string) {
+        const supabase = getSupabase();
+        const { error } = await supabase
+            .from("votes")
+            .delete()
+            .eq("user_id", userId)
+            .eq("post_id", postId);
+
+        if (error) throw error;
+    },
 }
 
 export const adminService = {

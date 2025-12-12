@@ -1,8 +1,16 @@
+'use client';
+
+import ProtectedRoute from '@/src/components/ProtectedRoute';
+
 export default function SettingsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <>{children}</>;
+  return (
+    <ProtectedRoute>
+      {children}
+    </ProtectedRoute>
+  );
 }
 

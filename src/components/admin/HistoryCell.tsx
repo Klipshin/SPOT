@@ -15,6 +15,19 @@ function formatDate(dbDate: string) {
   });
 }
 
+function formatDate(dbDate: string) {
+  if (!dbDate) return '';
+  const date = new Date(dbDate);
+  return date.toLocaleString('en-US', {
+    month: 'short',   
+    day: 'numeric',   
+    year: 'numeric',  
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 type HistoryProps = {
     reporterProfile: string,
     reporterUsername: string,

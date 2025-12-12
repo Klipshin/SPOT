@@ -7,6 +7,17 @@ const nextConfig = {
   
   // Moved from experimental in Next.js 16
   serverExternalPackages: ['@supabase/ssr', '@supabase/supabase-js'],
+
+  // Configure images to allow Supabase storage URLs
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
 };
 
 module.exports = nextConfig;

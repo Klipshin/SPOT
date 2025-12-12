@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 // Dynamically import the dashboard with no SSR
 const DashboardContent = dynamic(() => import('./DashboardContent').then(mod => {
@@ -21,11 +22,24 @@ const DashboardContent = dynamic(() => import('./DashboardContent').then(mod => 
 
 export default function Dashboard() {
   const [mounted, setMounted] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     console.log('Dashboard page mounted');
+    
+    // Check if there's a code parameter (OAuth callback)
+    const code = searchParams.get('code');
+    if (code) {
+      // Redirect to the callback route to handle the code exchange
+      const currentUrl = new URL(window.location.href);
+      currentUrl.pathname = '/auth/callback';
+      router.replace(currentUrl.toString());
+      return;
+    }
+    
     setMounted(true);
-  }, []);
+  }, [router, searchParams]);
 
   if (!mounted) {
     return (

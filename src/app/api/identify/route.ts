@@ -1,7 +1,17 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
+// Vercel timeout config (10s for Hobby, 60s for Pro)
+export const maxDuration = 10;
+
+// SECURITY: Use server-side env var if available, fallback to public
+const apiKey = process.env.GEMINI_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+
+if (!apiKey) {
+  console.error("[IDENTIFY] ERROR: GEMINI API key not found");
+}
+
+const genAI = new GoogleGenerativeAI(apiKey);
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://spot-local.example'; // Define outside functions
 
 /**
@@ -89,22 +99,29 @@ async function getINatTaxon(scientificName: string) {
  * POST handler for /api/identify
  */
 export async function POST(req: Request) {
+  console.log('[IDENTIFY] ===== REQUEST START =====');
+  console.log('[IDENTIFY] Timestamp:', new Date().toISOString());
+  
   try {
-// ... (Your main API logic remains the same)
-
     const formData = await req.formData();
     const file = formData.get("image") as File | null;
 
     if (!file) {
+      console.log('[IDENTIFY] ERROR: No image uploaded');
       return NextResponse.json({ error: "No image uploaded" }, { status: 400 });
+    }
+
+    console.log('[IDENTIFY] Image received, size:', file.size, 'type:', file.type);
+
+    if (!apiKey) {
+      console.log('[IDENTIFY] ERROR: API key missing');
+      throw new Error("GEMINI API key is not set");
     }
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const base64Image = buffer.toString("base64");
     const mimeType = file.type || "image/jpeg";
-
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" }); // 2.0 or 1.5 Flash is recommended
 
     // UPDATED PROMPT WITH STRICT FILTERS
     const prompt = `
@@ -146,12 +163,62 @@ Return strictly a valid JSON array like:
 Do not include any explanations or text outside the JSON.
 `;
 
-    const result = await model.generateContent([
+    const contentInput = [
       { text: prompt },
       { inlineData: { data: base64Image, mimeType } },
-    ]);
+    ];
 
-    const rawText = result.response.text();
+    let rawText = '';
+
+    console.log('[IDENTIFY] Starting AI generation with gemini-2.5-flash...');
+
+    // Primary model: gemini-2.5-flash
+    try {
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const result = await model.generateContent(contentInput);
+      rawText = result.response.text();
+      console.log('[IDENTIFY] Primary model SUCCESS, response length:', rawText.length);
+    } catch (primaryError) {
+      console.log('[IDENTIFY] Primary model FAILED:', primaryError);
+      console.log('[IDENTIFY] Trying fallback: gemini-2.5-pro...');
+
+      // Fallback 1: gemini-2.5-pro
+      try {
+        const fallbackModel = genAI.getGenerativeModel({ 
+          model: "gemini-2.5-pro",
+          generationConfig: {
+            temperature: 0.7,
+          }
+        });
+        const fallbackResult = await fallbackModel.generateContent(contentInput);
+        rawText = fallbackResult.response.text();
+        console.log('[IDENTIFY] Fallback model SUCCESS, response length:', rawText.length);
+      } catch (fallbackError) {
+        console.log('[IDENTIFY] Fallback model FAILED:', fallbackError);
+        console.log('[IDENTIFY] Trying final fallback: gemini-2.5-flash-lite...');
+
+        // Fallback 2: gemini-2.5-flash-lite
+        try {
+          const finalFallbackModel = genAI.getGenerativeModel({ 
+            model: "gemini-2.5-flash-lite",
+            generationConfig: {
+              temperature: 0.7,
+            }
+          });
+          const finalFallbackResult = await finalFallbackModel.generateContent(contentInput);
+          rawText = finalFallbackResult.response.text();
+          console.log('[IDENTIFY] Final fallback SUCCESS, response length:', rawText.length);
+        } catch (finalFallbackError) {
+          console.error('[IDENTIFY] All models FAILED');
+          console.error('[IDENTIFY] Final fallback error:', finalFallbackError);
+          throw new Error('All AI models failed. The service may be temporarily unavailable. Please try again later.');
+        }
+      }
+    }
+
+    if (!rawText || rawText.trim() === '') {
+      throw new Error('Received empty response from AI model');
+    }
 
     let predictions: Prediction[] = [];
     try {
@@ -197,10 +264,27 @@ Do not include any explanations or text outside the JSON.
       }
     }
 
+    console.log('[IDENTIFY] ===== SUCCESS =====');
+    console.log('[IDENTIFY] Generated', predictions.length, 'predictions');
+
     return NextResponse.json({ predictions });
   } catch (err: unknown) {
-    console.error("Error identifying image:", err);
-    const message = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error("[IDENTIFY] ===== FATAL ERROR =====");
+    console.error("[IDENTIFY] Error:", err);
+    
+    if (err instanceof Error) {
+      console.error("[IDENTIFY] Message:", err.message);
+      console.error("[IDENTIFY] Stack:", err.stack);
+    }
+    
+    const errorMessage = err instanceof Error ? err.message : 'Image identification failed';
+    
+    return NextResponse.json(
+      { 
+        error: errorMessage,
+        predictions: []
+      }, 
+      { status: 500 }
+    );
   }
 }

@@ -3,6 +3,8 @@ import { useState, useRef, ChangeEvent, KeyboardEvent} from 'react';
 import { Search, MapPin, Edit, MessageCircle, TrendingUp, MoreHorizontal, ChevronDown, User, ArrowBigUp, ArrowBigDown, Briefcase, Crown, Shield, CheckCircle } from 'lucide-react';
 import { Settings, HelpCircle, LogOut, Clock } from 'lucide-react';
 import { Share2, Flag, EyeOff, X, Users } from 'lucide-react';
+import { getPostMediaUrl, getCommentMediaUrl, getProfilePictureUrl } from '@/src/utils/imageUrl';
+import ProtectedRoute from '@/src/components/ProtectedRoute';
 
 type Post = {
   id: number;
@@ -279,6 +281,7 @@ const closeCommentModal = () => {
 };
 
   return (
+    <ProtectedRoute>
 <div 
   className="h-screen flex flex-col bg-gradient-to-b from-green-50 to-amber-50" 
   style={{ 
@@ -748,10 +751,22 @@ style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
 
   <h2 className="text-xl font-bold text-gray-800 mb-4">Heading</h2><br />
 
-  {/* Image Placeholder */}
-  <div className="bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl h-64 mb-4 flex items-center justify-center">
-    <span className="text-gray-400 text-sm">Image content</span>
-  </div>
+  {/* Post Image */}
+  {post.image ? (
+    <img 
+      src={getPostMediaUrl(post.image) || post.image} 
+      alt={post.heading || 'Post image'} 
+      className="w-full rounded-2xl h-64 mb-4 object-cover"
+      onError={(e) => {
+        console.error('Failed to load post image:', post.image);
+        e.currentTarget.style.display = 'none';
+      }}
+    />
+  ) : (
+    <div className="bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl h-64 mb-4 flex items-center justify-center">
+      <span className="text-gray-400 text-sm">Image content</span>
+    </div>
+  )}
 
   <p className="text-gray-700 mb-6">caption</p><br />
 
@@ -870,5 +885,6 @@ style={{ backgroundColor: 'rgba(255, 255, 255, 0.75)' }}>
         </div>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
