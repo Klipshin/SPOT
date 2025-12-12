@@ -10,14 +10,23 @@ import { useCommunities } from '@/src/lib/hooks/useCommunities';
 import CreateCommunityModal from '@/src/components/CreateCommunityModal';
 import VerifySpeciesModal from '@/src/components/VerifySpeciesModal';
 import VerificationDetailsModal from '@/src/components/VerificationDetailsModal';
+import NotificationBell from '@/src/components/NotificationBell';
+import ReportModal from '@/src/components/ReportModal';
 import { communityService } from '@/src/lib/services';
+import { 
+  getProfilePictureUrl, 
+  getCommunityProfilePictureUrl, 
+  getPostMediaUrl,
+  getIdentificationImageUrl,
+  getCommentMediaUrl
+} from '@/src/utils/imageUrl';
 
 // IMPORTANT: Import the useSupabase hook (Assuming its location)
 import { useSupabase } from '@/src/components/providers/SupabaseProvider'; 
 
 // --- START: Types ---
 type Comment = {
-  id: number;
+  id: string | number; // Can be UUID string or number
   user: string;
   userProfilePicture?: string | null;
   date: string;
@@ -28,6 +37,7 @@ type Comment = {
   downvotes: number;
   isReply: boolean;
   isExpert?: boolean;
+  userId?: string; // Add userId for reporting
 };
 
 // Updated Post type to use string/UUID for id
@@ -181,7 +191,7 @@ useEffect(() => {
             name: data.name || 'Full Name',
             location: data.location || 'Location not set',
             occupation: data.is_expert ? 'Verified Expert' : 'Wildlife Enthusiast', // Set based on expert status
-            profile_picture: data.profile_picture
+            profile_picture: getProfilePictureUrl(data.profile_picture) || null
           });
         }
 
@@ -238,7 +248,10 @@ useEffect(() => {
     }
   }, [isDarkMode]);
   const [isPostMenuOpen, setIsPostMenuOpen] = useState(false);
-  const [showRepostModal, setShowRepostModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportContentType, setReportContentType] = useState<'post' | 'comment'>('post');
+  const [reportContentId, setReportContentId] = useState<string>('');
+  const [reportUserId, setReportUserId] = useState<string>('');
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
   const [selectedPostForComment, setSelectedPostForComment] = useState<ClientPost | null>(null);
   const [newCommentText, setNewCommentText] = useState('');
@@ -258,7 +271,20 @@ useEffect(() => {
   
   // User profile modal state
   const [showUserProfileModal, setShowUserProfileModal] = useState(false);
-  const [selectedUserProfile, setSelectedUserProfile] = useState<{ username: string; profilePicture: string | null; userId: string; isExpert?: boolean } | null>(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState<{ 
+    username: string; 
+    profilePicture: string | null; 
+    userId: string; 
+    isExpert?: boolean;
+    email?: string;
+    location?: string;
+    bio?: string;
+    privacySettings?: {
+      profileVisibility: string;
+      showEmail: boolean;
+      showLocation: boolean;
+    };
+  } | null>(null);
   const [userProfileData, setUserProfileData] = useState<any>(null);
   const [isLoadingUserProfile, setIsLoadingUserProfile] = useState(false);
   
@@ -362,11 +388,11 @@ useEffect(() => {
                   id: p.post_id,
                   timestamp: new Date(p.created_at).getTime(),
                   user: `@${p.user_profiles?.username || 'unknown'}`,
-                  userProfilePicture: p.user_profiles?.profile_picture || null,
+                  userProfilePicture: getProfilePictureUrl(p.user_profiles?.profile_picture) || null,
                   date: new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
                   heading: p.title,
                   caption: p.content,
-                  image: p.media_url || identification?.image_url || null, 
+                  image: getPostMediaUrl(p.media_url) || getIdentificationImageUrl(identification?.image_url) || null, 
                   scientificName: scientificName,
                   vote: null,
                   upvotes: p.upvotes || 0, 
@@ -374,7 +400,7 @@ useEffect(() => {
                   comments: [],
                   communityId: p.communities?.community_id,
                   communityName: p.communities?.community_name,
-                  communityProfilePicture: p.communities?.profile_picture,
+                  communityProfilePicture: getCommunityProfilePictureUrl(p.communities?.profile_picture) || null,
                   flairNames: p.flairNames || [],
                   userId: p.user_id,
                   authorUsername: p.user_profiles?.username,
@@ -394,17 +420,18 @@ useEffect(() => {
               if (response.ok) {
                 const { comments } = await response.json();
                 const mappedComments: Comment[] = comments.map((c: any) => ({
-                  id: c.comment_id,
+                  id: c.comment_id, // This is a UUID string from the database
                   user: `@${c.user_profiles?.username || 'user'}`,
-                  userProfilePicture: c.user_profiles?.profile_picture || null,
+                  userProfilePicture: getProfilePictureUrl(c.user_profiles?.profile_picture) || null,
                   date: formatTimeAgo(c.created_at),
                   text: c.content,
-                  image: c.media_url,
+                  image: getCommentMediaUrl(c.media_url) || null,
                   vote: c.userVote || null,
                   upvotes: c.upvotes || 0,
                   downvotes: c.downvotes || 0,
                   isReply: c.parent_comment_id !== null,
                   isExpert: c.user_profiles?.is_expert || false,
+                  userId: c.user_id || '', // Add userId for reporting - ensure it's a string
                 }));
                 
                 setClientPosts(prevPosts => prevPosts.map(p => 
@@ -1030,10 +1057,10 @@ useEffect(() => {
     >
       {/* Top Fixed Header */}
       <div className="fixed top-0 left-0 right-0 w-full z-50">
-          <div className={`w-full h-11 flex items-center justify-between px-4 ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`}>
+          <div className={`relative w-full h-11 ${isDarkMode ? 'bg-[#373333]' : 'bg-[#dad2b9]'}`}>
           
           {/* Left Side - Logo */}
-          <div className="flex items-center gap-3">
+          <div className="absolute top-0 left-[15px] flex items-center gap-3">
               <img className="w-[50px] h-[40px] aspect-[1.48] object-cover" alt="Spoticon" src="/eyecon.svg" />
               <div className="[-webkit-text-stroke:0.5px_#072d0d] bg-[linear-gradient(180deg,rgba(149,171,51,1)_30%,rgba(35,115,47,1)_57%,rgba(8,46,13,1)_83%)] [-webkit-background-clip:text] bg-clip-text [-webkit-text-fill-color:transparent] [text-fill-color:transparent] [font-family:'Poppins-ExtraBold',Helvetica] font-extrabold text-transparent text-[32px] tracking-[1.60px] leading-[normal]">
                   SPOT
@@ -1041,7 +1068,7 @@ useEffect(() => {
           </div>
 
               {/* === CENTER - SEARCH BAR === */}
-              <div className="flex-1 max-w-2xl mx-auto">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl px-4">
                   <div className="relative w-full">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                       
@@ -1108,7 +1135,7 @@ useEffect(() => {
                                                 className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors flex items-center gap-3"
                                               >
                                                 {comm.profile_picture ? (
-                                                  <img src={comm.profile_picture} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                                  <img src={getCommunityProfilePictureUrl(comm.profile_picture) || ''} alt="" className="w-8 h-8 rounded-full object-cover" />
                                                 ) : (
                                                   <div className="w-8 h-8 rounded-full bg-[#7D9B76] flex items-center justify-center text-white font-bold text-xs">
                                                     {comm.community_name[0]}
@@ -1134,7 +1161,7 @@ useEffect(() => {
                                                 className="w-full text-left px-3 py-2.5 hover:bg-gray-50 rounded-lg text-sm text-gray-700 transition-colors flex items-center gap-3"
                                               >
                                                 {person.profile_picture ? (
-                                                  <img src={person.profile_picture} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                                  <img src={getProfilePictureUrl(person.profile_picture) || ''} alt="" className="w-8 h-8 rounded-full object-cover" />
                                                 ) : (
                                                   <User className="w-8 h-8 text-gray-400" />
                                                 )}
@@ -1210,19 +1237,25 @@ useEffect(() => {
               {/* === END SEARCH BAR === */}
               
               {/* Right Side - Dark Mode & Profile */}
-              <div className="flex items-center gap-4">
-                  <button 
-                      className="hover:scale-110 transition-transform duration-200 cursor-pointer"
-                      onClick={() => setIsDarkMode(!isDarkMode)}
-                  >
-                      {isDarkMode ? (
-                          <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
-                      ) : (
-                          <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
-                      )}
-                  </button>
+              {/* Dark Mode Toggle */}
+              <button 
+                  className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+              >
+                  {isDarkMode ? (
+                      <img className="w-[70px] h-[50px]" style={{ marginTop: '1px' }} alt="Dark Mode" src="/darkk.svg" />
+                  ) : (
+                      <img className="w-[47px] h-[31px]" style={{ marginTop: '6px' }} alt="Light Mode" src="/lightt.svg" />
+                  )}
+              </button>
 
-                  {/* User Profile Button */}
+              {/* Notification Bell */}
+              <div className="absolute top-[5px] left-[1395px]">
+                  <NotificationBell isDarkMode={isDarkMode} />
+              </div>
+
+              {/* User Profile Button */}
+              <div className="absolute top-[5px] left-[1425px]">
                   <div className="relative">
                       <button 
                           className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
@@ -1326,7 +1359,7 @@ useEffect(() => {
                           </div>
                       </div>
                   )}
-              </div>
+                  </div>
               </div>
           </div>
       </div>
@@ -1415,7 +1448,19 @@ useEffect(() => {
                               >
                                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center overflow-hidden">
                                       {comm.profile_picture ? (
-                                          <img src={comm.profile_picture} alt={comm.community_name} className="w-full h-full object-cover" />
+                                          <img 
+                                              src={getCommunityProfilePictureUrl(comm.profile_picture) || ''} 
+                                              alt={comm.community_name} 
+                                              className="w-full h-full object-cover"
+                                              onError={(e) => {
+                                                console.error('Failed to load community profile picture from userCommunities:', comm.profile_picture, 'Converted URL:', getCommunityProfilePictureUrl(comm.profile_picture));
+                                                e.currentTarget.style.display = 'none';
+                                                const parent = e.currentTarget.parentElement;
+                                                if (parent) {
+                                                  parent.innerHTML = '<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>';
+                                                }
+                                              }}
+                                          />
                                       ) : (
                                           <Users className="w-6 h-6 text-green-600" />
                                       )}
@@ -1541,7 +1586,8 @@ useEffect(() => {
                   {/* Post Cards */}
                   {!postsLoading && displayedPosts.length > 0 ? displayedPosts.map((post) => (
                       <article 
-                          key={post.id} 
+                          key={post.id}
+                          id={`post-${post.id}`}
                           className="rounded-3xl shadow-lg p-6 mb-6" 
                           style={{
                               borderRadius: '25px',
@@ -1557,6 +1603,14 @@ useEffect(() => {
                                               src={post.communityProfilePicture} 
                                               alt={post.communityName || 'Community'}
                                               className="w-full h-full object-cover"
+                                              onError={(e) => {
+                                                console.error('Failed to load community profile picture:', post.communityProfilePicture);
+                                                e.currentTarget.style.display = 'none';
+                                                const parent = e.currentTarget.parentElement;
+                                                if (parent) {
+                                                  parent.innerHTML = '<svg class="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>';
+                                                }
+                                              }}
                                           />
                                       ) : (
                                           <Users className="w-6 h-6 text-gray-400" />
@@ -1591,12 +1645,45 @@ useEffect(() => {
                                       </div>
                                       <div className="flex items-center gap-2">
                                           <button 
-                                              onClick={() => {
+                                              onClick={async () => {
+                                                  const userId = post.userId || '';
+                                                  // Fetch user privacy settings
+                                                  let privacySettings = null;
+                                                  try {
+                                                      const { data: profile } = await supabase
+                                                          .from('user_profiles')
+                                                          .select('profile_visibility, show_email, show_location, bio, location')
+                                                          .eq('user_id', userId)
+                                                          .single();
+                                                      
+                                                      if (profile) {
+                                                          privacySettings = {
+                                                              profileVisibility: profile.profile_visibility || 'public',
+                                                              showEmail: profile.show_email !== false,
+                                                              showLocation: profile.show_location !== false,
+                                                          };
+                                                      }
+                                                  } catch (error) {
+                                                      console.error('Error fetching privacy settings:', error);
+                                                  }
+                                                  
+                                                  // Note: Email fetching requires server-side API, skipping for now
+                                                  // Email can be added via API route if needed
+                                                  let email = undefined;
+                                                  
                                                   setSelectedUserProfile({
                                                       username: post.authorUsername || post.user.replace('@', ''),
                                                       profilePicture: post.userProfilePicture || null,
-                                                      userId: post.userId || '',
-                                                      isExpert: post.isExpert
+                                                      userId: userId,
+                                                      isExpert: post.isExpert,
+                                                      email: email,
+                                                      location: privacySettings?.showLocation ? post.location || undefined : undefined,
+                                                      bio: undefined, // Could fetch if needed
+                                                      privacySettings: privacySettings || {
+                                                          profileVisibility: 'public',
+                                                          showEmail: true,
+                                                          showLocation: true,
+                                                      }
                                                   });
                                                   setShowUserProfileModal(true);
                                               }}
@@ -1619,12 +1706,45 @@ useEffect(() => {
                                           </button>
                                           <div className="flex items-center gap-1">
                                             <button 
-                                                onClick={() => {
+                                                onClick={async () => {
+                                                    const userId = post.userId || '';
+                                                    // Fetch user privacy settings
+                                                    let privacySettings = null;
+                                                    try {
+                                                        const { data: profile } = await supabase
+                                                            .from('user_profiles')
+                                                            .select('profile_visibility, show_email, show_location, bio, location')
+                                                            .eq('user_id', userId)
+                                                            .single();
+                                                        
+                                                        if (profile) {
+                                                            privacySettings = {
+                                                                profileVisibility: profile.profile_visibility || 'public',
+                                                                showEmail: profile.show_email !== false,
+                                                                showLocation: profile.show_location !== false,
+                                                            };
+                                                        }
+                                                    } catch (error) {
+                                                        console.error('Error fetching privacy settings:', error);
+                                                    }
+                                                    
+                                                    // Note: Email fetching requires server-side API, skipping for now
+                                                    // Email can be added via API route if needed
+                                                    let email = undefined;
+                                                    
                                                     setSelectedUserProfile({
                                                         username: post.authorUsername || post.user.replace('@', ''),
                                                         profilePicture: post.userProfilePicture || null,
-                                                        userId: post.userId || '',
-                                                        isExpert: post.isExpert
+                                                        userId: userId,
+                                                        isExpert: post.isExpert,
+                                                        email: email,
+                                                        location: privacySettings?.showLocation ? post.location || undefined : undefined,
+                                                        bio: undefined,
+                                                        privacySettings: privacySettings || {
+                                                            profileVisibility: 'public',
+                                                            showEmail: true,
+                                                            showLocation: true,
+                                                        }
                                                     });
                                                     setShowUserProfileModal(true);
                                                 }}
@@ -1662,15 +1782,18 @@ useEffect(() => {
                                           <div className="py-1">
                                               <button 
                                                   className="w-full px-4 py-2 text-left hover:bg-[#D4DEC3] transition-colors flex items-center gap-2.5"
-                                                  onClick={() => { setIsPostMenuOpen(false); setShowRepostModal(true); }}
-                                              >
-                                                  <Share2 className="w-4 h-4 text-gray-700" />
-                                                  <span className="text-sm font-medium text-gray-900">Repost to...</span>
-                                              </button>
-                                              
-                                              <button 
-                                                  className="w-full px-4 py-2 text-left hover:bg-[#D4DEC3] transition-colors flex items-center gap-2.5"
-                                                  onClick={() => {/* Report logic here */}}
+                                                  onClick={() => {
+                                                    if (!post.userId) {
+                                                      console.error('Post userId is missing:', post);
+                                                      alert('Unable to report: User information is missing.');
+                                                      return;
+                                                    }
+                                                    setIsPostMenuOpen(false);
+                                                    setReportContentType('post');
+                                                    setReportContentId(String(post.id));
+                                                    setReportUserId(post.userId);
+                                                    setShowReportModal(true);
+                                                  }}
                                               >
                                                   <Flag className="w-4 h-4 text-gray-700" />
                                                   <span className="text-sm font-medium text-gray-900">Report Post</span>
@@ -1700,37 +1823,6 @@ useEffect(() => {
                                       </div>
                                   )}
 
-                                  {/* Repost Modal */}
-                                  {showRepostModal && (
-                                      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
-                                          <div 
-                                              className="bg-white rounded-2xl shadow-2xl w-96 overflow-hidden"
-                                              style={{ border: '2px solid #899A3C' }}
-                                          >
-                                              <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-                                                  <h3 className="text-lg font-bold text-gray-900">Repost to Community</h3>
-                                                  <button 
-                                                      onClick={() => setShowRepostModal(false)}
-                                                      className="text-gray-400 hover:text-gray-600 transition-colors"
-                                                  >
-                                                      <X className="w-5 h-5" />
-                                                  </button>
-                                              </div>
-                                              <div className="max-h-80 overflow-y-auto py-2">
-                                                  {userCommunities.map((community) => (
-                                                      <button
-                                                          key={community.community_id}
-                                                          className="w-full px-6 py-3 text-left hover:bg-[#DBE9AF] transition-colors flex items-center gap-3"
-                                                          onClick={() => { console.log(`Reposting to ${community.community_name}`); setShowRepostModal(false); }}
-                                                      >
-                                                          <Users className="w-5 h-5 text-gray-600" />
-                                                          <span className="text-sm font-medium text-gray-900">{community.community_name}</span>
-                                                      </button>
-                                                  ))}
-                                              </div>
-                                          </div>
-                                      </div>
-                                  )}
                               </div>
                           </div>
 
@@ -1851,6 +1943,7 @@ useEffect(() => {
                               {/* Comment Button with Count */}
                               <button 
                                   onClick={() => openCommentModal(post)} 
+                                  data-comment-button
                                   className="flex items-center gap-2 rounded-full px-3 py-2 shadow-sm bg-[#D9D9D9] hover:bg-blue-200 transition-colors"
                               >
                                   <MessageCircle className="w-6 h-6 text-[#0057FF] -scale-x-100 stroke-[2.5]" />
@@ -2025,7 +2118,8 @@ useEffect(() => {
                 ) : (
                   selectedPostForComment.comments.map((comment) => (
                     <div 
-                      key={comment.id} 
+                      key={comment.id}
+                      id={`comment-${comment.id}`}
                       className={`flex gap-3 ${comment.isReply ? `ml-8 border-l pl-4 ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}` : ''}`}
                     >
                       <div className={`w-8 h-8 flex-shrink-0 rounded-full flex items-center justify-center overflow-hidden mt-1 ${
@@ -2103,6 +2197,29 @@ useEffect(() => {
                             className="hover:underline font-medium"
                           >
                             Reply
+                          </button>
+
+                          <span className="text-gray-400">|</span>
+                          
+                          {/* Report Comment Action */}
+                          <button 
+                            onClick={() => {
+                              if (!comment.userId) {
+                                console.error('Comment userId is missing:', comment);
+                                alert('Unable to report: User information is missing.');
+                                return;
+                              }
+                              setReportContentType('comment');
+                              // Ensure contentId is a string (UUID)
+                              setReportContentId(String(comment.id));
+                              setReportUserId(comment.userId);
+                              setShowReportModal(true);
+                            }}
+                            className="hover:text-red-600 transition-colors flex items-center gap-1"
+                            title="Report comment"
+                          >
+                            <Flag className="w-3 h-3" />
+                            <span>Report</span>
                           </button>
                         </div>
                       </div>
@@ -2304,6 +2421,20 @@ useEffect(() => {
         />
       )}
 
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => {
+          setShowReportModal(false);
+          setReportContentId('');
+          setReportUserId('');
+        }}
+        contentType={reportContentType}
+        contentId={reportContentId}
+        reportedUserId={reportUserId}
+        isDarkMode={isDarkMode}
+      />
+
       {/* User Profile Modal */}
       {showUserProfileModal && selectedUserProfile && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={() => setShowUserProfileModal(false)}>
@@ -2363,6 +2494,28 @@ useEffect(() => {
                   {selectedUserProfile.isExpert ? 'Verified Expert' : 'Wildlife Enthusiast'}
                 </span>
               </div>
+
+              {/* Email - Only show if privacy allows */}
+              {selectedUserProfile.privacySettings?.showEmail && selectedUserProfile.email && (
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className={`w-4 h-4 ${selectedUserProfile.isExpert ? 'text-gray-200' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span className={`text-sm ${selectedUserProfile.isExpert ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-700')}`}>
+                    {selectedUserProfile.email}
+                  </span>
+                </div>
+              )}
+
+              {/* Location - Only show if privacy allows */}
+              {selectedUserProfile.privacySettings?.showLocation && selectedUserProfile.location && (
+                <div className="flex items-center gap-2 mb-3">
+                  <MapPin className={`w-4 h-4 ${selectedUserProfile.isExpert ? 'text-gray-200' : (isDarkMode ? 'text-gray-400' : 'text-gray-500')}`} />
+                  <span className={`text-sm ${selectedUserProfile.isExpert ? 'text-white' : (isDarkMode ? 'text-gray-300' : 'text-gray-700')}`}>
+                    {selectedUserProfile.location}
+                  </span>
+                </div>
+              )}
 
               {/* Close Button */}
               <button

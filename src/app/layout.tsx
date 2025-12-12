@@ -25,7 +25,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={poppins.variable}>
       <body className={`${poppins.className} antialiased`} suppressHydrationWarning>
-        {children}
+        <SupabaseProvider>
+          {children}
+        </SupabaseProvider>
       </body>
     </html>
   );

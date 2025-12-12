@@ -6,6 +6,9 @@ import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft,
 import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { getProfilePictureUrl } from '@/src/utils/imageUrl';
+import ProtectedRoute from '@/src/components/ProtectedRoute';
+import NotificationBell from '@/src/components/NotificationBell';
 
 // Dynamic import to avoid SSR issues with Leaflet
 const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
@@ -80,7 +83,8 @@ export default function ProfilePage() {
             location: profile.location || '',
           });
           if (profile.profile_picture) {
-            setProfileImage(profile.profile_picture);
+            const convertedUrl = getProfilePictureUrl(profile.profile_picture);
+            setProfileImage(convertedUrl || null);
           }
         }
       } catch (error) {
@@ -189,11 +193,12 @@ export default function ProfilePage() {
   };
 
   return (
+    <ProtectedRoute>
     <div 
       className="h-screen flex flex-col bg-gradient-to-b from-green-50 to-amber-50 overflow-hidden" 
       style={{ 
         backgroundImage: `url('/${isDarkMode ? 'dark.png' : 'light.png'}')`, 
-        backgroundSize: 'cover', 
+        backgroundSize: 'cover',
         backgroundPosition: 'center', 
         backgroundAttachment: 'fixed',
         zoom: '100%',
@@ -214,7 +219,7 @@ export default function ProfilePage() {
 
       {/* Right Side Icons */}
             <button 
-    className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+    className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
     onClick={() => setIsDarkMode(!isDarkMode)}
 >
     {isDarkMode ? (
@@ -224,8 +229,13 @@ export default function ProfilePage() {
     )}
 </button>
 
+{/* Notification Bell */}
+<div className="absolute top-[5px] left-[1395px]">
+  <NotificationBell isDarkMode={isDarkMode} />
+</div>
+
 {/* User Profile Button (Chevron + PFP combined) */}
-<div className="absolute top-[5px] left-[1440px]">
+<div className="absolute top-[5px] left-[1425px]">
   <button 
     className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
     onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -239,7 +249,10 @@ export default function ProfilePage() {
     <img 
       className="w-[35px] h-[35px] aspect-[1] object-cover rounded-full" 
       alt="User" 
-      src={profileImage || "/pfpp.svg"} 
+      src={profileImage || "/pfpp.svg"}
+      onError={(e) => {
+        e.currentTarget.src = "/pfpp.svg";
+      }}
     />
   </button>
 
@@ -514,6 +527,14 @@ export default function ProfilePage() {
           src={profileImage} 
           alt="Profile" 
           className="w-full h-full object-cover"
+          onError={(e) => {
+            console.error('Failed to load profile picture:', profileImage);
+            e.currentTarget.style.display = 'none';
+            const parent = e.currentTarget.parentElement;
+            if (parent) {
+              parent.innerHTML = '<div class="w-full h-full bg-[#FFFFFF] flex items-center justify-center"></div>';
+            }
+          }}
         />
       ) : (
         <div className="w-full h-full bg-[#FFFFFF] flex items-center justify-center">
@@ -565,7 +586,19 @@ export default function ProfilePage() {
               <div className="flex items-start gap-4 mb-5">
                 <div className="w-15 h-15 bg-white/30 rounded-full flex items-center justify-center overflow-hidden">
                   {profileImage ? (
-                    <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
+                    <img 
+                      src={profileImage} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error('Failed to load profile picture in sidebar:', profileImage);
+                        e.currentTarget.style.display = 'none';
+                        const parent = e.currentTarget.parentElement;
+                        if (parent) {
+                          parent.innerHTML = '<svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>';
+                        }
+                      }}
+                    />
                   ) : (
                     <User className="w-10 h-10 text-white" />
                   )}
@@ -680,5 +713,6 @@ export default function ProfilePage() {
         </div>
       )}
     </div>
+    </ProtectedRoute>
   );
 }

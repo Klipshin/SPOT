@@ -4,6 +4,12 @@ import React, { useState, useRef, useEffect } from "react";
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/src/utils/supabase/client'; // Make sure this path matches your project
 import dynamic from 'next/dynamic';
+import { 
+  getProfilePictureUrl, 
+  getCommunityProfilePictureUrl,
+  getPostMediaUrl
+} from '@/src/utils/imageUrl';
+import NotificationBell from '@/src/components/NotificationBell';
 
 // Dynamic import to avoid SSR issues with Leaflet
 const LocationSearch = dynamic(() => import('@/src/components/LocationSearch'), {
@@ -128,7 +134,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
       if (profile) {
         setUsername(profile.username);
-        setProfilePicture(profile.profile_picture);
+        setProfilePicture(getProfilePictureUrl(profile.profile_picture) || null);
       }
 
       // Fetch user's communities using API route (bypasses RLS)
@@ -161,7 +167,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
           id: item.id,
           type: item.role === 'user' ? 'user' : 'assistant',
           content: item.content || "",
-          image: item.image_url || undefined,
+          image: item.image_url ? (getPostMediaUrl(item.image_url) || item.image_url) : undefined,
           predictions: item.predictions as Prediction[],
           timestamp: new Date(item.created_at),
           sessionId: item.id // Use id as session for now
@@ -601,7 +607,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
 
             {/* DARK MODE TOGGLE */}
             <button 
-              className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+              className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
               onClick={() => setIsDarkMode(!isDarkMode)}
             >
               {isDarkMode ? (
@@ -611,8 +617,13 @@ export const AiChatLoggedIn = (): React.ReactElement => {
               )}
             </button>
 
+            {/* Notification Bell */}
+            <div className="absolute top-[5px] left-[1395px]">
+              <NotificationBell isDarkMode={isDarkMode} />
+            </div>
+
             {/* Profile button */}
-            <div className="absolute top-[5px] left-[1440px]">
+            <div className="absolute top-[5px] left-[1425px]">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
                 onBlur={() => setTimeout(() => setIsProfileOpen(false), 200)}
@@ -748,7 +759,15 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                   }`}
                 >
                   {message.image && (
-                    <img src={message.image} alt="Uploaded" className="w-full rounded-lg mb-2 max-h-[200px] object-cover" />
+                    <img 
+                      src={getPostMediaUrl(message.image) || message.image} 
+                      alt="Uploaded" 
+                      className="w-full rounded-lg mb-2 max-h-[200px] object-cover"
+                      onError={(e) => {
+                        console.error('Failed to load message image:', message.image);
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
                   )}
                   <p className="text-sm">{message.content}</p>
                   {message.predictions && (
@@ -903,7 +922,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                   id: item.id,
                   type: item.role === 'user' ? 'user' : 'assistant',
                   content: item.content || "",
-                  image: item.image_url || undefined,
+                  image: item.image_url ? (getPostMediaUrl(item.image_url) || item.image_url) : undefined,
                   predictions: item.predictions as Prediction[],
                   timestamp: new Date(item.created_at),
                   sessionId: item.id
@@ -939,12 +958,19 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                       }
                     });
                     
+                    // Sort chatHistory chronologically for proper matching
+                    const sortedHistory = [...chatHistory].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+                    
                     return Array.from(sessionMap.values()).reverse().map((msg) => {
-                      // Find the assistant response right after this user message
-                      const msgIndex = chatHistory.findIndex(m => m.id === msg.id);
-                      const assistantResponse = chatHistory
-                        .slice(msgIndex + 1)
-                        .find(m => m.type === 'assistant' && m.predictions && m.predictions.length > 0);
+                      // Find the assistant response right after this user message chronologically
+                      const msgTimestamp = msg.timestamp.getTime();
+                      const assistantResponse = sortedHistory.find(m => 
+                        m.type === 'assistant' && 
+                        m.predictions && 
+                        m.predictions.length > 0 &&
+                        m.timestamp.getTime() > msgTimestamp &&
+                        Math.abs(m.timestamp.getTime() - msgTimestamp) < 5 * 60 * 1000 // Within 5 minutes
+                      );
                       const firstSpecies = assistantResponse?.predictions?.[0]?.common_name;
                       // Prioritize species name, then fall back to 'Image identification'
                       const displayTitle = firstSpecies || 'Image identification';
@@ -959,7 +985,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                             const sessionMsgs = chatHistory.filter(m => {
                               const diff = Math.abs(m.timestamp.getTime() - msgTime);
                               return diff < 5 * 60 * 1000; // 5 minutes window
-                            });
+                            }).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()); // Sort chronologically
                             setMessages(sessionMsgs);
                             setCurrentSessionId(sessId);
                           }}
@@ -969,7 +995,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                         >
                           {msg.image && (
                             <img 
-                              src={msg.image} 
+                              src={getPostMediaUrl(msg.image) || msg.image} 
                               alt="Chat" 
                               className="w-12 h-12 rounded-md object-cover flex-shrink-0" 
                             />
@@ -1235,7 +1261,7 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                             id: item.id,
                             type: item.role === 'user' ? 'user' : 'assistant',
                             content: item.content || "",
-                            image: item.image_url || undefined,
+                            image: item.image_url ? (getPostMediaUrl(item.image_url) || item.image_url) : undefined,
                             predictions: item.predictions as Prediction[],
                             timestamp: new Date(item.created_at),
                           sessionId: item.id
@@ -1317,9 +1343,13 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                         <p className="text-sm font-bold mb-3 opacity-70">Preview:</p>
                         {selectedMessageToPost.image && (
                           <img 
-                            src={selectedMessageToPost.image} 
+                            src={getPostMediaUrl(selectedMessageToPost.image) || selectedMessageToPost.image} 
                             alt="Preview" 
                             className="w-full h-40 object-cover rounded-xl mb-3"
+                            onError={(e) => {
+                              console.error('Failed to load preview image:', selectedMessageToPost.image);
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         )}
                         {selectedMessageToPost.predictions && selectedMessageToPost.predictions[0] && (
@@ -1350,9 +1380,17 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                             >
                               {community.profile_picture ? (
                                 <img 
-                                  src={community.profile_picture} 
+                                  src={getCommunityProfilePictureUrl(community.profile_picture) || ''} 
                                   alt={community.community_name}
                                   className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                                  onError={(e) => {
+                                    console.error('Failed to load community profile picture:', community.profile_picture);
+                                    e.currentTarget.style.display = 'none';
+                                    const parent = e.currentTarget.parentElement;
+                                    if (parent) {
+                                      parent.innerHTML = `<div class="w-12 h-12 rounded-full bg-[#7D9B76] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">${community.community_name.charAt(0).toUpperCase()}</div>`;
+                                    }
+                                  }}
                                 />
                               ) : (
                                 <div className="w-12 h-12 rounded-full bg-[#7D9B76] flex items-center justify-center text-white font-bold text-lg flex-shrink-0">
@@ -1548,9 +1586,13 @@ export const AiChatLoggedIn = (): React.ReactElement => {
                         <div className={`p-4 rounded-2xl border-2 ${isDarkMode ? 'bg-[#333] border-gray-600' : 'bg-[#E2DFC8] border-gray-300'}`}>
                           <p className="text-sm font-bold mb-2 opacity-70">Attached Image:</p>
                           <img 
-                            src={selectedMessageToPost.image} 
+                            src={getPostMediaUrl(selectedMessageToPost.image) || selectedMessageToPost.image} 
                             alt="Attached" 
                             className="w-full h-40 object-cover rounded-xl"
+                            onError={(e) => {
+                              console.error('Failed to load attached image:', selectedMessageToPost.image);
+                              e.currentTarget.style.display = 'none';
+                            }}
                           />
                         </div>
                       )}

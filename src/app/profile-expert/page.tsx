@@ -3,6 +3,9 @@ import React, { useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Settings, HelpCircle, LogOut, User, Briefcase, MapPin, Edit, ArrowLeft } from 'lucide-react';
+import { getProfilePictureUrl } from '@/src/utils/imageUrl';
+import ProtectedRoute from '@/src/components/ProtectedRoute';
+import NotificationBell from '@/src/components/NotificationBell';
 
 export default function ExpertProfilePage() {
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -80,6 +83,7 @@ export default function ExpertProfilePage() {
 };
 
   return (
+    <ProtectedRoute>
     <div 
       className="h-screen flex flex-col bg-gradient-to-b from-green-50 to-amber-50 overflow-hidden" 
       style={{ 
@@ -105,7 +109,7 @@ export default function ExpertProfilePage() {
 
       {/* Right Side Icons */}
             <button 
-    className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+    className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
     onClick={() => setIsDarkMode(!isDarkMode)}
 >
     {isDarkMode ? (
@@ -115,8 +119,13 @@ export default function ExpertProfilePage() {
     )}
 </button>
 
+{/* Notification Bell */}
+<div className="absolute top-[5px] left-[1395px]">
+  <NotificationBell isDarkMode={isDarkMode} />
+</div>
+
 {/* User Profile Button (Chevron + PFP combined) */}
-<div className="absolute top-[5px] left-[1440px]">
+<div className="absolute top-[5px] left-[1425px]">
   <button 
     className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
     onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -384,9 +393,13 @@ export default function ExpertProfilePage() {
       {/* Placeholder for profile image */}
       {profileImage ? (
         <img 
-          src={profileImage} 
+          src={getProfilePictureUrl(profileImage) || profileImage} 
           alt="Profile" 
           className="w-full h-full object-cover"
+          onError={(e) => {
+            console.error('Failed to load profile image:', profileImage);
+            e.currentTarget.style.display = 'none';
+          }}
         />
       ) : (
         <div className="w-full h-full bg-[#FFFFFF] flex items-center justify-center">
@@ -479,5 +492,6 @@ export default function ExpertProfilePage() {
         </aside>
       </div>
     </div>
+    </ProtectedRoute>
   );
 }
