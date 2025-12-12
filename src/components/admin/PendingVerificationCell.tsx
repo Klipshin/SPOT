@@ -1,14 +1,15 @@
 "use client";
 
 import useAdmin from "@/src/lib/hooks/useAdmin";
+import { profileService, expertService } from "@/src/lib/services";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { FaLink, FaLocationDot } from "react-icons/fa6";
 import { PiEyeBold } from "react-icons/pi";
 
 type ExpertProps = {
   expertId: string;
-  profile: string;
+  profile: string | null;
   name: string;
   username: string;
   job: string;
@@ -34,8 +35,16 @@ export default function PendingVerificationCell({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalUrl, setModalUrl] = useState<string>("");
   const [fileType, setFileType] = useState<"pdf" | "image">("image");
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
 
-  const { approveExpert, rejectExpert, reload } = useAdmin();
+  const { approveExpert, rejectExpert, reload, loading } = useAdmin();
+
+  // Get profile picture URL from Supabase bucket
+  const profilePictureUrl = useMemo(() => {
+    if (!profile) return "/avatar-capybara.png";
+    return profileService.getProfilePictureUrl(profile) || "/avatar-capybara.png";
+  }, [profile]);
 
   const prepareFileUrl = (file: string): { url: string; type: "pdf" | "image" } => {
     if (modalUrl.startsWith("blob:")) {
@@ -71,13 +80,11 @@ export default function PendingVerificationCell({
       }
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const bucketName = "documents"; 
-    
-    if (supabaseUrl) {
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${file}`;
+    // Use expertService to get file URL from expert-files bucket
+    const fileUrl = expertService.getFileUrl(file);
+    if (fileUrl) {
       const isPdf = file.toLowerCase().endsWith(".pdf");
-      return { url: publicUrl, type: isPdf ? "pdf" : "image" };
+      return { url: fileUrl, type: isPdf ? "pdf" : "image" };
     }
 
     return { url: file, type: "image" };
@@ -122,13 +129,15 @@ export default function PendingVerificationCell({
       </div>
 
       <div className="flex flex-row justify-start items-center space-x-2">
-        <Image
-          src={profile || "/avatar-capybara.png"}
-          alt={name}
-          width={75}
-          height={75}
-          className="rounded-full self-center"
-        />
+        <div className="w-[75px] h-[75px] rounded-full overflow-hidden flex-shrink-0">
+          <Image
+            src={profilePictureUrl}
+            alt={name}
+            width={75}
+            height={75}
+            className="w-full h-full object-cover"
+          />
+        </div>
         <div className="flex flex-col text-white">
           <div className="font-poppins-bold text-3xl">{name}</div>
           <div className="-mt-2 font-poppins text-lg">{username}</div>
@@ -178,19 +187,47 @@ export default function PendingVerificationCell({
       <div className="flex flex-row space-x-3 font-poppins-bold">
         <button 
           onClick={async () => {
-            await approveExpert(expertId);
-            await reload();
+            if (isApproving || isRejecting || loading) return;
+            setIsApproving(true);
+            try {
+              await approveExpert(expertId);
+              await reload();
+            } finally {
+              setIsApproving(false);
+            }
           }}
-          className="rounded-lg px-10 py-1 bg-[#F4FFC5] text-[#00600E] border-2 border-[#00600E] hover:bg-[#00600E] hover:text-[#F4FFC5] hover:scale-105 cursor-pointer transition-all duration-200 ease-in-out">
-          Approve
+          disabled={isApproving || isRejecting || loading}
+          className="rounded-lg px-10 py-1 bg-[#F4FFC5] text-[#00600E] border-2 border-[#00600E] hover:bg-[#00600E] hover:text-[#F4FFC5] hover:scale-105 cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-[#F4FFC5] disabled:hover:text-[#00600E]">
+          {isApproving ? (
+            <span className="flex items-center gap-2">
+              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#00600E]"></span>
+              Approving...
+            </span>
+          ) : (
+            "Approve"
+          )}
         </button>
         <button 
           onClick={async () => {
-            await rejectExpert(expertId);
-            await reload();
+            if (isApproving || isRejecting || loading) return;
+            setIsRejecting(true);
+            try {
+              await rejectExpert(expertId);
+              await reload();
+            } finally {
+              setIsRejecting(false);
+            }
           }}
-          className="rounded-lg px-10 py-1 bg-[#FFC8C9] text-[#BF0003] border-2 border-[#BF0003] hover:bg-[#BF0003] hover:text-[#FFC8C9] hover:scale-105 cursor-pointer transition-all duration-200 ease-in-out">
-          Reject
+          disabled={isApproving || isRejecting || loading}
+          className="rounded-lg px-10 py-1 bg-[#FFC8C9] text-[#BF0003] border-2 border-[#BF0003] hover:bg-[#BF0003] hover:text-[#FFC8C9] hover:scale-105 cursor-pointer transition-all duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-[#FFC8C9] disabled:hover:text-[#BF0003]">
+          {isRejecting ? (
+            <span className="flex items-center gap-2">
+              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#BF0003]"></span>
+              Rejecting...
+            </span>
+          ) : (
+            "Reject"
+          )}
         </button>
       </div>
 

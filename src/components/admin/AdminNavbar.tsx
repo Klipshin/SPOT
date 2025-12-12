@@ -1,3 +1,5 @@
+"use client";
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -36,7 +38,9 @@ export default function AdminNavbar() {
                     </div>
 
                     <div className="p-2 flex justify-center items-center rounded-full hover:bg-[#95AB33]/25 transition-colors duration-200">
-                        <button className="cursor-pointer">
+                        <button 
+                            onClick={() => router.push("/")}
+                            className="cursor-pointer">
                             <img 
                                 src="/logout.png"
                                 className="w-8 h-auto"

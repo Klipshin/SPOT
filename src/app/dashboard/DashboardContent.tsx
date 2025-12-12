@@ -1016,10 +1016,18 @@ useEffect(() => {
   };
 
   // Redirect to login if no session (use useEffect to avoid render issues)
+  // Add a small delay to allow session to load after OAuth callback
   useEffect(() => {
     if (supabaseLoaded && !session) {
-      console.log('No session found, redirecting to login');
-      router.push('/auth/login');
+      // Give session time to load after OAuth redirect (cookies might need a moment)
+      const timer = setTimeout(() => {
+        if (!session) {
+          console.log('No session found after delay, redirecting to login');
+          router.push('/auth/login');
+        }
+      }, 1000); // 1 second delay to allow session to load
+      
+      return () => clearTimeout(timer);
     }
   }, [supabaseLoaded, session, router]);
 

@@ -7,12 +7,61 @@ import SearchBar from '@/src/components/admin/SearchBar';
 import SortDropDown from '@/src/components/admin/SortDropDown';
 import ToggleBar from '@/src/components/admin/ToggleBar';
 import useAdmin from '@/src/lib/hooks/useAdmin';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import type { ReportWithProfiles } from '@/src/lib/hooks/useAdmin';
 
 export default function ReportsPage() {
   const [activeCategory, setActiveCategory] = useState("Feed");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("date");
 
   const { totalUsers, totalReports, totalUndismissedReports, loading, error } = useAdmin();
+
+  const sortOptions = [
+    { value: "date", label: "Newest" },
+    { value: "date-desc", label: "Oldest" },
+    { value: "reporter", label: "Reporter (A-Z)" },
+    { value: "reported", label: "Reported (A-Z)" },
+  ];
+
+  // Filter and sort reports based on active category
+  const filteredAndSortedReports = useMemo(() => {
+    const reports = activeCategory === "Feed" ? totalUndismissedReports : totalReports;
+    
+    // Filter by search query
+    let filtered = reports;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = reports.filter((r: ReportWithProfiles) => 
+        r.reporterProfile?.username?.toLowerCase().includes(query) ||
+        r.reportedProfile?.username?.toLowerCase().includes(query) ||
+        r.reporterProfile?.name?.toLowerCase().includes(query) ||
+        r.reportedProfile?.name?.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort
+    const sorted = [...filtered].sort((a: ReportWithProfiles, b: ReportWithProfiles) => {
+      switch (sortBy) {
+        case "date":
+          return (b.reported_at || "").localeCompare(a.reported_at || "");
+        case "date-desc":
+          return (a.reported_at || "").localeCompare(b.reported_at || "");
+        case "reporter":
+          const reporterA = a.reporterProfile?.username || "";
+          const reporterB = b.reporterProfile?.username || "";
+          return reporterA.localeCompare(reporterB);
+        case "reported":
+          const reportedA = a.reportedProfile?.username || "";
+          const reportedB = b.reportedProfile?.username || "";
+          return reportedA.localeCompare(reportedB);
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [activeCategory, totalReports, totalUndismissedReports, searchQuery, sortBy]);
 
   return (
     <div className="relative flex flex-col mt-3 space-y-5 w-full px-5">
@@ -43,18 +92,32 @@ export default function ReportsPage() {
         />
 
         <div className="flex flex-row items-center space-x-2">
-          <SearchBar />
-          <SortDropDown />
+          <SearchBar 
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search reports..."
+          />
+          <SortDropDown 
+            value={sortBy}
+            onChange={setSortBy}
+            options={sortOptions}
+          />
         </div>
       </div>
 
       <div className="w-full flex flex-col bg-white/35 p-5 rounded-2xl space-y-2">
+        {loading && <p>Loading reports...</p>}
+        {error && <p className="text-red-500">{error}</p>}
+
         {activeCategory === "Feed" && (
           <>
-            {totalUndismissedReports.map((r) => {
-              const reporterAvatar = r.reporterProfile?.profile_picture ?? "/default-avatar.png";
+            {!loading && filteredAndSortedReports.length === 0 && (
+              <p className="text-center py-5">No reports found.</p>
+            )}
+            {filteredAndSortedReports.map((r: ReportWithProfiles) => {
+              const reporterAvatar = r.reporterProfile?.profile_picture ?? null;
               const reporterUsername = r.reporterProfile?.username ?? "Unknown";
-              const reportedAvatar = r.reportedProfile?.profile_picture ?? "/default-avatar.png";
+              const reportedAvatar = r.reportedProfile?.profile_picture ?? null;
               const reportedUsername = r.reportedProfile?.username ?? "Unknown";
 
               return (
@@ -85,10 +148,14 @@ export default function ReportsPage() {
               <div className="text-center">Date</div>
             </div>
 
-            {totalReports.map((r) => {
-              const reporterAvatar = r.reporterProfile?.profile_picture ?? "/default-avatar.png";
+            {!loading && filteredAndSortedReports.length === 0 && (
+              <p className="text-center py-5">No reports found.</p>
+            )}
+
+            {filteredAndSortedReports.map((r: ReportWithProfiles) => {
+              const reporterAvatar = r.reporterProfile?.profile_picture ?? null;
               const reporterUsername = r.reporterProfile?.username ?? "Unknown";
-              const reportedAvatar = r.reportedProfile?.profile_picture ?? "/default-avatar.png";
+              const reportedAvatar = r.reportedProfile?.profile_picture ?? null;
               const reportedUsername = r.reportedProfile?.username ?? "Unknown";
 
               return (

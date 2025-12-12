@@ -3,23 +3,95 @@
 import InfoCards from '@/src/components/admin/InfoCards'
 import SearchBar from '@/src/components/admin/SearchBar'
 import SortDropDown from '@/src/components/admin/SortDropDown'
+import ToggleBar from '@/src/components/admin/ToggleBar'
 import UserCell from '@/src/components/admin/UserCell'
 import useAdmin from '@/src/lib/hooks/useAdmin'
-import React from 'react'
+import React, { useState, useMemo } from 'react'
+
+type User = {
+  user_id: string;
+  profile_picture: string | null;
+  username: string;
+  is_suspended: boolean;
+  status: string;
+  created_at?: string;
+};
 
 export default function UserManagementPage() {
   const { activeUsers, suspendedUsers, loading, error } = useAdmin();
+  const [activeCategory, setActiveCategory] = useState("Active");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("username");
 
-  const allUsers = [
-    ...activeUsers.map((user) => ({
-      ...user,
-      status: user.is_suspended ? "Suspended" : "Active",
-    })),
-    ...suspendedUsers.map((user) => ({
-      ...user,
-      status: user.is_suspended ? "Suspended": "Active"
-    })),
+  const sortOptions = [
+    { value: "username", label: "Username (A-Z)" },
+    { value: "username-desc", label: "Username (Z-A)" },
+    { value: "date", label: "Date (Newest)" },
+    { value: "date-desc", label: "Date (Oldest)" },
   ];
+
+  const allUsers = useMemo(() => {
+    // Get users based on active category
+    let users: User[] = [];
+    if (activeCategory === "Active") {
+      users = activeUsers.map((user) => ({
+        ...user,
+        status: "Active",
+      }));
+    } else if (activeCategory === "Suspended") {
+      users = suspendedUsers.map((user) => ({
+        ...user,
+        status: "Suspended",
+      }));
+    } else {
+      // Show all users (if "All" is ever added)
+      users = [
+        ...activeUsers.map((user) => ({
+          ...user,
+          status: "Active",
+        })),
+        ...suspendedUsers.map((user) => ({
+          ...user,
+          status: "Suspended",
+        })),
+      ];
+    }
+
+    // Filter by search query
+    let filtered = users;
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = users.filter((user: User) => 
+        user.username?.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort
+    const sorted = [...filtered].sort((a: User, b: User) => {
+      switch (sortBy) {
+        case "username":
+          return (a.username || "").localeCompare(b.username || "");
+        case "username-desc":
+          return (b.username || "").localeCompare(a.username || "");
+        case "status":
+          return a.status.localeCompare(b.status);
+        case "status-desc":
+          return b.status.localeCompare(a.status);
+        case "date":
+          const dateA = a.created_at || "";
+          const dateB = b.created_at || "";
+          return dateB.localeCompare(dateA);
+        case "date-desc":
+          const dateA2 = a.created_at || "";
+          const dateB2 = b.created_at || "";
+          return dateA2.localeCompare(dateB2);
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  }, [activeUsers, suspendedUsers, activeCategory, searchQuery, sortBy]);
 
   return (
     <div className="relative flex flex-col mt-3 space-y-5 w-full px-5">
@@ -42,9 +114,24 @@ export default function UserManagementPage() {
       </div>
 
       <div className="flex flex-row items-center justify-between w-full">
+        <ToggleBar 
+          barOne="Active"
+          barTwo="Suspended"
+          activeCategory={activeCategory}
+          onChange={setActiveCategory}
+        />
+
         <div className="flex flex-row items-center space-x-2">
-          <SearchBar />
-          <SortDropDown />
+          <SearchBar 
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search users..."
+          />
+          <SortDropDown 
+            value={sortBy}
+            onChange={setSortBy}
+            options={sortOptions}
+          />
         </div>
       </div>
 
@@ -59,11 +146,15 @@ export default function UserManagementPage() {
         {loading && <p>Loading users...</p>}
         {error && <p className="text-red-500">{error}</p>}
 
-        {allUsers.map((user) => (
+        {!loading && allUsers.length === 0 && (
+          <p className="text-center py-5">No users found.</p>
+        )}
+
+        {allUsers.map((user: User) => (
           <UserCell
             key={user.user_id}
             userId={user.user_id}
-            profile={user.profile_picture || "/avatar-capybara.png"}
+            profile={user.profile_picture || null}
             username={user.username}
             status={user.status}
           />

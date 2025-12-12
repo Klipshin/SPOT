@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { PiEyeBold, PiEyeClosedBold } from "react-icons/pi";
 import { FaFacebookSquare } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
@@ -12,9 +13,18 @@ import { useProfiles } from '@/src/lib/hooks/useProfiles';
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const { checkUserProfile } = useProfiles("");
+
+    useEffect(() => {
+        // Check for suspension error from URL (OAuth redirects)
+        const errorParam = searchParams.get('error');
+        if (errorParam === 'suspended') {
+            setError('Your account has been suspended. Please contact support for assistance.');
+        }
+    }, [searchParams]);
 
     const validateEmail = (email: string): string | null => {
         if (!email.trim()) {
@@ -63,6 +73,12 @@ export default function LoginPage() {
             const res = await login(formData);
 
             if (res?.userId) {
+                // Check if user is admin and redirect to admin dashboard
+                if (res.isAdmin) {
+                    router.push("/admin/dashboard");
+                    return;
+                }
+                
                 const redirected = await checkUserProfile(res.userId);
                 if (!redirected) {
                     router.push("/dashboard");
@@ -71,7 +87,9 @@ export default function LoginPage() {
             }
             
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred during signup');
+            const errorMessage = err instanceof Error ? err.message : 'An error occurred during login';
+            console.error('Login error:', err);
+            setError(errorMessage);
             setLoading(false);
         }
     };
@@ -111,7 +129,7 @@ export default function LoginPage() {
                         Log In
                     </h3>
                 </div>
-
+                
                 {error && (
                     <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
                         {error}
@@ -172,12 +190,11 @@ export default function LoginPage() {
                         </div>
 
                         <div className="text-left py-1 px-5">
-                            <button 
-                                onClick={() => router.push("/auth/forgot-password")}
-                                disabled={loading}
+                            <Link
+                                href={"/auth/forgot-password"}
                                 className="font-poppins-italic text-sm text-[#082E0D8F] hover:text-black transition-colors duration-300 ease-in-out cursor-pointer">
-                                    Forgot password?
-                            </button>
+                                    Forgot password?    
+                            </Link>
                         </div>
                     </div>
 
@@ -200,8 +217,7 @@ export default function LoginPage() {
                 <div className="flex flex-row items-center gap-5 w-100">
                     <button 
                         onClick={async () => {
-                            const url = await signInWithGoogle();
-                            if (url) window.location.href = url;
+                            await signInWithGoogle();
                         }}
                         className="w-full relative rounded-lg font-poppins-semibold text-base py-2 px-5  text-gray-500 bg-white flex items-center justify-center
                             shadow-[0_4px_8px_rgba(0,0,0,0.2)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer border border-gray-400"
@@ -212,8 +228,7 @@ export default function LoginPage() {
 
                     <button 
                         onClick={async () => {
-                            const url = await signInWithFacebook();
-                            if (url) window.location.href = url;
+                            await signInWithFacebook();
                         }}
                         className="w-full relative rounded-lg font-poppins-semibold text-base py-2 px-5  text-gray-500 bg-white flex items-center justify-center
                             shadow-[0_4px_8px_rgba(0,0,0,0.2)] hover:bg-[#082E0D] hover:text-[#95AB33B2] transition-colors ease-in-out duration-300 cursor-pointer border border-gray-400"

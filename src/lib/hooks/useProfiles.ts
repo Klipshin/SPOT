@@ -39,7 +39,7 @@ export function useProfiles(userId: string) {
     async function createUserProfile(profileData: {
         name: string;
         username: string;
-        profile_picture?: File;
+        profile_picture?: File | string;
         location: string;
     }) {
         if (!userId) throw new Error("User does not exist.");
@@ -47,9 +47,20 @@ export function useProfiles(userId: string) {
         try {
             let profilePicturePath = "";
 
+            // Handle file upload (user uploaded an image)
             if (profileData.profile_picture && profileData.profile_picture instanceof File) {
                 setUploadingImage(true);
                 profilePicturePath = await profileService.uploadProfilePicture(
+                    profileData.profile_picture,
+                    userId
+                );
+                setUploadingImage(false);
+            } 
+            // Handle default avatar path (string path like "/avatar-capybara.png")
+            // Convert it to a file and upload to bucket
+            else if (profileData.profile_picture && typeof profileData.profile_picture === 'string' && profileData.profile_picture.startsWith('/')) {
+                setUploadingImage(true);
+                profilePicturePath = await profileService.uploadDefaultAvatar(
                     profileData.profile_picture,
                     userId
                 );
