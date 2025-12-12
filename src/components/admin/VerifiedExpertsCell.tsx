@@ -1,9 +1,10 @@
 "use client";
 
 import Image from 'next/image'
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { FaLink, FaLocationDot } from 'react-icons/fa6'
 import { PiEyeBold } from 'react-icons/pi'
+import { profileService, expertService } from '@/src/lib/services'
 
 type ExpertProps = {
   profile: string,
@@ -31,6 +32,11 @@ export default function VerifiedExpertsCell({
   const [modalOpen, setModalOpen] = useState(false);
   const [modalUrl, setModalUrl] = useState<string>("");
   const [fileType, setFileType] = useState<"pdf" | "image">("image");
+
+  // Get profile picture URL from Supabase bucket
+  const profilePictureUrl = useMemo(() => {
+    return profileService.getProfilePictureUrl(profile) || "/avatar-capybara.png";
+  }, [profile]);
 
   const prepareFileUrl = (file: string): { url: string; type: "pdf" | "image" } => {
     if (modalUrl.startsWith("blob:")) {
@@ -66,13 +72,11 @@ export default function VerifiedExpertsCell({
       }
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const bucketName = "documents"; 
-    
-    if (supabaseUrl) {
-      const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${file}`;
+    // Use expertService to get file URL from expert-files bucket
+    const fileUrl = expertService.getFileUrl(file);
+    if (fileUrl) {
       const isPdf = file.toLowerCase().endsWith(".pdf");
-      return { url: publicUrl, type: isPdf ? "pdf" : "image" };
+      return { url: fileUrl, type: isPdf ? "pdf" : "image" };
     }
 
     return { url: file, type: "image" };
@@ -119,7 +123,7 @@ export default function VerifiedExpertsCell({
 
       <div className="flex flex-row justify-center items-center space-x-2">
         <Image 
-          src={profile || "/avatar-capybara.png"}
+          src={profilePictureUrl}
           alt={name}
           width={75}
           height={75}

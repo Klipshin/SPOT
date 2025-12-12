@@ -2,8 +2,10 @@
 
 import { contentViolations } from '@/src/lib/data/contentViolations'
 import useAdmin from '@/src/lib/hooks/useAdmin';
+import { profileService } from '@/src/lib/services';
 import { Comment, Post } from '@/src/utils/supabase/models';
 import Image from 'next/image'
+import { useMemo } from 'react'
 
 function formatDate(dbDate: string) {
   if (!dbDate) return '';
@@ -49,6 +51,15 @@ export default function FeedCell({
 
     const {suspendUsers, dismissReport, reload, loading} = useAdmin();
 
+    // Get profile picture URLs from Supabase bucket
+    const reporterProfileUrl = useMemo(() => {
+        return profileService.getProfilePictureUrl(reporterProfile) || "/avatar-capybara.png";
+    }, [reporterProfile]);
+
+    const reportedProfileUrl = useMemo(() => {
+        return profileService.getProfilePictureUrl(reportedProfile) || "/avatar-capybara.png";
+    }, [reportedProfile]);
+
   return (
     <div className="relative flex flex-row py-5 px-10 bg-[#4A654D] font-poppins-medium text-white text-lg rounded-xl">
         <div className="absolute top-0 right-0">
@@ -65,7 +76,7 @@ export default function FeedCell({
             <div className="w-full flex flex-col justify-start items-start space-y-5">
                 <div className="flex flex-row justify-start items-center space-x-3">
                     <Image 
-                        src={reporterProfile}
+                        src={reporterProfileUrl}
                         alt={reporterUsername}
                         width={60}
                         height={60}
@@ -85,7 +96,7 @@ export default function FeedCell({
 
                     <div className="w-full flex flex-row justify-start items-center space-x-3 px-3 py-2 bg-[#2B442E] rounded-lg">
                         <Image 
-                            src={reportedProfile}
+                            src={reportedProfileUrl}
                             alt={reportedUsername}
                             width={45}
                             height={45}
@@ -101,7 +112,7 @@ export default function FeedCell({
                 <div className="flex flex-col bg-white p-3 rounded-lg justify-start items-start space-y-3">
                     <div className="flex flex-row justify-start items-center space-x-3">
                         <Image 
-                            src={reportedProfile}
+                            src={reportedProfileUrl}
                             alt={reportedUsername}
                             width={40}
                             height={40}
@@ -130,7 +141,7 @@ export default function FeedCell({
                 <div className="flex flex-col bg-white p-3 rounded-lg justify-start items-start space-y-3">
                     <div className="flex flex-row justify-start items-center space-x-3">
                         <Image 
-                            src={reportedProfile}
+                            src={reportedProfileUrl}
                             alt={reportedUsername}
                             width={40}
                             height={40}

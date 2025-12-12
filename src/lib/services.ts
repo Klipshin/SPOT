@@ -568,4 +568,37 @@ export const adminService = {
         return data;
     },
 
+    async getAnalytics() {
+        const supabase = getSupabase();
+        
+        // Get all counts
+        const [users, experts, posts, comments, votes, reports, communities] = await Promise.all([
+            supabase.from("user_profiles").select("user_id, created_at, is_suspended, is_expert"),
+            supabase.from("experts").select("expert_id, created_at, is_verified, verified_at"),
+            supabase.from("posts").select("post_id, created_at"),
+            supabase.from("comments").select("comment_id, created_at"),
+            supabase.from("votes").select("vote_id, created_at, vote_type"),
+            supabase.from("reports").select("id, reported_at, is_dismissed, type"),
+            supabase.from("communities").select("community_id, created_at, member_count"),
+        ]);
+
+        if (users.error) throw new Error(users.error.message);
+        if (experts.error) throw new Error(experts.error.message);
+        if (posts.error) throw new Error(posts.error.message);
+        if (comments.error) throw new Error(comments.error.message);
+        if (votes.error) throw new Error(votes.error.message);
+        if (reports.error) throw new Error(reports.error.message);
+        if (communities.error) throw new Error(communities.error.message);
+
+        return {
+            users: users.data || [],
+            experts: experts.data || [],
+            posts: posts.data || [],
+            comments: comments.data || [],
+            votes: votes.data || [],
+            reports: reports.data || [],
+            communities: communities.data || [],
+        };
+    },
+
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import useAdmin from '@/src/lib/hooks/useAdmin';
+import { profileService } from '@/src/lib/services';
 import Image from 'next/image'
-import { getProfilePictureUrl } from '@/src/utils/imageUrl';
+import { useMemo } from 'react'
 
 type UserProps = {
     userId: string,
@@ -14,16 +15,16 @@ type UserProps = {
 export default function UserCell({userId, profile, username, status} : UserProps) {
     const {suspendUsers, activateUser, reload} = useAdmin();
     
-    // Convert Supabase storage path to full URL if needed
-    const profileUrl = profile && profile !== "/avatar-capybara.png" 
-        ? (getProfilePictureUrl(profile) || "/avatar-capybara.png")
-        : "/avatar-capybara.png";
-    
+    // Get profile picture URL from Supabase bucket
+    const profilePictureUrl = useMemo(() => {
+        return profileService.getProfilePictureUrl(profile) || "/avatar-capybara.png";
+    }, [profile]);
+
   return (
     <div className="py-2 px-3 bg-[#4A654D] font-poppins-medium text-white text-lg rounded-xl grid grid-cols-[minmax(100px,200px)_2fr_1fr_1fr] items-center justify-center">
         <div className="flex justify-center items-center">
             <Image 
-                src={profileUrl}
+                src={profilePictureUrl}
                 alt={username}
                 width={50}
                 height={50}
