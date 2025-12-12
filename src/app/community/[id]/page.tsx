@@ -4,13 +4,16 @@
 import React, { useState, useRef, ChangeEvent, KeyboardEvent, useMemo, useContext, createContext, useEffect } from 'react';
 import {
   MapPin, Users, Crown, Plus, ChevronDown, ArrowBigUp, ArrowBigDown,
-  MessageCircle, Image as ImageIcon, Send, X, Reply, UploadCloud, Check, Sun, Moon, User, Edit2, ShieldCheck, UserMinus
+  MessageCircle, Image as ImageIcon, Send, X, Reply, UploadCloud, Check, Sun, Moon, User, Edit2, ShieldCheck, UserMinus, ArrowLeft, Flag, Shield
 } from "lucide-react";
 import CreatePostModal from '@/src/components/CreatePostModal';
+import ReportModal from '@/src/components/ReportModal';
+import VerifySpeciesModal from '@/src/components/VerifySpeciesModal';
 import { createClient } from '@/src/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import ProtectedRoute from '@/src/components/ProtectedRoute';
+import NotificationBell from '@/src/components/NotificationBell';
 import { 
   getProfilePictureUrl, 
   getCommunityProfilePictureUrl, 
@@ -102,7 +105,7 @@ function Header() {
       
       {/* Right Side Icons */}
       <button 
-        className="absolute top-0 left-[1365px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+        className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
         onClick={toggleTheme}
       >
         {isDarkMode ? (
@@ -112,8 +115,13 @@ function Header() {
         )}
       </button>
 
+      {/* Notification Bell */}
+      <div className="absolute top-[5px] left-[1395px]">
+        <NotificationBell isDarkMode={isDarkMode} />
+      </div>
+
       {/* User Profile Button */}
-      <div className="absolute top-[5px] left-[1440px]">
+      <div className="absolute top-[5px] left-[1425px]">
         <button 
           className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
           onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -230,8 +238,10 @@ function Header() {
 
 // --- TYPES ---
 type Comment = {
-  id: number;
+  id: number | string; // Can be UUID string or number
+  commentId?: string; // UUID from database (comment_id)
   user: string;
+  userId?: string; // Comment author's user_id
   userProfilePicture?: string | null;
   date: string;
   text: string;
@@ -240,6 +250,7 @@ type Comment = {
   upvotes: number;
   downvotes: number;
   isReply: boolean;
+  isExpert?: boolean; // Is the comment author an expert
 };
 
 type Post = {
@@ -257,6 +268,7 @@ type Post = {
   upvotes: number;
   downvotes: number;
   comments: Comment[];
+  isExpert?: boolean; // Is the post author an expert
   location?: string;
   latitude?: number;
   longitude?: number;
@@ -268,6 +280,7 @@ type SortOptionType = 'default' | 'newest' | 'oldest' | 'popular' | 'least';
 // --- MAIN CONTENT COMPONENT ---
 function ModeratorPageContent({ communityId }: { communityId: string }) {
   const { isDarkMode } = useTheme();
+  const router = useRouter();
   
   // Community data state
   const [communityData, setCommunityData] = useState<any>(null);
@@ -283,7 +296,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   // ===== STATE: CURRENT USER =====
   const [currentUserProfilePicture, setCurrentUserProfilePicture] = useState<string | null>(null);
 
-  // Fetch current user profile picture
+  // Fetch current user profile picture and expert status
   useEffect(() => {
     async function fetchCurrentUserProfile() {
       try {
@@ -293,9 +306,23 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
 
         const { data: profile } = await supabase
           .from('user_profiles')
-          .select('profile_picture')
+          .select('profile_picture, is_expert')
           .eq('user_id', user.id)
           .single();
+        
+        // Check expert status
+        if (profile?.is_expert) {
+          setIsExpert(true);
+        } else {
+          // Also check experts table
+          const { data: expertData } = await supabase
+            .from('experts')
+            .select('is_verified')
+            .eq('user_id', user.id)
+            .single();
+          
+          setIsExpert(expertData?.is_verified || false);
+        }
 
         if (profile) {
           setCurrentUserProfilePicture(getProfilePictureUrl(profile.profile_picture) || null);
@@ -402,6 +429,37 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
   // ===== STATE: EDITING =====
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [tempLocationText, setTempLocationText] = useState('');
+  
+  // Report modal state
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportContentType, setReportContentType] = useState<'post' | 'comment'>('post');
+  const [reportContentId, setReportContentId] = useState('');
+  const [reportUserId, setReportUserId] = useState('');
+  
+  // Expert verification state
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [selectedPostForVerification, setSelectedPostForVerification] = useState<Post | null>(null);
+  const [isExpert, setIsExpert] = useState(false);
+  
+  // Post menu dropdown state
+  const [openPostMenuId, setOpenPostMenuId] = useState<string | null>(null);
+  
+  // Close post menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openPostMenuId) {
+        setOpenPostMenuId(null);
+      }
+    };
+    
+    if (openPostMenuId) {
+      document.addEventListener('click', handleClickOutside);
+    }
+    
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [openPostMenuId]);
   const locationInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const profileInputRef = useRef<HTMLInputElement>(null);
@@ -471,7 +529,8 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
         comments: [],
         location: p.location,
         latitude: p.latitude,
-        longitude: p.longitude
+        longitude: p.longitude,
+        isExpert: p.user_profiles?.is_expert || false
       }));
       setPosts(mappedPosts);
       
@@ -482,8 +541,10 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
           if (response.ok) {
             const { comments } = await response.json();
             const mappedComments: Comment[] = comments.map((c: any) => ({
-              id: c.comment_id,
+              id: c.comment_id, // Keep for backward compatibility
+              commentId: c.comment_id, // UUID from database
               user: `@${c.user_profiles?.username || 'user'}`,
+              userId: c.user_id,
               userProfilePicture: getProfilePictureUrl(c.user_profiles?.profile_picture) || null,
               date: formatDate(c.created_at),
               text: c.content,
@@ -492,6 +553,7 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
               upvotes: c.upvotes || 0,
               downvotes: c.downvotes || 0,
               isReply: c.parent_comment_id !== null,
+              isExpert: c.user_profiles?.is_expert || false
             }));
             
             setPosts(prevPosts => prevPosts.map(p => 
@@ -1205,6 +1267,19 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
 
       <div className="flex-1 flex flex-col w-full max-w-[1400px] mx-auto px-4 md:px-8">
         
+        {/* Back to Dashboard Button */}
+        <button
+          onClick={() => router.push('/dashboard')}
+          className={`relative z-20 mb-4 flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            isDarkMode 
+              ? 'bg-[#3a3a3a] hover:bg-[#4a4a4a] text-white' 
+              : 'bg-white hover:bg-gray-100 text-black border border-gray-300'
+          }`}
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span className="font-semibold">Back to Dashboard</span>
+        </button>
+        
         {/* === INFO HEADER CARD === */}
         {/* FIX: Straight edges (rounded-none) */}
         <div className={`relative z-10 w-full transition-colors duration-300 flex-1 mb-0 flex flex-col min-h-[calc(100vh-70px)] ${isDarkMode ? "bg-[#222222] shadow-lg" : "bg-white shadow-sm"} rounded-none overflow-visible p-3`}>
@@ -1445,20 +1520,87 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                         <img src="/pfp.svg" alt="User" className="w-full h-full object-cover" />
                       )}
                     </div>
-                    <span className="font-semibold text-lg">{post.user}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-lg">{post.user}</span>
+                      {post.isExpert && (
+                        <div title="Verified Expert">
+                          <Crown className="w-4 h-4 text-yellow-500" />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-xs font-bold italic ${isDarkMode ? "text-gray-400" : "text-black/60"}`}>{post.date}</span>
-                    {/* Show delete button if user is moderator (moderators can delete any post) */}
-                    {isModerator && (
+                    
+                    {/* Post Menu Dropdown */}
+                    <div className="relative">
                       <button
-                        onClick={() => handleDeletePost(post.id)}
-                        className="p-1.5 rounded-full hover:bg-red-100 transition-colors"
-                        title="Delete post"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenPostMenuId(openPostMenuId === post.id ? null : post.id);
+                        }}
+                        className={`p-1.5 rounded-full transition-colors ${
+                          isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-200'
+                        }`}
+                        title="More options"
                       >
-                        <X className="w-4 h-4 text-red-600" />
+                        <ChevronDown className="w-4 h-4" />
                       </button>
-                    )}
+                      
+                      {/* Menu Dropdown */}
+                      {openPostMenuId === post.id && (
+                        <div className={`absolute right-0 mt-2 w-48 rounded-lg shadow-lg z-50 ${
+                          isDarkMode ? 'bg-[#2a2a2a] border border-gray-600' : 'bg-white border border-gray-200'
+                        }`}>
+                        <div className="py-1">
+                          {/* Report Post */}
+                          <button
+                            onClick={() => {
+                              setReportContentType('post');
+                              setReportContentId(post.postId || post.id);
+                              setReportUserId(post.userId || '');
+                              setShowReportModal(true);
+                            }}
+                            className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${
+                              isDarkMode ? 'hover:bg-[#3a3a3a] text-white' : 'hover:bg-[#D4DEC3] text-gray-900'
+                            }`}
+                          >
+                            <Flag className="w-4 h-4" />
+                            <span className="text-sm font-medium">Report Post</span>
+                          </button>
+                          
+                          {/* Verify Species (Experts only) */}
+                          {isExpert && (
+                            <button
+                              onClick={() => {
+                                setSelectedPostForVerification(post);
+                                setShowVerifyModal(true);
+                              }}
+                              className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${
+                                isDarkMode ? 'hover:bg-[#3a3a3a] text-white' : 'hover:bg-[#D4DEC3] text-gray-900'
+                              }`}
+                            >
+                              <Shield className="w-4 h-4 text-green-600" />
+                              <span className="text-sm font-medium">Verify Species</span>
+                            </button>
+                          )}
+                          
+                          {/* Delete Post (Moderators only) */}
+                          {isModerator && (
+                            <button
+                              onClick={() => handleDeletePost(post.id)}
+                              className={`w-full px-4 py-2 text-left transition-colors flex items-center gap-2.5 ${
+                                isDarkMode ? 'hover:bg-red-900/50 text-white' : 'hover:bg-red-100 text-red-600'
+                              }`}
+                            >
+                              <X className="w-4 h-4" />
+                              <span className="text-sm font-medium">Delete Post</span>
+                            </button>
+                          )}
+                        </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -1549,7 +1691,14 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-center mb-0.5">
-                              <span className="font-normal text-sm">{comment.user}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-normal text-sm">{comment.user}</span>
+                                {comment.isExpert && (
+                                  <div title="Verified Expert">
+                                    <Crown className="w-4 h-4 text-yellow-500" />
+                                  </div>
+                                )}
+                              </div>
                               <span className="text-[10px] font-bold text-gray-400">{comment.date}</span>
                             </div>
                             
@@ -1574,6 +1723,20 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
                                 <span className="text-xs font-bold text-black px-0.5 text-center leading-none pt-0.5">{formatVoteCount(comment.downvotes)}</span>
                               </div>
                               <button onClick={() => handleReplyClick(post.id, comment.id, comment.user)} className="text-[10px] px-3 py-1 h-6 rounded-[4px] font-bold bg-[#D9D9D9] hover:bg-gray-300 transition-colors">Reply</button>
+                              <button 
+                                onClick={() => {
+                                  setReportContentType('comment');
+                                  // Use commentId (UUID) if available, otherwise use id
+                                  setReportContentId(comment.commentId || String(comment.id));
+                                  setReportUserId(comment.userId || '');
+                                  setShowReportModal(true);
+                                }}
+                                className="text-[10px] px-3 py-1 h-6 rounded-[4px] font-bold bg-red-100 hover:bg-red-200 text-red-600 transition-colors flex items-center gap-1"
+                                title="Report comment"
+                              >
+                                <Flag className="w-3 h-3" />
+                                Report
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -1909,6 +2072,41 @@ function ModeratorPageContent({ communityId }: { communityId: string }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => {
+          setShowReportModal(false);
+          setReportContentId('');
+          setReportUserId('');
+        }}
+        contentType={reportContentType}
+        contentId={reportContentId}
+        reportedUserId={reportUserId}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* Verify Species Modal */}
+      {showVerifyModal && selectedPostForVerification && (
+        <VerifySpeciesModal
+          isOpen={showVerifyModal}
+          postId={selectedPostForVerification.postId || selectedPostForVerification.id}
+          postTitle={selectedPostForVerification.heading}
+          postImage={selectedPostForVerification.image}
+          onClose={() => {
+            setShowVerifyModal(false);
+            setSelectedPostForVerification(null);
+          }}
+          onVerified={async () => {
+            setShowVerifyModal(false);
+            setSelectedPostForVerification(null);
+            // Refresh posts to update verification status
+            window.location.reload();
+          }}
+          isDarkMode={isDarkMode}
+        />
       )}
 
     </div>

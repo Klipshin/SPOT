@@ -5,6 +5,7 @@ import { Settings, HelpCircle, LogOut, Clock } from 'lucide-react';
 import { Share2, Flag, EyeOff, X, Users } from 'lucide-react';
 import { getPostMediaUrl, getCommentMediaUrl, getProfilePictureUrl } from '@/src/utils/imageUrl';
 import ProtectedRoute from '@/src/components/ProtectedRoute';
+import NotificationBell from '@/src/components/NotificationBell';
 
 type Post = {
   id: number;
@@ -417,7 +418,7 @@ const closeCommentModal = () => {
             
             {/* Right Side Icons */}
             <button 
-    className="absolute top-0 left-[1340px] hover:scale-110 transition-transform duration-200 cursor-pointer"
+    className="absolute top-0 left-[1320px] hover:scale-110 transition-transform duration-200 cursor-pointer"
     onClick={() => setIsDarkMode(!isDarkMode)}
 >
     {isDarkMode ? (
@@ -427,8 +428,13 @@ const closeCommentModal = () => {
     )}
 </button>
 
+{/* Notification Bell */}
+<div className="absolute top-[5px] left-[1395px]">
+  <NotificationBell isDarkMode={isDarkMode} />
+</div>
+
 {/* User Profile Button (Chevron + PFP combined) */}
-<div className="absolute top-[5px] left-[1406px]">
+<div className="absolute top-[5px] left-[1425px]">
   <button 
     className="flex items-center gap-1 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
     onClick={() => setIsProfileOpen(!isProfileOpen)}
