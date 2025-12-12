@@ -83,8 +83,7 @@ export async function GET(
         user_profiles (
           username,
           name,
-          profile_picture,
-          is_expert
+          profile_picture
         )
       `)
       .eq('post_id', postId)
@@ -96,6 +95,7 @@ export async function GET(
     }
 
     // Get vote counts and user's votes for each comment
+    // Also check if comment authors are verified experts
     const commentsWithVotes = await Promise.all(
       (comments || []).map(async (comment) => {
         // Get vote counts
@@ -116,11 +116,19 @@ export async function GET(
           }
         }
 
+        // Check if comment author is a verified expert
+        const { data: expertData } = await adminSupabase
+          .from('experts')
+          .select('is_verified')
+          .eq('user_id', comment.user_id)
+          .single();
+
         return {
           ...comment,
           upvotes,
           downvotes,
-          userVote
+          userVote,
+          is_verified: expertData?.is_verified || false
         };
       })
     );

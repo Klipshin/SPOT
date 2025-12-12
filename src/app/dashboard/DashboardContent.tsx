@@ -178,24 +178,22 @@ useEffect(() => {
         const supabase = createClient();
         const { data, error } = await supabase
           .from('user_profiles')
-          .select('name, location, profile_picture, username, is_expert')
+          .select('name, location, profile_picture, username')
           .eq('user_id', currentUserId)
           .single();
 
         if (data) {
           console.log('User profile data:', data);
           setDbUsername(data.username); // Set username from database
-          setIsCurrentUserExpert(data.is_expert || false); // Check if user is expert
-          console.log('is_expert from user_profiles:', data.is_expert);
           setUserProfile({
             name: data.name || 'Full Name',
             location: data.location || 'Location not set',
-            occupation: data.is_expert ? 'Verified Expert' : 'Wildlife Enthusiast', // Set based on expert status
+            occupation: 'Wildlife Enthusiast', // Default, will be updated if verified expert
             profile_picture: getProfilePictureUrl(data.profile_picture) || null
           });
         }
 
-        // Fetch expert data if exists
+        // Fetch expert data to check is_verified
         const { data: expertData } = await supabase
           .from('experts')
           .select('occupation, is_verified')
@@ -203,13 +201,14 @@ useEffect(() => {
           .single();
 
         console.log('Expert data:', expertData);
-        if (expertData) {
-          // If they have an experts record, check is_verified
-          if (expertData.is_verified) {
-            setIsCurrentUserExpert(true);
-            console.log('User is verified expert');
-            setUserProfile(prev => prev ? { ...prev, occupation: expertData.occupation || 'Verified Expert' } : null);
-          }
+        if (expertData && expertData.is_verified) {
+          // Only set as expert if is_verified is true
+          setIsCurrentUserExpert(true);
+          console.log('User is verified expert');
+          setUserProfile(prev => prev ? { ...prev, occupation: expertData.occupation || 'Verified Expert' } : null);
+        } else {
+          // Explicitly set to false if not verified
+          setIsCurrentUserExpert(false);
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -400,7 +399,7 @@ useEffect(() => {
                   comments: [],
                   communityId: p.communities?.community_id,
                   communityName: p.communities?.community_name,
-                  communityProfilePicture: getCommunityProfilePictureUrl(p.communities?.profile_picture) || null,
+                  communityProfilePicture: getCommunityProfilePictureUrl(p.communities?.profile_picture) || undefined,
                   flairNames: p.flairNames || [],
                   userId: p.user_id,
                   authorUsername: p.user_profiles?.username,
@@ -408,7 +407,7 @@ useEffect(() => {
                   latitude: p.latitude || null,
                   longitude: p.longitude || null,
                   isVerified: hasValidSpecies,
-                  isExpert: p.user_profiles?.is_expert || false
+                  isExpert: p.is_verified || false // Use is_verified from experts table in API response
               };
           });
           setClientPosts(mappedPosts);
@@ -430,7 +429,7 @@ useEffect(() => {
                   upvotes: c.upvotes || 0,
                   downvotes: c.downvotes || 0,
                   isReply: c.parent_comment_id !== null,
-                  isExpert: c.user_profiles?.is_expert || false,
+                  isExpert: c.is_verified || false, // Use is_verified from experts table
                   userId: c.user_id || '', // Add userId for reporting - ensure it's a string
                 }));
                 
@@ -1650,7 +1649,8 @@ useEffect(() => {
                                                   // Fetch user privacy settings
                                                   let privacySettings = null;
                                                   try {
-                                                      const { data: profile } = await supabase
+                                                      const supabaseClient = createClient();
+                                                      const { data: profile } = await supabaseClient
                                                           .from('user_profiles')
                                                           .select('profile_visibility, show_email, show_location, bio, location')
                                                           .eq('user_id', userId)
@@ -1711,7 +1711,8 @@ useEffect(() => {
                                                     // Fetch user privacy settings
                                                     let privacySettings = null;
                                                     try {
-                                                        const { data: profile } = await supabase
+                                                        const supabaseClient = createClient();
+                                                        const { data: profile } = await supabaseClient
                                                             .from('user_profiles')
                                                             .select('profile_visibility, show_email, show_location, bio, location')
                                                             .eq('user_id', userId)

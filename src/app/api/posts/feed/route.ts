@@ -50,8 +50,7 @@ export async function GET(request: Request) {
         identification_id,
         user_profiles!posts_user_id_fkey (
           username,
-          profile_picture,
-          is_expert
+          profile_picture
         ),
         communities!posts_community_id_fkey (
           community_id,
@@ -72,6 +71,7 @@ export async function GET(request: Request) {
     }
 
     // Fetch identification and species data separately for each post
+    // Also fetch expert verification status for each post author
     const postsWithIdentifications = await Promise.all(
       (posts || []).map(async (post) => {
         let identificationData = null;
@@ -96,9 +96,17 @@ export async function GET(request: Request) {
           identificationData = identification;
         }
 
+        // Check if post author is a verified expert
+        const { data: expertData } = await supabaseAdmin
+          .from('experts')
+          .select('is_verified')
+          .eq('user_id', post.user_id)
+          .single();
+
         return {
           ...post,
-          identifications: identificationData
+          identifications: identificationData,
+          is_verified: expertData?.is_verified || false
         };
       })
     );
