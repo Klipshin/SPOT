@@ -26,7 +26,8 @@ export async function GET(
         longitude,
         user_profiles (
           username,
-          profile_picture
+          profile_picture,
+          is_expert
         )
       `)
       .eq('community_id', communityId)
