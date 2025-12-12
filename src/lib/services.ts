@@ -72,9 +72,61 @@ export const profileService = {
         if (error) throw error;
     },
 
+    async uploadDefaultAvatar(avatarPath: string, userId: string): Promise<string> {
+        const supabase = getSupabase();
+        
+        try {
+            // Convert relative path to absolute URL for fetching
+            const baseUrl = typeof window !== 'undefined' 
+                ? window.location.origin 
+                : process.env.NEXT_PUBLIC_SITE_URL || '';
+            const fullUrl = avatarPath.startsWith('http') 
+                ? avatarPath 
+                : `${baseUrl}${avatarPath}`;
+            
+            // Fetch the default avatar image from the public folder
+            const response = await fetch(fullUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch default avatar: ${response.statusText}`);
+            }
+            
+            // Convert the response to a blob
+            const blob = await response.blob();
+            
+            // Get the file extension from the path
+            const fileExt = avatarPath.split('.').pop() || 'png';
+            const timestamp = Date.now();
+            const filePath = `${userId}/${timestamp}.${fileExt}`;
+            
+            // Convert blob to File for upload
+            const fileName = avatarPath.split('/').pop() || `avatar.${fileExt}`;
+            const file = new File([blob], fileName, { type: blob.type || 'image/png' });
+            
+            // Upload to Supabase storage
+            const { error: uploadError } = await supabase.storage
+                .from('profile-pictures')
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
+
+            if (uploadError) throw uploadError;
+
+            return filePath;
+        } catch (error) {
+            throw new Error(`Failed to upload default avatar: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+    },
+
     getProfilePictureUrl(filePath: string | null): string | null {
         if (!filePath) return null;
         
+        // All profile pictures should now be in the bucket, but keep this check for backwards compatibility
+        if (filePath.startsWith('/')) {
+            return filePath;
+        }
+        
+        // Get the public URL from Supabase storage
         const supabase = getSupabase();
         const { data } = supabase.storage
             .from('profile-pictures')
@@ -571,10 +623,9 @@ export const adminService = {
     async getAnalytics() {
         const supabase = getSupabase();
         
-        // Get all counts
         const [users, experts, posts, comments, votes, reports, communities] = await Promise.all([
             supabase.from("user_profiles").select("user_id, created_at, is_suspended, is_expert"),
-            supabase.from("experts").select("expert_id, created_at, is_verified, verified_at"),
+            supabase.from("experts").select("expert_id, is_verified, verified_at"),
             supabase.from("posts").select("post_id, created_at"),
             supabase.from("comments").select("comment_id, created_at"),
             supabase.from("votes").select("vote_id, created_at, vote_type"),

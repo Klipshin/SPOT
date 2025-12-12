@@ -15,23 +15,10 @@ function formatDate(dbDate: string) {
   });
 }
 
-function formatDate(dbDate: string) {
-  if (!dbDate) return '';
-  const date = new Date(dbDate);
-  return date.toLocaleString('en-US', {
-    month: 'short',   
-    day: 'numeric',   
-    year: 'numeric',  
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-}
-
 type HistoryProps = {
-    reporterProfile: string,
+    reporterProfile: string | null,
     reporterUsername: string,
-    reportedProfile: string,
+    reportedProfile: string | null,
     reportedUsername: string,
     date: string
 }
@@ -45,23 +32,27 @@ export default function HistoryCell({
 }: HistoryProps ) {
   // Get profile picture URLs from Supabase bucket
   const reporterProfileUrl = useMemo(() => {
+    if (!reporterProfile) return "/avatar-capybara.png";
     return profileService.getProfilePictureUrl(reporterProfile) || "/avatar-capybara.png";
   }, [reporterProfile]);
 
   const reportedProfileUrl = useMemo(() => {
+    if (!reportedProfile) return "/avatar-capybara.png";
     return profileService.getProfilePictureUrl(reportedProfile) || "/avatar-capybara.png";
   }, [reportedProfile]);
 
   return (
     <div className="py-2 px-25 bg-[#4A654D] font-poppins-medium text-white text-lg rounded-xl grid grid-cols-[2fr_2fr_minmax(150px,250px)] items-center justify-center">
         <div className="flex flex-row justify-start items-center space-x-3">
-            <Image 
-                src={reporterProfileUrl}
-                alt={reporterUsername}
-                width={50}
-                height={50}
-                className="rounded-full self-center"
-            />
+            <div className="w-[50px] h-[50px] rounded-full overflow-hidden flex-shrink-0">
+                <Image 
+                    src={reporterProfileUrl}
+                    alt={reporterUsername}
+                    width={50}
+                    height={50}
+                    className="w-full h-full object-cover"
+                />
+            </div>
 
             <div className="text-center text-xl">
                 {reporterUsername}
@@ -69,13 +60,15 @@ export default function HistoryCell({
         </div>
 
         <div className="flex flex-row justify-start items-center space-x-3">
-            <Image 
-                src={reportedProfileUrl}
-                alt={reportedUsername}
-                width={50}
-                height={50}
-                className="rounded-full self-center"
-            />
+            <div className="w-[50px] h-[50px] rounded-full overflow-hidden flex-shrink-0">
+                <Image 
+                    src={reportedProfileUrl}
+                    alt={reportedUsername}
+                    width={50}
+                    height={50}
+                    className="w-full h-full object-cover"
+                />
+            </div>
 
             <div className="text-center text-xl">
                 {reportedUsername}

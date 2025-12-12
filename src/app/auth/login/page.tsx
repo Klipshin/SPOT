@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useTransition } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { PiEyeBold, PiEyeClosedBold } from "react-icons/pi";
 import { FaFacebookSquare } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
@@ -12,9 +13,18 @@ import { useProfiles } from '@/src/lib/hooks/useProfiles';
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [error, setError] = useState<string>('');
     const [loading, setLoading] = useState(false);
     const { checkUserProfile } = useProfiles("");
+
+    useEffect(() => {
+        // Check for suspension error from URL (OAuth redirects)
+        const errorParam = searchParams.get('error');
+        if (errorParam === 'suspended') {
+            setError('Your account has been suspended. Please contact support for assistance.');
+        }
+    }, [searchParams]);
 
     const validateEmail = (email: string): string | null => {
         if (!email.trim()) {
@@ -63,6 +73,12 @@ export default function LoginPage() {
             const res = await login(formData);
 
             if (res?.userId) {
+                // Check if user is admin and redirect to admin dashboard
+                if (res.isAdmin) {
+                    router.push("/admin/dashboard");
+                    return;
+                }
+                
                 const redirected = await checkUserProfile(res.userId);
                 if (!redirected) {
                     router.push("/dashboard");
@@ -71,7 +87,9 @@ export default function LoginPage() {
             }
             
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred during signup');
+            const errorMessage = err instanceof Error ? err.message : 'An error occurred during login';
+            console.error('Login error:', err);
+            setError(errorMessage);
             setLoading(false);
         }
     };
@@ -111,7 +129,7 @@ export default function LoginPage() {
                         Log In
                     </h3>
                 </div>
-
+                
                 {error && (
                     <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
                         {error}

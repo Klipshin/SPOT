@@ -32,7 +32,7 @@ export default function SortDropDown({ value = "", onChange, options = [] }: Sor
   const selectedOption = options.find(opt => opt.value === value) || options[0] || { value: "", label: "Sort by" };
 
   return (
-    <div className="relative w-32 border-[#245329] border-2 bg-[#C4DA83] rounded-full p-1" ref={dropdownRef}>
+    <div className="relative w-55 border-[#245329] border-2 bg-[#C4DA83] rounded-full p-1" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="flex flex-row items-center justify-center w-full px-2 py-1 font-poppins-semibold text-base text-[#245329] cursor-pointer"

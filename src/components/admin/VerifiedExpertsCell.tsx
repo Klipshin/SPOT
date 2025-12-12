@@ -7,7 +7,7 @@ import { PiEyeBold } from 'react-icons/pi'
 import { profileService, expertService } from '@/src/lib/services'
 
 type ExpertProps = {
-  profile: string,
+  profile: string | null,
   name: string,
   username: string,
   job: string,
@@ -35,6 +35,7 @@ export default function VerifiedExpertsCell({
 
   // Get profile picture URL from Supabase bucket
   const profilePictureUrl = useMemo(() => {
+    if (!profile) return "/avatar-capybara.png";
     return profileService.getProfilePictureUrl(profile) || "/avatar-capybara.png";
   }, [profile]);
 
@@ -122,13 +123,15 @@ export default function VerifiedExpertsCell({
       </div>
 
       <div className="flex flex-row justify-center items-center space-x-2">
-        <Image 
-          src={profilePictureUrl}
-          alt={name}
-          width={75}
-          height={75}
-          className="rounded-full self-center"
-        />
+        <div className="w-[75px] h-[75px] rounded-full overflow-hidden flex-shrink-0">
+          <Image 
+            src={profilePictureUrl}
+            alt={name}
+            width={75}
+            height={75}
+            className="w-full h-full object-cover"
+          />
+        </div>
 
         <div className="flex flex-col text-black">
           <div className="font-poppins-bold text-3xl">{name}</div>

@@ -52,6 +52,8 @@ export default function SetupProfile({ userId, username }: SetupProfileProps) {
     setAvatarFile(null); 
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleCreateProfile = async () => {
     if (!profileName.trim()) {
       alert("Please enter a profile name.");
@@ -65,6 +67,13 @@ export default function SetupProfile({ userId, username }: SetupProfileProps) {
       alert("Please select an avatar.");
       return;
     }
+
+    // Prevent multiple submissions
+    if (isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
       const profileData: {
@@ -80,15 +89,18 @@ export default function SetupProfile({ userId, username }: SetupProfileProps) {
 
       if (avatarFile) {
         profileData.profile_picture = avatarFile;
-      } else if (profileAvatar.startsWith('/')) {
+      } 
+      else if (profileAvatar && profileAvatar.startsWith('/')) {
         profileData.profile_picture = profileAvatar;
       }
 
-      await createUserProfile(profileData as any);
-      router.push("/dashboard");
+      await createUserProfile(profileData);
+      router.push("/auth/login");
     } catch (error) {
       console.error("Error creating profile:", error);
       alert(error instanceof Error ? error.message : "Failed to create profile");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -179,14 +191,23 @@ export default function SetupProfile({ userId, username }: SetupProfileProps) {
 
             <button
               onClick={handleCreateProfile}
-              disabled={uploadingImage}
+              disabled={uploadingImage || isSubmitting}
               className="m-10 w-full rounded-full px-20 py-2 bg-[#C3DEE1CC] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-xl font-poppins-bold text-[#034CBCBA] flex items-center justify-center gap-2 hover:bg-[#034CBCBA] hover:text-[#C3DEE1CC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed ease-in-out cursor-pointer"
             >
-              {uploadingImage ? "Uploading..." : "Start Exploring!"}
-              <img
-                src="/binoculars-two.png"
-                className="text-3xl pointer-events-none scale-x-[-1]"
-              />
+              {uploadingImage || isSubmitting ? (
+                <span className="flex items-center gap-2">
+                  <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#034CBCBA]"></span>
+                  {uploadingImage ? "Uploading..." : "Storing profile..."}
+                </span>
+              ) : (
+                <>
+                  Start Exploring!
+                  <img
+                    src="/binoculars-two.png"
+                    className="text-3xl pointer-events-none scale-x-[-1]"
+                  />
+                </>
+              )}
             </button>
           </div>
         </div>

@@ -8,21 +8,9 @@ import ToggleBar from '@/src/components/admin/ToggleBar';
 import SearchBar from '@/src/components/admin/SearchBar';
 import SortDropDown from '@/src/components/admin/SortDropDown';
 import useAdmin from '@/src/lib/hooks/useAdmin';
+import { Expert, Profile } from '@/src/utils/supabase/models';
 
-type Expert = {
-  expert_id: string;
-  profile_picture: string | null;
-  name: string;
-  username: string;
-  occupation: string;
-  location: string;
-  academic_profile: string | null;
-  id_docu: string | null;
-  employment_proof: string | null;
-  diploma_docu: string | null;
-  verified_at?: string;
-  created_at?: string;
-};
+type ExpertWithProfile = Expert & Profile;
 
 export default function DashboardPage() {
   const [activeCategory, setActiveCategory] = useState("Verified Experts");
@@ -33,14 +21,12 @@ export default function DashboardPage() {
 
   const sortOptions = [
     { value: "name", label: "Name (A-Z)" },
-    { value: "name-desc", label: "Name (Z-A)" },
     { value: "occupation", label: "Occupation (A-Z)" },
     { value: "location", label: "Location (A-Z)" },
-    { value: "date", label: "Date (Newest)" },
-    { value: "date-desc", label: "Date (Oldest)" },
+    { value: "date", label: "Newest" },
+    { value: "date-desc", label: "Oldest" },
   ];
 
-  // Filter and sort experts based on active category
   const filteredAndSortedExperts = useMemo(() => {
     const experts = activeCategory === "Verified Experts" ? verifiedExperts : pendingExperts;
     
@@ -48,7 +34,7 @@ export default function DashboardPage() {
     let filtered = experts;
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = experts.filter((expert: Expert) => 
+      filtered = experts.filter((expert: ExpertWithProfile) => 
         expert.name?.toLowerCase().includes(query) ||
         expert.username?.toLowerCase().includes(query) ||
         expert.occupation?.toLowerCase().includes(query) ||
@@ -57,7 +43,7 @@ export default function DashboardPage() {
     }
 
     // Sort
-    const sorted = [...filtered].sort((a: Expert, b: Expert) => {
+    const sorted = [...filtered].sort((a: ExpertWithProfile, b: ExpertWithProfile) => {
       switch (sortBy) {
         case "name":
           return (a.name || "").localeCompare(b.name || "");
@@ -68,12 +54,12 @@ export default function DashboardPage() {
         case "location":
           return (a.location || "").localeCompare(b.location || "");
         case "date":
-          const dateA = a.verified_at || a.created_at || "";
-          const dateB = b.verified_at || b.created_at || "";
+          const dateA = a.verified_at ||  "";
+          const dateB = b.verified_at ||  "";
           return dateB.localeCompare(dateA);
         case "date-desc":
-          const dateA2 = a.verified_at || a.created_at || "";
-          const dateB2 = b.verified_at || b.created_at || "";
+          const dateA2 = a.verified_at ||  "";
+          const dateB2 = b.verified_at ||  "";
           return dateA2.localeCompare(dateB2);
         default:
           return 0;
@@ -133,10 +119,10 @@ export default function DashboardPage() {
         )}
 
         {activeCategory === "Verified Experts" && !loading && filteredAndSortedExperts.length > 0 && (
-          filteredAndSortedExperts.map((expert: Expert) => (
+          filteredAndSortedExperts.map((expert: ExpertWithProfile) => (
             <VerifiedExpertsCell
               key={expert.expert_id}
-              profile={expert.profile_picture}
+              profile={expert.profile_picture || null}
               name={expert.name}
               username={`@${expert.username}`}
               job={expert.occupation}
@@ -150,11 +136,11 @@ export default function DashboardPage() {
         )}
 
         {activeCategory === "Pending Verifications" && !loading && filteredAndSortedExperts.length > 0 && (
-          filteredAndSortedExperts.map((expert: Expert) => (
+          filteredAndSortedExperts.map((expert: ExpertWithProfile) => (
             <PendingVerificationCell
               key={expert.expert_id}
               expertId={expert.expert_id}
-              profile={expert.profile_picture}
+              profile={expert.profile_picture || null}
               name={expert.name}
               username={`@${expert.username}`}
               job={expert.occupation}

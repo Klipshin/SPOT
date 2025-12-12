@@ -116,6 +116,14 @@ export default function ExpertVerification({currentUser} : {currentUser: string}
         return;
     }
 
+    // Prevent multiple submissions
+    if (isSubmitting) {
+        return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError(null);
+
     try {
         const expertData: {
             occupation: string;
@@ -251,12 +259,21 @@ export default function ExpertVerification({currentUser} : {currentUser: string}
 
             <button 
                 onClick={handleContinue}
-                disabled={isSubmitting}
+                disabled={isSubmitting || uploadingIdDocu || uploadingEmploymentProof || uploadingDiplomaDocu}
                 className="relative m-10 rounded-full px-20 py-2 bg-[#C3DEE1CC] shadow-[0_4px_8px_rgba(0,0,0,0.3)] text-2xl font-poppins-bold text-[#034CBCBA] flex items-center justify-center gap-2
                     hover:bg-[#034CBCBA] hover:text-[#C3DEE1CC] transition-colors dura ease-in-out cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {isSubmitting ? "Submitting..." : "Continue"}
-                <IoChevronBackCircle className="absolute right-3 text-3xl pointer-events-none scale-x-[-1]"/>
+                {isSubmitting || uploadingIdDocu || uploadingEmploymentProof || uploadingDiplomaDocu ? (
+                    <span className="flex items-center gap-2">
+                        <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-[#034CBCBA]"></span>
+                        Storing information...
+                    </span>
+                ) : (
+                    <>
+                        Continue
+                        <IoChevronBackCircle className="absolute right-3 text-3xl pointer-events-none scale-x-[-1]"/>
+                    </>
+                )}
             </button>
         </div>
 

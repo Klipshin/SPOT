@@ -12,21 +12,28 @@ function BarChart({ data, maxValue, color = "#4A654D" }: { data: { date: string;
       {data.map((item, index) => {
         const value = item.count;
         const height = maxValue > 0 ? (value / maxValue) * 100 : 0;
-        const label = item[labelKey as keyof typeof item] as string;
+        const label = String(item[labelKey as keyof typeof item]);
         
         return (
           <div key={index} className="flex flex-col items-center flex-1 group relative">
             <div
-              className="w-full rounded-t transition-all duration-300 hover:opacity-80 cursor-pointer"
+              className="w-full rounded-t transition-all duration-300 hover:opacity-80 cursor-pointer relative"
               style={{
                 height: `${height}%`,
                 backgroundColor: color,
                 minHeight: value > 0 ? '4px' : '0px',
               }}
-              title={`${label}: ${value}`}
-            />
-            <div className="text-xs text-gray-600 mt-1 transform -rotate-45 origin-top-left whitespace-nowrap font-poppins text-[10px]">
-              {typeof label === 'string' && label.length > 8 ? label.substring(0, 8) + '...' : label}
+            >
+              {/* Tooltip on hover */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+                <div className="bg-gray-800 text-white text-xs rounded-lg py-2 px-3 shadow-lg whitespace-nowrap">
+                  <div className="font-poppins-semibold">{label}</div>
+                  <div className="font-poppins text-white/90 mt-0.5">Count: {value}</div>
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-full">
+                    <div className="border-4 border-transparent border-t-gray-800"></div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -85,15 +92,16 @@ function PieChart({ data, colors = ["#4A654D", "#C4DA83", "#FFC048", "#BF0003"] 
           ].join(' ');
           
           return (
-            <path
-              key={index}
-              d={pathData}
-              fill={segment.color}
-              stroke="white"
-              strokeWidth="2"
-              className="hover:opacity-80 transition-opacity cursor-pointer"
-              title={`${segment.type}: ${segment.count} (${segment.percentage.toFixed(1)}%)`}
-            />
+            <g key={index}>
+              <title>{`${segment.type}: ${segment.count} (${segment.percentage.toFixed(1)}%)`}</title>
+              <path
+                d={pathData}
+                fill={segment.color}
+                stroke="white"
+                strokeWidth="2"
+                className="hover:opacity-80 transition-opacity cursor-pointer"
+              />
+            </g>
           );
         })}
       </svg>
@@ -153,26 +161,16 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full">
+      <div className="flex flex-row space-x-5">
         <InfoCards 
           icon="/total-users.svg"
           title="Total Users"
           data={analytics.totalUsers}
         />
         <InfoCards 
-          icon="/verified-users.svg"
-          title="Verified Experts"
-          data={analytics.verifiedExperts}
-        />
-        <InfoCards 
           icon="/total-reports.svg"
           title="Total Posts"
           data={analytics.totalPosts}
-        />
-        <InfoCards 
-          icon="/total-reports.svg"
-          title="Total Reports"
-          data={analytics.totalReports}
         />
       </div>
 
@@ -208,45 +206,36 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Charts Row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full">
-        {/* User Growth (Last 30 Days) */}
         <div className="bg-white/35 rounded-2xl p-5">
           <h3 className="font-poppins-bold text-xl text-[#082E0D] mb-4">User Growth (Last 30 Days)</h3>
           <BarChart data={analytics.userGrowth} maxValue={maxUserGrowth} color="#4A654D" />
         </div>
 
-        {/* Post Growth (Last 30 Days) */}
         <div className="bg-white/35 rounded-2xl p-5">
           <h3 className="font-poppins-bold text-xl text-[#082E0D] mb-4">Post Growth (Last 30 Days)</h3>
           <BarChart data={analytics.postGrowth} maxValue={maxPostGrowth} color="#C4DA83" />
         </div>
       </div>
 
-      {/* Charts Row 2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full">
-        {/* Monthly User Growth */}
         <div className="bg-white/35 rounded-2xl p-5">
           <h3 className="font-poppins-bold text-xl text-[#082E0D] mb-4">Users by Month (Last 12 Months)</h3>
           <BarChart data={analytics.usersByMonth} maxValue={maxUsersByMonth} color="#4A654D" />
         </div>
 
-        {/* Monthly Post Growth */}
         <div className="bg-white/35 rounded-2xl p-5">
           <h3 className="font-poppins-bold text-xl text-[#082E0D] mb-4">Posts by Month (Last 12 Months)</h3>
           <BarChart data={analytics.postsByMonth} maxValue={maxPostsByMonth} color="#C4DA83" />
         </div>
       </div>
 
-      {/* Charts Row 3 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full">
-        {/* Reports by Type */}
         <div className="bg-white/35 rounded-2xl p-5">
           <h3 className="font-poppins-bold text-xl text-[#082E0D] mb-4">Reports by Type</h3>
           <PieChart data={analytics.reportsByType} />
         </div>
 
-        {/* Additional Stats */}
         <div className="bg-white/35 rounded-2xl p-5">
           <h3 className="font-poppins-bold text-xl text-[#082E0D] mb-4">Platform Statistics</h3>
           <div className="space-y-4">

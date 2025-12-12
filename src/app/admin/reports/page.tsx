@@ -18,8 +18,8 @@ export default function ReportsPage() {
   const { totalUsers, totalReports, totalUndismissedReports, loading, error } = useAdmin();
 
   const sortOptions = [
-    { value: "date", label: "Date (Newest)" },
-    { value: "date-desc", label: "Date (Oldest)" },
+    { value: "date", label: "Newest" },
+    { value: "date-desc", label: "Oldest" },
     { value: "reporter", label: "Reporter (A-Z)" },
     { value: "reported", label: "Reported (A-Z)" },
   ];
@@ -62,8 +62,6 @@ export default function ReportsPage() {
 
     return sorted;
   }, [activeCategory, totalReports, totalUndismissedReports, searchQuery, sortBy]);
-
-  const { totalUsers, totalReports, totalUndismissedReports, loading, error } = useAdmin();
 
   return (
     <div className="relative flex flex-col mt-3 space-y-5 w-full px-5">
@@ -117,9 +115,9 @@ export default function ReportsPage() {
               <p className="text-center py-5">No reports found.</p>
             )}
             {filteredAndSortedReports.map((r: ReportWithProfiles) => {
-              const reporterAvatar = r.reporterProfile?.profile_picture ?? "/default-avatar.png";
+              const reporterAvatar = r.reporterProfile?.profile_picture ?? null;
               const reporterUsername = r.reporterProfile?.username ?? "Unknown";
-              const reportedAvatar = r.reportedProfile?.profile_picture ?? "/default-avatar.png";
+              const reportedAvatar = r.reportedProfile?.profile_picture ?? null;
               const reportedUsername = r.reportedProfile?.username ?? "Unknown";
 
               return (
@@ -155,9 +153,9 @@ export default function ReportsPage() {
             )}
 
             {filteredAndSortedReports.map((r: ReportWithProfiles) => {
-              const reporterAvatar = r.reporterProfile?.profile_picture ?? "/default-avatar.png";
+              const reporterAvatar = r.reporterProfile?.profile_picture ?? null;
               const reporterUsername = r.reporterProfile?.username ?? "Unknown";
-              const reportedAvatar = r.reportedProfile?.profile_picture ?? "/default-avatar.png";
+              const reportedAvatar = r.reportedProfile?.profile_picture ?? null;
               const reportedUsername = r.reportedProfile?.username ?? "Unknown";
 
               return (

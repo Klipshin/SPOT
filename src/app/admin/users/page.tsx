@@ -3,6 +3,7 @@
 import InfoCards from '@/src/components/admin/InfoCards'
 import SearchBar from '@/src/components/admin/SearchBar'
 import SortDropDown from '@/src/components/admin/SortDropDown'
+import ToggleBar from '@/src/components/admin/ToggleBar'
 import UserCell from '@/src/components/admin/UserCell'
 import useAdmin from '@/src/lib/hooks/useAdmin'
 import React, { useState, useMemo } from 'react'
@@ -18,29 +19,43 @@ type User = {
 
 export default function UserManagementPage() {
   const { activeUsers, suspendedUsers, loading, error } = useAdmin();
+  const [activeCategory, setActiveCategory] = useState("Active");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("username");
 
   const sortOptions = [
     { value: "username", label: "Username (A-Z)" },
     { value: "username-desc", label: "Username (Z-A)" },
-    { value: "status", label: "Status (Active First)" },
-    { value: "status-desc", label: "Status (Suspended First)" },
     { value: "date", label: "Date (Newest)" },
     { value: "date-desc", label: "Date (Oldest)" },
   ];
 
   const allUsers = useMemo(() => {
-    const users = [
-      ...activeUsers.map((user) => ({
+    // Get users based on active category
+    let users: User[] = [];
+    if (activeCategory === "Active") {
+      users = activeUsers.map((user) => ({
         ...user,
-        status: user.is_suspended ? "Suspended" : "Active",
-      })),
-      ...suspendedUsers.map((user) => ({
+        status: "Active",
+      }));
+    } else if (activeCategory === "Suspended") {
+      users = suspendedUsers.map((user) => ({
         ...user,
-        status: user.is_suspended ? "Suspended": "Active"
-      })),
-    ];
+        status: "Suspended",
+      }));
+    } else {
+      // Show all users (if "All" is ever added)
+      users = [
+        ...activeUsers.map((user) => ({
+          ...user,
+          status: "Active",
+        })),
+        ...suspendedUsers.map((user) => ({
+          ...user,
+          status: "Suspended",
+        })),
+      ];
+    }
 
     // Filter by search query
     let filtered = users;
@@ -76,7 +91,7 @@ export default function UserManagementPage() {
     });
 
     return sorted;
-  }, [activeUsers, suspendedUsers, searchQuery, sortBy]);
+  }, [activeUsers, suspendedUsers, activeCategory, searchQuery, sortBy]);
 
   return (
     <div className="relative flex flex-col mt-3 space-y-5 w-full px-5">
@@ -99,6 +114,13 @@ export default function UserManagementPage() {
       </div>
 
       <div className="flex flex-row items-center justify-between w-full">
+        <ToggleBar 
+          barOne="Active"
+          barTwo="Suspended"
+          activeCategory={activeCategory}
+          onChange={setActiveCategory}
+        />
+
         <div className="flex flex-row items-center space-x-2">
           <SearchBar 
             value={searchQuery}
@@ -132,7 +154,7 @@ export default function UserManagementPage() {
           <UserCell
             key={user.user_id}
             userId={user.user_id}
-            profile={user.profile_picture || "/avatar-capybara.png"}
+            profile={user.profile_picture || null}
             username={user.username}
             status={user.status}
           />

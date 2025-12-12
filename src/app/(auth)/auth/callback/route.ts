@@ -52,26 +52,34 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/initial-setup', origin))
     }
 
-    // For sign-ins, check user profile
-    try {
-      const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('username, is_expert')
-        .eq('user_id', user.id)
-        .single()
+      // For sign-ins, check user profile
+      try {
+        const { data: profile, error: profileError } = await supabase
+          .from('user_profiles')
+          .select('username, is_expert, is_suspended')
+          .eq('user_id', user.id)
+          .single()
 
-      console.log('[OAuth Callback] Profile check:', { 
-        hasProfile: !!profile, 
-        hasUsername: !!profile?.username,
-        isExpert: profile?.is_expert,
-        error: profileError?.code 
-      })
+        console.log('[OAuth Callback] Profile check:', { 
+          hasProfile: !!profile, 
+          hasUsername: !!profile?.username,
+          isExpert: profile?.is_expert,
+          isSuspended: profile?.is_suspended,
+          error: profileError?.code 
+        })
 
-      // If profile doesn't exist or username is null, redirect to initial setup
-      if (profileError?.code === 'PGRST116' || !profile || !profile.username) {
-        console.log('[OAuth Callback] Redirecting to initial-setup (no profile/username)')
-        return NextResponse.redirect(new URL('/initial-setup', origin))
-      }
+        // Check if user is suspended
+        if (profile && profile.is_suspended === true) {
+          console.log('[OAuth Callback] User is suspended, signing out')
+          await supabase.auth.signOut()
+          return NextResponse.redirect(new URL('/auth/login?error=suspended', origin))
+        }
+
+        // If profile doesn't exist or username is null, redirect to initial setup
+        if (profileError?.code === 'PGRST116' || !profile || !profile.username) {
+          console.log('[OAuth Callback] Redirecting to initial-setup (no profile/username)')
+          return NextResponse.redirect(new URL('/initial-setup', origin))
+        }
 
       // If user is an expert, check if they're verified
       if (profile.is_expert) {
@@ -88,11 +96,20 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // User has complete profile, redirect to dashboard
-      console.log('[OAuth Callback] Redirecting to dashboard:', redirectTo.toString())
+      // Check if user is admin and redirect to admin dashboard
+      const adminEmails = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '')
+        .split(',')
+        .map(e => e.trim().toLowerCase())
+        .filter(e => e.length > 0)
+      const isAdmin = user.email && adminEmails.length > 0 && 
+        adminEmails.includes(user.email.toLowerCase().trim())
+      
+      // User has complete profile, redirect to appropriate dashboard
+      const finalRedirect = isAdmin ? new URL('/admin/dashboard', origin) : redirectTo
+      console.log('[OAuth Callback] Redirecting to:', finalRedirect.toString(), isAdmin ? '(ADMIN)' : '')
       
       // Get the response with proper cookie handling
-      const response = NextResponse.redirect(redirectTo)
+      const response = NextResponse.redirect(finalRedirect)
       
       // Ensure we're using the same supabase instance that has the session
       // The cookies should already be set by exchangeCodeForSession

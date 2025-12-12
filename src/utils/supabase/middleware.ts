@@ -37,6 +37,22 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // Check admin access for admin routes
+  const adminEmails = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || '')
+    .split(',')
+    .map(e => e.trim().toLowerCase())
+    .filter(e => e.length > 0)
+  const isAdminPath = request.nextUrl.pathname.startsWith('/admin')
+  const isAdmin = user?.email && adminEmails.length > 0 && 
+    adminEmails.includes(user.email.toLowerCase().trim())
+
+  // If trying to access admin routes but not an admin, redirect to dashboard
+  if (user && isAdminPath && !isAdmin) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
   // Public paths that don't require authentication
   const publicPaths = ['/', '/landing', '/auth', '/upload', '/error']
   const isPublicPath = publicPaths.some(path => 

@@ -22,9 +22,9 @@ function formatDate(dbDate: string) {
 
 type FeedProps = {
     reportId: string,
-    reporterProfile: string,
+    reporterProfile: string | null,
     reporterUsername: string,
-    reportedProfile: string,
+    reportedProfile: string | null,
     reportedUsername: string,
     reportedId: string,
     reportedAt: string,
@@ -53,10 +53,12 @@ export default function FeedCell({
 
     // Get profile picture URLs from Supabase bucket
     const reporterProfileUrl = useMemo(() => {
+        if (!reporterProfile) return "/avatar-capybara.png";
         return profileService.getProfilePictureUrl(reporterProfile) || "/avatar-capybara.png";
     }, [reporterProfile]);
 
     const reportedProfileUrl = useMemo(() => {
+        if (!reportedProfile) return "/avatar-capybara.png";
         return profileService.getProfilePictureUrl(reportedProfile) || "/avatar-capybara.png";
     }, [reportedProfile]);
 
@@ -75,13 +77,15 @@ export default function FeedCell({
         <div className="grid grid-cols-[1.5fr_2fr_1.5fr_1fr] gap-5 items-center justify-center">
             <div className="w-full flex flex-col justify-start items-start space-y-5">
                 <div className="flex flex-row justify-start items-center space-x-3">
-                    <Image 
-                        src={reporterProfileUrl}
-                        alt={reporterUsername}
-                        width={60}
-                        height={60}
-                        className="rounded-full self-center"
-                    />
+                    <div className="w-[60px] h-[60px] rounded-full overflow-hidden flex-shrink-0">
+                        <Image 
+                            src={reporterProfileUrl}
+                            alt={reporterUsername}
+                            width={60}
+                            height={60}
+                            className="w-full h-full object-cover"
+                        />
+                    </div>
 
                     <div className="flex flex-col text-white">
                         <div className="font-poppins-bold text-2xl">{reporterUsername}</div>
@@ -95,13 +99,15 @@ export default function FeedCell({
                     </div>
 
                     <div className="w-full flex flex-row justify-start items-center space-x-3 px-3 py-2 bg-[#2B442E] rounded-lg">
-                        <Image 
-                            src={reportedProfileUrl}
-                            alt={reportedUsername}
-                            width={45}
-                            height={45}
-                            className="rounded-full self-center"
-                        />
+                        <div className="w-[45px] h-[45px] rounded-full overflow-hidden flex-shrink-0">
+                            <Image 
+                                src={reportedProfileUrl}
+                                alt={reportedUsername}
+                                width={45}
+                                height={45}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
 
                         <div className="font-poppins-bold text-xl">{reportedUsername}</div>
                     </div>
@@ -111,13 +117,15 @@ export default function FeedCell({
             {type === "post" && (
                 <div className="flex flex-col bg-white p-3 rounded-lg justify-start items-start space-y-3">
                     <div className="flex flex-row justify-start items-center space-x-3">
-                        <Image 
-                            src={reportedProfileUrl}
-                            alt={reportedUsername}
-                            width={40}
-                            height={40}
-                            className="rounded-full"
-                        />
+                        <div className="w-[40px] h-[40px] rounded-full overflow-hidden flex-shrink-0">
+                            <Image 
+                                src={reportedProfileUrl}
+                                alt={reportedUsername}
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
             
                         <div className="flex flex-col text-black">
                             <div className="font-poppins-bold text-lg text-black">{reportedUsername}</div>
@@ -140,13 +148,15 @@ export default function FeedCell({
             {type === "comment" && (
                 <div className="flex flex-col bg-white p-3 rounded-lg justify-start items-start space-y-3">
                     <div className="flex flex-row justify-start items-center space-x-3">
-                        <Image 
-                            src={reportedProfileUrl}
-                            alt={reportedUsername}
-                            width={40}
-                            height={40}
-                            className="rounded-full"
-                        />
+                        <div className="w-[40px] h-[40px] rounded-full overflow-hidden flex-shrink-0">
+                            <Image 
+                                src={reportedProfileUrl}
+                                alt={reportedUsername}
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-cover"
+                            />
+                        </div>
             
                         <div className="flex flex-col text-black">
                             <div className="font-poppins-bold text-lg text-black">{reportedUsername}</div>

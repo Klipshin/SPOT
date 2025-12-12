@@ -97,12 +97,7 @@ export default function SignUpForm({role, onBack} : Props) {
         try {
             formData.append('is_expert', String(role === 'expert'));
             await signup(formData);
-            
-            if (role === 'enthusiast') {
-                router.push("/initial-setup");
-            } else {
-                router.push("/auth/expert-verification");
-            }
+            router.push("/auth/expert-verification")
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred during signup');
             setLoading(false);
